@@ -1,0 +1,1893 @@
+// ===== CUEAI - INTELLIGENT AUDIO COMPANION =====
+// Author: Expert AI Team
+// Version: 1.0 MVP
+
+class CueAI {
+    constructor() {
+        // Core Configuration
+    this.apiKey = localStorage.getItem('cueai_api_key') || null;
+        this.freesoundApiKey = localStorage.getItem('freesound_api_key') || null;
+        this.pixabayApiKey = localStorage.getItem('pixabay_api_key') || null;
+        this.currentMode = 'dnd';
+        this.isListening = false;
+        this.minVolume = 0.2;
+        this.maxVolume = 0.7;
+    this.analysisVersion = 0; // increment on mode changes to ignore stale AI results
+    // Playback preferences
+    this.musicEnabled = JSON.parse(localStorage.getItem('cueai_music_enabled') ?? 'true');
+    this.sfxEnabled = JSON.parse(localStorage.getItem('cueai_sfx_enabled') ?? 'true');
+    // Mixer levels (user-controlled)
+    this.musicLevel = parseFloat(localStorage.getItem('cueai_music_level') ?? '0.5'); // default 50%
+    this.sfxLevel = parseFloat(localStorage.getItem('cueai_sfx_level') ?? '0.9');   // default 90%
+    this.currentMusicBase = 0.5; // last intensity-derived music gain (pre-user)
+    // Mood & performance
+    this.moodBias = parseFloat(localStorage.getItem('cueai_mood_bias') ?? '0.5'); // 0..1
+    this.lowLatencyMode = JSON.parse(localStorage.getItem('cueai_low_latency') ?? 'false');
+    this.preloadConcurrency = this.getPreloadConcurrency();
+        
+        // Speech Recognition
+        this.recognition = null;
+        this.transcriptBuffer = [];
+    this.lastAnalysisTime = 0;
+        this.analysisInterval = 2000; // Analyze every 2 seconds for faster response
+    this.analysisTimer = null;
+    this.analysisInProgress = false;
+    this.currentInterim = '';
+        
+        // Audio System
+        this.audioContext = null;
+        this.currentMusic = null;
+        this.currentMusicSource = null;
+        this.musicGainNode = null;
+        this.masterGainNode = null;
+        // SFX bus
+        this.sfxBusGain = null;
+        this.sfxCompressor = null;
+        this.activeSounds = new Map();
+        this.activeBuffers = new Map(); // Store decoded audio buffers
+        this.sfxNormGains = new Map(); // url -> normalization gain
+        this.soundQueue = [];
+        this.maxSimultaneousSounds = 3;
+        this.duckingInProgress = false;
+        this.duckParams = { attack: 0.05, hold: 0.15, release: 0.35, floor: 0.25 };
+        this.stingerTimer = null;
+        
+        // Preload state
+        this.preloadInProgress = false;
+        this.preloadVersion = 0; // bump to cancel previous preloads on mode change
+        // Expanded per-mode preload sets (15-20 common, CC0-friendly queries)
+        this.modePreloadSets = {
+            bedtime: [
+                'dog bark','cat meow','door knock','rain','wind whoosh','fire crackling','owl hoot',
+                'crickets','soft footsteps','page turn','blanket rustle','wood creak','clock tick',
+                'distant thunder','water drip','bird chirp','lullaby chime','toy bell','piano soft',
+                'heartbeat soft'
+            ],
+            dnd: [
+                'sword clash','arrow shot','monster roar','footsteps','door creak','thunder','coin jingle',
+                'spell cast','magic whoosh','shield block','torch crackle','crowd tavern','horse gallop',
+                'gate open','dragon roar','bow twang','book page turn','chain rattle','door slam','wind cave'
+            ],
+            horror: [
+                'door creak','whisper','heartbeat','wind whoosh','ghost boo','witch cackle','chain drag',
+                'footsteps hallway','breath heavy','thunder distant','scream far','floorboard creak',
+                'owl hoot','metal scrape','water drip','clock tick','radio static','crow caw','cat hiss','wolf howl'
+            ],
+            christmas: [
+                'jingle bells','sleigh bells','fire crackling','children laugh','wind arctic','snow footsteps',
+                'gift wrap','door knock','bell chime','choir ahh','reindeer bells','door creak','ice crackle',
+                'wind whoosh','glass clink','street christmas','crowd cheer','applause','laugh','santa ho ho'
+            ],
+            halloween: [
+                'witch cackle','ghost boo','wolf howl','door creak','thunder','owl hoot','chain rattle',
+                'bat flutter','cat hiss','wind whoosh','zombie groan','crow caw','footsteps leaves',
+                'pumpkin squash','monster roar','scream far','gate creak','rain','distant bells','cauldron bubble'
+            ],
+            sing: [
+                'applause','crowd cheer','drum kick','snare hit','metronome click','hi hat','clap',
+                'shaker','tambourine','airhorn short','bass drop short','reverb clap','vocal ahh short',
+                'vocal ohh short','tap tempo click','count in','guitar strum','piano chord','sub drop','riser short'
+            ],
+            auto: [
+                'dog bark','door knock','footsteps','thunder','fire crackling','wind whoosh','applause',
+                'laugh','scream','metal crash','water splash','door slam','heartbeat','bird chirp','cat meow',
+                'car horn','bell chime','crowd murmur','coin jingle','keyboard typing'
+            ]
+        };
+        this.genericPreloadSet = [
+            'dog bark','door knock','footsteps','thunder','fire crackling','wind whoosh','applause',
+            'laugh','scream','metal crash','water splash','door slam','heartbeat','bird chirp','cat meow',
+            'bell chime','coin jingle','crow caw','owl hoot','chain rattle'
+        ];
+        
+        // Visualizer
+        this.analyser = null;
+        this.visualizerAnimationId = null;
+        
+    // Cache / recent playback tracking
+    this.soundCache = new Map();
+    this.recentlyPlayed = new Set(); // track recent URLs to reduce repeats
+        
+            // Instant trigger keywords for immediate sound effects
+            this.instantKeywords = {
+                'bang': { query: 'gunshot explosion', volume: 0.9 },
+                'crash': { query: 'crash metal', volume: 0.8 },
+                'boom': { query: 'explosion boom', volume: 0.9 },
+                'thunder': { query: 'thunder storm', volume: 0.8 },
+                'scream': { query: 'scream horror', volume: 0.7 },
+                'roar': { query: 'monster roar', volume: 0.8 },
+                'slam': { query: 'door slam', volume: 0.7 },
+                'splash': { query: 'water splash', volume: 0.6 },
+                'whoosh': { query: 'wind whoosh', volume: 0.6 },
+                'thud': { query: 'heavy thud', volume: 0.7 },
+                // Everyday quick cues
+                'bark': { query: 'dog bark', volume: 0.7 },
+                'woof': { query: 'dog bark', volume: 0.7 },
+                'meow': { query: 'cat meow', volume: 0.6 },
+                'knock': { query: 'door knock', volume: 0.7 },
+                'footsteps': { query: 'footsteps', volume: 0.6 },
+                'footstep': { query: 'footsteps', volume: 0.6 },
+                'clap': { query: 'applause', volume: 0.7 },
+                'applause': { query: 'applause', volume: 0.7 },
+                'laugh': { query: 'laugh', volume: 0.7 },
+                'giggle': { query: 'laugh', volume: 0.6 },
+                // Horror-focused additions
+                'creak': { query: 'door creak', volume: 0.6 },
+                'whisper': { query: 'whisper breath', volume: 0.5 },
+                'heartbeat': { query: 'heartbeat', volume: 0.6 },
+                // Christmas additions
+                'jingle': { query: 'jingle bells', volume: 0.7 },
+                'sleigh': { query: 'sleigh bells', volume: 0.7 },
+                'hohoho': { query: 'santa laugh ho ho', volume: 0.8 },
+                // Halloween additions
+                'cackle': { query: 'witch cackle laugh', volume: 0.7 },
+                'boo': { query: 'ghost boo', volume: 0.6 },
+                'howl': { query: 'wolf howl', volume: 0.7 }
+            };
+        
+        // Initialize
+        this.init();
+    }
+    
+    init() {
+        this.checkApiKey();
+        this.setupEventListeners();
+        this.initializeAudioContext();
+        this.initializeSpeechRecognition();
+        this.setupVisualizer();
+        this.updateApiStatusIndicators();
+    }
+    
+    // ===== API KEY MANAGEMENT =====
+    checkApiKey() {
+        const modal = document.getElementById('apiKeyModal');
+        const appContainer = document.getElementById('appContainer');
+        
+        if (this.apiKey) {
+            modal.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+        } else {
+            modal.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+        }
+    }
+    
+    saveApiKey() {
+        const input = document.getElementById('apiKeyInput');
+        const key = input.value.trim();
+        
+        if (key.length > 10) {
+            this.apiKey = key;
+            localStorage.setItem('cueai_api_key', key);
+            this.checkApiKey();
+            this.updateStatus(`OpenAI API Key saved!`);
+            this.updateApiStatusIndicators();
+        } else {
+            alert('Invalid API key. Please check and try again.');
+        }
+    }
+    
+    resetApiKey() {
+        if (confirm('Are you sure you want to reset your API key?')) {
+            localStorage.removeItem('cueai_api_key');
+            this.apiKey = null;
+            this.stopListening();
+            this.checkApiKey();
+            this.updateApiStatusIndicators();
+        }
+    }
+    
+    showFreesoundSetup() {
+        document.getElementById('freesoundModal').classList.remove('hidden');
+    }
+    
+    hideFreesoundSetup() {
+        document.getElementById('freesoundModal').classList.add('hidden');
+    }
+
+    showTutorial() {
+        document.getElementById('tutorialModal').classList.remove('hidden');
+    }
+
+    hideTutorial() {
+        document.getElementById('tutorialModal').classList.add('hidden');
+    }
+    
+    saveAudioKeys() {
+        const freesoundInput = document.getElementById('freesoundKeyInput');
+        const pixabayInput = document.getElementById('pixabayKeyInput');
+        const freesoundKey = freesoundInput.value.trim();
+        const pixabayKey = pixabayInput.value.trim();
+        
+        let saved = false;
+        
+        if (freesoundKey.length > 10) {
+            this.freesoundApiKey = freesoundKey;
+            localStorage.setItem('freesound_api_key', freesoundKey);
+            saved = true;
+        }
+        
+        if (pixabayKey.length > 10) {
+            this.pixabayApiKey = pixabayKey;
+            localStorage.setItem('pixabay_api_key', pixabayKey);
+            saved = true;
+        }
+        
+        if (saved) {
+            this.hideFreesoundSetup();
+            this.updateApiStatusIndicators();
+            const sources = [];
+            if (pixabayKey) sources.push('Pixabay');
+            if (freesoundKey) sources.push('Freesound');
+            this.updateStatus(`Audio sources enabled: ${sources.join(' + ')}`);
+            alert(`Audio Keys Saved!\n\nEnabled: ${sources.join(', ')}\n\nYou will now hear high-quality sounds when CueAI analyzes your speech.`);
+        } else {
+            alert('Please enter at least one valid API key (10+ characters).');
+        }
+    }
+    
+    // ===== EVENT LISTENERS =====
+    setupEventListeners() {
+        // API Key
+        document.getElementById('saveApiKey').addEventListener('click', () => this.saveApiKey());
+        document.getElementById('resetApiKey').addEventListener('click', () => this.resetApiKey());
+        
+        // Mode Selection (Dropdown)
+        const modeDropdown = document.getElementById('modeDropdown');
+        if (modeDropdown) {
+            modeDropdown.addEventListener('change', (e) => this.selectMode(e.target.value));
+        }
+        
+        // Legacy mode buttons (if still present)
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.selectMode(e.target.dataset.mode));
+        });
+        
+        // Volume Controls
+        document.getElementById('minVolume').addEventListener('input', (e) => {
+            this.minVolume = e.target.value / 100;
+            document.getElementById('minVolumeValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('maxVolume').addEventListener('input', (e) => {
+            this.maxVolume = e.target.value / 100;
+            document.getElementById('maxVolumeValue').textContent = e.target.value;
+        });
+
+        // Mixer Controls
+        const musicLevelSlider = document.getElementById('musicLevel');
+        const sfxLevelSlider = document.getElementById('sfxLevel');
+        if (musicLevelSlider) {
+            musicLevelSlider.value = Math.round(this.musicLevel * 100);
+            const musicLevelValue = document.getElementById('musicLevelValue');
+            if (musicLevelValue) musicLevelValue.textContent = musicLevelSlider.value;
+            musicLevelSlider.addEventListener('input', (e) => {
+                this.musicLevel = e.target.value / 100;
+                localStorage.setItem('cueai_music_level', String(this.musicLevel));
+                if (musicLevelValue) musicLevelValue.textContent = e.target.value;
+                // Apply to current music gain immediately
+                const target = this.getMusicTargetGain();
+                try {
+                    this.musicGainNode.gain.setValueAtTime(target, this.audioContext.currentTime);
+                } catch (_) {}
+                this.updateSoundsList();
+            });
+        }
+        if (sfxLevelSlider) {
+            sfxLevelSlider.value = Math.round(this.sfxLevel * 100);
+            const sfxLevelValue = document.getElementById('sfxLevelValue');
+            if (sfxLevelValue) sfxLevelValue.textContent = sfxLevelSlider.value;
+            sfxLevelSlider.addEventListener('input', (e) => {
+                this.sfxLevel = e.target.value / 100;
+                localStorage.setItem('cueai_sfx_level', String(this.sfxLevel));
+                if (sfxLevelValue) sfxLevelValue.textContent = e.target.value;
+                // Update all active SFX gains
+                this.activeSounds.forEach((soundObj) => {
+                    if (soundObj.gainNode && typeof soundObj.originalVolume === 'number') {
+                        soundObj.gainNode.gain.setValueAtTime(
+                            Math.max(0, Math.min(1, soundObj.originalVolume * this.sfxLevel)),
+                            this.audioContext.currentTime
+                        );
+                    } else if (soundObj instanceof HTMLAudioElement && typeof soundObj.originalVolume === 'number') {
+                        soundObj.volume = Math.max(0, Math.min(1, soundObj.originalVolume * this.sfxLevel));
+                    }
+                });
+                this.updateSoundsList();
+            });
+        }
+
+        // Mood slider & Low latency toggle
+        const moodSlider = document.getElementById('moodBias');
+        const moodValue = document.getElementById('moodBiasValue');
+        if (moodSlider) {
+            moodSlider.value = Math.round(this.moodBias * 100);
+            if (moodValue) moodValue.textContent = moodSlider.value;
+            moodSlider.addEventListener('input', (e) => {
+                this.moodBias = e.target.value / 100;
+                localStorage.setItem('cueai_mood_bias', String(this.moodBias));
+                if (moodValue) moodValue.textContent = e.target.value;
+            });
+        }
+        const lowLatencyToggle = document.getElementById('lowLatencyMode');
+        if (lowLatencyToggle) {
+            lowLatencyToggle.checked = !!this.lowLatencyMode;
+            lowLatencyToggle.addEventListener('change', (e) => {
+                this.lowLatencyMode = e.target.checked;
+                localStorage.setItem('cueai_low_latency', JSON.stringify(this.lowLatencyMode));
+                this.preloadConcurrency = this.getPreloadConcurrency();
+                this.updateStatus(`Low Latency Mode ${this.lowLatencyMode ? 'enabled' : 'disabled'}`);
+            });
+        }
+        
+        // Control Buttons
+        document.getElementById('testMicBtn').addEventListener('click', () => this.testMicrophone());
+        document.getElementById('startBtn').addEventListener('click', () => this.startListening());
+        document.getElementById('stopBtn').addEventListener('click', () => this.stopListening());
+        const stopAudioBtn = document.getElementById('stopAudioBtn');
+        if (stopAudioBtn) {
+            stopAudioBtn.addEventListener('click', () => this.stopAllAudio());
+        }
+        
+        // Playback toggles
+        const toggleMusic = document.getElementById('toggleMusic');
+        const toggleSfx = document.getElementById('toggleSfx');
+        if (toggleMusic) {
+            toggleMusic.checked = !!this.musicEnabled;
+            toggleMusic.addEventListener('change', (e) => {
+                this.musicEnabled = e.target.checked;
+                localStorage.setItem('cueai_music_enabled', JSON.stringify(this.musicEnabled));
+                this.updateStatus(`Music ${this.musicEnabled ? 'enabled' : 'disabled'}`);
+                if (!this.musicEnabled && this.currentMusic) {
+                    this.fadeOutAudio(this.currentMusic);
+                    this.currentMusic = null;
+                    if (this.currentMusicSource) {
+                        try { this.currentMusicSource.disconnect(); } catch (e) {}
+                        this.currentMusicSource = null;
+                    }
+                    this.updateSoundsList();
+                }
+            });
+        }
+        if (toggleSfx) {
+            toggleSfx.checked = !!this.sfxEnabled;
+            toggleSfx.addEventListener('change', (e) => {
+                this.sfxEnabled = e.target.checked;
+                localStorage.setItem('cueai_sfx_enabled', JSON.stringify(this.sfxEnabled));
+                this.updateStatus(`Sound effects ${this.sfxEnabled ? 'enabled' : 'disabled'}`);
+                if (!this.sfxEnabled && this.activeSounds.size > 0) {
+                    this.activeSounds.forEach((soundObj) => {
+                        try { if (soundObj.source) soundObj.source.stop(); } catch (err) {}
+                    });
+                    this.activeSounds.clear();
+                    this.updateSoundsList();
+                }
+            });
+        }
+        
+        // Freesound Setup
+        document.getElementById('setupFreesound').addEventListener('click', () => this.showFreesoundSetup());
+        document.getElementById('saveAudioKeys').addEventListener('click', () => this.saveAudioKeys());
+        document.getElementById('cancelFreesound').addEventListener('click', () => this.hideFreesoundSetup());
+
+        // Tutorial
+        document.getElementById('tutorialBtn').addEventListener('click', () => this.showTutorial());
+        document.getElementById('closeTutorial').addEventListener('click', () => this.hideTutorial());
+        document.getElementById('closeTutorialBtn').addEventListener('click', () => this.hideTutorial());
+    }
+    
+    selectMode(mode) {
+        this.currentMode = mode;
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        this.updateStatus(`Mode changed to: ${mode.toUpperCase()}`);
+        // Update mode and UI state
+        this.currentMode = mode;
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+
+    // Reset AI/run state so previous mode's context doesn't leak
+        this.analysisVersion++;          // invalidate any in-flight analyses
+        this.lastAnalysisTime = 0;       // allow immediate fresh analysis
+        this.analysisInProgress = false; // best-effort cancel gate
+
+        // Clear transcript and interim text (chat log)
+        this.transcriptBuffer = [];
+        this.currentInterim = '';
+        this.updateTranscriptDisplay();
+
+    // Clear caches to avoid repeating previous selections
+    this.soundCache.clear();
+    this.recentlyPlayed.clear();
+
+        // Stop any currently playing audio immediately
+        this.stopAllAudio();
+
+        // Update UI/status and begin preload with overlay
+        this.updateStatus(`Mode changed to: ${mode.toUpperCase()} — reset sounds and context.`);
+        const version = ++this.preloadVersion;
+        this.showLoadingOverlay(`Preparing sounds for ${mode.toUpperCase()}...`);
+        setTimeout(() => {
+            this.preloadSfxForCurrentMode(version)
+                .catch(e => console.log('Preload error:', e?.message || e))
+                .finally(() => {
+                    // Only hide if the same preload version is current
+                    if (this.preloadVersion === version) {
+                        this.hideLoadingOverlay();
+                    }
+                });
+        }, 200);
+    }
+    
+    // ===== AUDIO CONTEXT =====
+    initializeAudioContext() {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Create gain nodes for mixing and ducking
+        this.masterGainNode = this.audioContext.createGain();
+        this.musicGainNode = this.audioContext.createGain();
+        // SFX bus with light compression
+        this.sfxCompressor = this.audioContext.createDynamicsCompressor();
+        this.sfxCompressor.threshold.value = -24;
+        this.sfxCompressor.knee.value = 30;
+        this.sfxCompressor.ratio.value = 3;
+        this.sfxCompressor.attack.value = 0.01;
+        this.sfxCompressor.release.value = 0.2;
+        this.sfxBusGain = this.audioContext.createGain();
+        
+        // Create analyser for visualizer
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 256;
+        
+        // Audio graph:
+        // music -> musicGain -> master -> analyser -> destination
+        // sfx (per-source) -> panner -> gain -> sfxCompressor -> sfxBusGain -> master
+        this.musicGainNode.connect(this.masterGainNode);
+        this.sfxCompressor.connect(this.sfxBusGain);
+        this.sfxBusGain.connect(this.masterGainNode);
+        this.masterGainNode.connect(this.analyser);
+        this.analyser.connect(this.audioContext.destination);
+    }
+    
+    // ===== SPEECH RECOGNITION =====
+    initializeSpeechRecognition() {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert('Speech recognition not supported in this browser. Please use Chrome or Edge.');
+            return;
+        }
+        
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = true;
+        this.recognition.interimResults = true;
+        this.recognition.lang = 'en-US';
+        this.recognition.maxAlternatives = 1;
+        
+        this.recognition.onresult = (event) => this.handleSpeechResult(event);
+        this.recognition.onerror = (event) => this.handleSpeechError(event);
+        this.recognition.onend = () => {
+            if (this.isListening) {
+                // Add small delay before restart to avoid rapid cycling
+                setTimeout(() => {
+                    if (this.isListening) {
+                        try {
+                            this.recognition.start();
+                        } catch (e) {
+                            console.log('Recognition restart skipped:', e.message);
+                        }
+                    }
+                }, 100);
+            }
+        };
+        
+        this.recognition.onstart = () => {
+            console.log('Speech recognition started');
+            this.updateStatus('Listening... Speak clearly!');
+        };
+        
+        this.recognition.onaudiostart = () => {
+            console.log('Audio input detected');
+        };
+        
+        this.recognition.onsoundstart = () => {
+            console.log('Sound detected');
+        };
+        
+        this.recognition.onspeechstart = () => {
+            console.log('Speech detected');
+            this.updateStatus('I hear you. Keep talking...');
+        };
+    }
+    
+    handleSpeechResult(event) {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript + ' ';
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+        
+        if (finalTranscript) {
+            this.transcriptBuffer.push(finalTranscript.trim());
+            this.currentInterim = '';
+            this.updateTranscriptDisplay();
+            
+                // Voice commands & instant triggers
+                this.handleVoiceCommands(finalTranscript);
+                this.checkInstantKeywords(finalTranscript);
+            
+            // Keep only last 30 seconds of transcript (approx 150 words)
+            if (this.transcriptBuffer.length > 50) {
+                this.transcriptBuffer.shift();
+            }
+            
+            // Consider analysis on final chunks
+            this.maybeAnalyzeLive();
+        } else if (interimTranscript) {
+            // Track interim text continuously
+            this.currentInterim = interimTranscript.trim();
+            this.updateTranscriptDisplay();
+            
+                // Also check interim for instant triggers and predictive prefetch
+                this.checkInstantKeywords(interimTranscript);
+                this.predictivePrefetch(interimTranscript);
+            
+            this.maybeAnalyzeLive();
+        }
+    }
+    
+    handleSpeechError(event) {
+        console.error('Speech recognition error:', event.error);
+        
+        if (event.error === 'no-speech') {
+            // This is normal - just means no speech in current window
+            // Don't spam the user with messages
+            return;
+        } else if (event.error === 'audio-capture') {
+            this.updateStatus('Microphone access denied or not available');
+            this.stopListening();
+        } else if (event.error === 'not-allowed') {
+            this.updateStatus('Please allow microphone access in browser settings');
+            this.stopListening();
+        } else if (event.error === 'network') {
+            // Network error - try to continue listening
+            this.updateStatus('Network hiccup - continuing to listen...');
+            // Don't stop - the recognition will auto-restart
+        } else {
+            this.updateStatus(`Recognition error: ${event.error}`);
+        }
+    }
+    
+    updateTranscriptDisplay() {
+        const transcriptBox = document.getElementById('transcript');
+        const recentText = this.transcriptBuffer.slice(-5).join(' ');
+        const display = [recentText, this.currentInterim].filter(Boolean).join(' ');
+        transcriptBox.textContent = display || 'Listening...';
+        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+    }
+    
+        // ===== INSTANT KEYWORD DETECTION =====
+        checkInstantKeywords(text) {
+            if ((!this.freesoundApiKey && !this.pixabayApiKey) || !text || !this.sfxEnabled) return;
+        
+            const lowerText = text.toLowerCase();
+        
+            // Check each keyword
+            for (const [keyword, config] of Object.entries(this.instantKeywords)) {
+                // Use word boundaries to avoid partial matches
+                const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+                if (regex.test(lowerText)) {
+                    console.log(`Instant trigger detected: "${keyword}"`);
+                    // Play sound immediately without waiting for AI analysis
+                    this.playInstantSound(config);
+                    // Only trigger one sound per check to avoid chaos
+                    break;
+                }
+            }
+        }
+    
+        async playInstantSound(config) {
+            if (!this.sfxEnabled) return;
+            // Limit simultaneous sounds
+            if (this.activeSounds.size >= this.maxSimultaneousSounds) {
+                return;
+            }
+        
+            const soundUrl = await this.searchAudio(config.query, 'sfx');
+            if (soundUrl) {
+                await this.playAudio(soundUrl, {
+                    type: 'sfx',
+                    name: config.query,
+                    volume: this.calculateVolume(config.volume),
+                    loop: false
+                });
+                this.updateStatus(`Instant sound: ${config.query}`);
+            }
+        }
+    
+    // ===== AI CONTEXT ANALYSIS =====
+    async analyzeContext(customTranscript = null) {
+        const recentTranscript = (customTranscript ?? this.transcriptBuffer.slice(-10).join(' ')).trim();
+        if (!recentTranscript) return;
+        this.updateStatus('Analyzing context...');
+        
+        try {
+            // Capture analysis version to avoid applying stale results after mode change
+            const versionAtStart = this.analysisVersion;
+            const prompt = this.buildAnalysisPrompt(recentTranscript);
+            
+            const response = await this.callOpenAI(prompt);
+            
+            // If mode changed during the async call, ignore this result
+            if (this.analysisVersion !== versionAtStart) {
+                console.log('Discarding stale analysis result after mode change');
+                return;
+            }
+
+            if (response) {
+                await this.processSoundDecisions(response);
+            }
+        } catch (error) {
+            console.error('AI Analysis error:', error);
+            this.updateStatus('Analysis error. Retrying...');
+        }
+    }
+
+    // Stop all audio immediately and clear tracking
+    stopAllAudio() {
+        // Cancel stingers
+        if (this.stingerTimer) { clearTimeout(this.stingerTimer); this.stingerTimer = null; }
+        // Soft fade music
+        if (this.currentMusic) {
+            this.fadeOutAudio(this.currentMusic, 300);
+            this.currentMusic = null;
+        }
+        if (this.currentMusicSource) {
+            try { this.currentMusicSource.disconnect(); } catch (_) {}
+            this.currentMusicSource = null;
+        }
+        // Fade out SFX quickly
+        this.activeSounds.forEach((soundObj) => {
+            try {
+                if (soundObj.gainNode) {
+                    const g = soundObj.gainNode.gain;
+                    g.cancelScheduledValues(this.audioContext.currentTime);
+                    g.setTargetAtTime(0.0001, this.audioContext.currentTime, 0.05);
+                }
+                if (soundObj.source) setTimeout(() => { try { soundObj.source.stop(); } catch(_){} }, 120);
+                if (soundObj.pause) soundObj.pause();
+            } catch (_) {}
+        });
+        this.activeSounds.clear();
+        this.updateSoundsList();
+    }
+
+    maybeAnalyzeLive() {
+        const now = Date.now();
+        if (this.analysisInProgress) return;
+        if (now - this.lastAnalysisTime < this.analysisInterval) return;
+        const contextText = [
+            this.transcriptBuffer.slice(-10).join(' '),
+            this.currentInterim
+        ].filter(Boolean).join(' ').trim();
+        if (contextText.length < 8) return;
+        this.lastAnalysisTime = now;
+        this.analysisInProgress = true;
+        this.analyzeContext(contextText)
+            .catch(err => console.error('Live analysis failed:', err))
+            .finally(() => {
+                this.analysisInProgress = false;
+            });
+    }
+    
+    buildAnalysisPrompt(transcript) {
+        const modeContext = {
+            bedtime: 'soothing bedtime story with calm, gentle atmosphere',
+            dnd: 'Dungeons & Dragons campaign with fantasy adventure elements',
+            horror: 'horror storytelling with tense, eerie, suspenseful atmosphere',
+            christmas: 'festive Christmas storytelling with joyful, magical, winter holiday atmosphere',
+            halloween: 'spooky Halloween atmosphere with playful scares, autumn vibes, and trick-or-treat energy',
+            sing: 'live singing performance - match musical accompaniment, harmonies, and effects to the vocals',
+            auto: 'any context - detect the mood and setting automatically'
+        };
+        
+        const modeSpecificRules = {
+            bedtime: '- For bedtime mode: prioritize calm, gentle sounds; music stays very stable',
+            dnd: '- For D&D mode: match the action and environment described; SFX for combat, music for scene atmosphere',
+            horror: '- For horror mode: prioritize tension, eerie ambience, subtle stingers, avoid overly loud repetitive SFX unless context indicates a jump scare',
+            christmas: '- For Christmas mode: use joyful bells, sleigh sounds, winter wind, crackling fireplace; music query MUST include terms like "jingle bells", "christmas carol", "holiday cheer", or "festive bells" to ensure recognizable Christmas music',
+            halloween: '- For Halloween mode: playful spooky sounds (cackling, chains, bats, owls); not too scary, fun and atmospheric',
+            sing: '- For Sing mode: listen to melody, tempo, and genre; provide complementary instrumental backing, harmonies, and rhythmic effects; change music only if the song style shifts dramatically',
+            auto: ''
+        };
+
+        const moodPct = Math.round(this.moodBias * 100);
+        
+    return `You are an intelligent audio companion for ${modeContext[this.currentMode]}.
+
+User playback preferences:
+- music_enabled: ${this.musicEnabled}
+- sfx_enabled: ${this.sfxEnabled}
+- user_mood_bias_percent: ${moodPct} (0=calm, 100=intense) — bias intensity and sound choices accordingly.
+If music_enabled is false, set music to null and do not propose any music changes.
+If sfx_enabled is false, set sfx to an empty array and do not propose any sound effects.
+
+Analyze this spoken text and decide what sounds/music to play:
+"${transcript}"
+
+Return ONLY a JSON object (no markdown, no explanation) with this structure:
+{
+    "music": {
+        "query": "search term for background music" OR null,
+        "mood": "calm/epic/tense/mysterious/joyful/dark",
+        "intensity": 0.3-1.0,
+        "change": true/false (only true if scene shifts dramatically; keep false for same atmosphere)
+    },
+    "sfx": [
+        {"query": "specific sound effect", "priority": 1-10, "volume": 0.3-1.0}
+    ],
+    "reasoning": "one sentence why"
+}
+
+Rules:
+- Music should be ambient/instrumental only and STABLE (change: false unless scene dramatically shifts)
+- Music is long-term atmosphere; only suggest change: true for major scene transitions
+- SFX should be specific (e.g., "sword clash", "thunder", "crackling fire", "footsteps")
+- SFX are moment-to-moment reactions; use these for immediate action cues
+- Return max 2 SFX per analysis
+- If nothing interesting is happening, return null for music and empty array for sfx
+${modeSpecificRules[this.currentMode]}`;
+    }
+    
+    async callOpenAI(prompt) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                response_format: { type: "json_object" },
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a JSON-only audio decision engine. Always return valid JSON with the exact structure requested.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 300
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            
+            if (response.status === 429) {
+                this.updateStatus('OpenAI rate limit reached. Please check your API quota.');
+                console.error('Rate limit details:', errorData);
+                alert('OpenAI API Rate Limit Exceeded!\n\nPossible issues:\n1. Free tier quota exhausted\n2. No billing setup on OpenAI account\n3. Too many requests\n\nSolutions:\n• Visit platform.openai.com/account/billing\n• Add payment method\n• Check usage at platform.openai.com/account/usage\n• Wait a few minutes and try again');
+            } else if (response.status === 401) {
+                this.updateStatus('Invalid API key. Please reset and try again.');
+                alert('Invalid OpenAI API Key!\n\nPlease:\n1. Click "Reset API Key"\n2. Get a new key from platform.openai.com/api-keys\n3. Ensure billing is set up');
+            }
+            
+            throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        }
+        
+        const data = await response.json();
+        const content = data.choices[0].message.content.trim();
+        
+        // Remove markdown code blocks if present
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+        }
+        
+        return JSON.parse(content);
+    }
+    
+    
+    
+    // ===== SOUND DECISION ENGINE =====
+    async processSoundDecisions(decisions) {
+        console.log('Sound Decisions:', decisions);
+        
+        // Handle Music
+        if (this.musicEnabled && decisions.music && decisions.music.query) {
+            await this.updateMusic(decisions.music);
+        }
+        
+        // Handle Sound Effects
+        if (this.sfxEnabled && decisions.sfx && decisions.sfx.length > 0) {
+            for (const sfx of decisions.sfx) {
+                await this.playSoundEffect(sfx);
+            }
+        }
+        
+    this.updateStatus(`${decisions.reasoning || 'Playing sounds...'}`);
+    }
+    
+    async updateMusic(musicData) {
+        if (!this.musicEnabled) {
+            this.updateStatus('Music disabled (toggle off)');
+            return;
+        }
+        // Only change music if AI explicitly says to (change: true) or if no music playing
+        if (!musicData.change && this.currentMusic && !this.currentMusic.paused) {
+            console.log('Music stable, not changing (change: false)');
+            return;
+        }
+        
+        // Don't change music too frequently
+        if (this.currentMusic && this.currentMusic.dataset.query === musicData.query) {
+            return;
+        }
+        
+        // Search and crossfade to new music
+        const soundUrl = await this.searchAudio(musicData.query, 'music');
+        if (soundUrl) {
+            this.currentMusicBase = this.calculateVolume(musicData.intensity || 0.5);
+            // Mood bias: scale base a bit by mood (calm -> less, intense -> more)
+            const moodMul = 0.85 + this.moodBias * 0.3;
+            const base = Math.max(0, Math.min(1, this.currentMusicBase * moodMul));
+            const effectiveVol = Math.max(0, Math.min(1, base * this.musicLevel));
+            await this.playAudio(soundUrl, {
+                type: 'music',
+                name: musicData.query,
+                volume: effectiveVol,
+                loop: true
+            });
+            // Start stingers scheduling
+            this.scheduleNextStinger();
+        }
+    }
+    
+    async playSoundEffect(sfxData) {
+        if (!this.sfxEnabled) {
+            this.updateStatus('SFX disabled (toggle off)');
+            return;
+        }
+        // Limit simultaneous sounds
+        if (this.activeSounds.size >= this.maxSimultaneousSounds) {
+            return;
+        }
+        
+        const soundUrl = await this.searchAudio(sfxData.query, 'sfx');
+        if (soundUrl) {
+            await this.playAudio(soundUrl, {
+                type: 'sfx',
+                name: sfxData.query,
+                volume: this.calculateVolume(sfxData.volume || 0.7),
+                loop: false
+            });
+        }
+    }
+    
+    // ===== PIXABAY INTEGRATION =====
+    async searchPixabay(query, type) {
+        // Note: Pixabay's free API doesn't include a dedicated audio endpoint
+        // We'll use it for future expansion or premium tier
+        // For now, this serves as a placeholder that gracefully falls back to Freesound
+        
+        if (!this.pixabayApiKey) return null;
+        
+        try {
+            // Pixabay audio API is not available in free tier
+            // This would be the endpoint if/when audio becomes available:
+            // https://pixabay.com/api/sounds/
+            
+            console.log('Pixabay audio API not available in free tier; using Freesound');
+            return null;
+            
+        } catch (error) {
+            console.error('Pixabay search error:', error);
+            return null;
+        }
+    }
+
+    // ===== DUAL-SOURCE AUDIO SEARCH =====
+    async searchAudio(query, type) {
+        // Try Pixabay first if key is set (faster when available)
+        // Note: Currently falls back immediately as free tier has no audio
+        let url = null;
+        
+        if (this.pixabayApiKey) {
+            url = await this.searchPixabay(query, type);
+            if (url) {
+                console.log(`✓ Found via Pixabay: ${query}`);
+                return url;
+            }
+        }
+        
+        // Freesound is primary source (comprehensive library)
+        if (this.freesoundApiKey) {
+            url = await this.searchFreesound(query, type);
+            if (url) {
+                console.log(`✓ Found via Freesound: ${query}`);
+                return url;
+            }
+        }
+        
+        if (!this.pixabayApiKey && !this.freesoundApiKey) {
+            console.log('No audio API keys configured. Click "Setup Audio Sources" to enable sounds.');
+        }
+        
+        return url;
+    }
+
+    // ===== FREESOUND.ORG INTEGRATION =====
+    async searchFreesound(query, type) {
+        // Check if Freesound API key is set
+        if (!this.freesoundApiKey) {
+            console.log(`Freesound not configured. Would search for: ${query} (${type})`);
+            this.updateStatus('Click "Setup Freesound API" to enable real sounds');
+            return null;
+        }
+        
+        // Simplify queries to improve CC0 results
+        let searchQuery = query;
+        let fallbackQueries = []; // Progressive fallbacks for music
+        if (type === 'music') {
+            const keywords = query.toLowerCase();
+            // Check for Christmas-related terms (including "jingle bells" from AI)
+            if (keywords.includes('christmas') || keywords.includes('holiday') || keywords.includes('festive') || 
+                keywords.includes('xmas') || keywords.includes('jingle') || keywords.includes('carol') || 
+                keywords.includes('sleigh')) {
+                searchQuery = 'christmas music';
+                fallbackQueries = ['jingle bells', 'holiday music', 'festive music', 'winter music'];
+            }
+            else if (keywords.includes('halloween') || keywords.includes('spooky')) {
+                searchQuery = 'spooky halloween';
+                fallbackQueries = ['halloween music', 'spooky music'];
+            }
+            else if (keywords.includes('epic') || keywords.includes('orchestral')) {
+                searchQuery = 'epic orchestral';
+                fallbackQueries = ['orchestral', 'epic music'];
+            }
+            else if (keywords.includes('calm') || keywords.includes('peaceful')) {
+                searchQuery = 'calm ambient';
+                fallbackQueries = ['peaceful music', 'ambient music'];
+            }
+            else if (keywords.includes('tense') || keywords.includes('suspense')) {
+                searchQuery = 'dark ambient';
+                fallbackQueries = ['suspense music', 'ambient music'];
+            }
+            else if (keywords.includes('horror') || keywords.includes('eerie')) {
+                searchQuery = 'horror ambience';
+                fallbackQueries = ['dark ambient', 'ambient music'];
+            }
+            else if (keywords.includes('forest') || keywords.includes('nature')) {
+                searchQuery = 'nature ambient';
+                fallbackQueries = ['ambient music'];
+            }
+            else if (keywords.includes('sing') || keywords.includes('vocal') || keywords.includes('melody')) {
+                searchQuery = 'instrumental backing';
+                fallbackQueries = ['instrumental', 'ambient music'];
+            }
+            else if (keywords.includes('ambient')) {
+                searchQuery = 'ambient music';
+                fallbackQueries = [];
+            }
+            else {
+                searchQuery = 'ambient music';
+                fallbackQueries = [];
+            }
+            console.log(`Simplified music query: "${query}" → "${searchQuery}"${fallbackQueries.length ? ` (fallbacks: ${fallbackQueries.join(', ')})` : ''}`);
+        } else if (type === 'sfx') {
+            // Simplify common SFX queries that often fail
+            const keywords = query.toLowerCase();
+            if (keywords.includes('footsteps') && keywords.includes('leaves')) searchQuery = 'footsteps grass';
+            else if (keywords.includes('dragon') && keywords.includes('roar')) searchQuery = 'monster roar';
+            else if (keywords.includes('birds') && keywords.includes('chirp')) searchQuery = 'birds chirping';
+            else if (keywords.includes('storm') && keywords.includes('brewing')) searchQuery = 'thunder storm';
+            else searchQuery = query; // keep original for SFX
+            
+            if (searchQuery !== query) {
+                console.log(`Simplified SFX query: "${query}" → "${searchQuery}"`);
+            }
+        }
+        
+            // Check cache first for faster response
+        const cacheKey = `${type}:${searchQuery}`;
+            if (this.soundCache.has(cacheKey)) {
+            console.log(`Found in cache: ${searchQuery}`);
+            return this.soundCache.get(cacheKey);
+        }
+        
+        try {
+            this.updateStatus(`Searching Freesound for: ${searchQuery}...`);
+            
+            // Build search parameters with CC0 license filter
+            const baseFilter = type === 'music' ? 'duration:[30 TO *] tag:music' : 'duration:[0.5 TO 10]';
+            const params = new URLSearchParams({
+                query: searchQuery,
+                filter: `${baseFilter} license:\"Creative Commons 0\"`,
+                fields: 'id,name,previews,duration,license',
+                sort: 'rating_desc',
+                page_size: type === 'music' ? 10 : 3
+            });
+            
+            const response = await fetch(`https://freesound.org/apiv2/search/text/?${params}`, {
+                headers: {
+                    'Authorization': `Token ${this.freesoundApiKey}`
+                }
+            });
+            
+            if (!response.ok) {
+                if (response.status === 401) {
+                    this.updateStatus('❌ Invalid Freesound API key');
+                    alert('Invalid Freesound API Key!\n\nPlease:\n1. Check your key at freesound.org/apiv2/apply\n2. Click "Setup Freesound API"\n3. Enter the correct key');
+                    return null;
+                }
+                throw new Error(`Freesound API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.results && data.results.length > 0) {
+                // Try to select a preview that hasn't played recently (for variety)
+                let chosen = null;
+                for (const r of data.results) {
+                    const url = r.previews['preview-hq-mp3'] || r.previews['preview-lq-mp3'];
+                    if (!url) continue;
+                    if (type === 'music' && this.recentlyPlayed.has(url)) {
+                        continue; // try to avoid repeats for music
+                    }
+                    chosen = { name: r.name, duration: r.duration, url };
+                    break;
+                }
+                // Fallback to the first if all are recently played or filtered out
+                if (!chosen) {
+                    const r = data.results[0];
+                    const url = r.previews['preview-hq-mp3'] || r.previews['preview-lq-mp3'];
+                    chosen = { name: r.name, duration: r.duration, url };
+                }
+
+                console.log(`Found sound: "${chosen.name}" (${chosen.duration}s)`);
+
+                    // Cache all sounds for instant playback on repeat
+                    this.soundCache.set(cacheKey, chosen.url);
+
+                // Track recently played to reduce back-to-back repeats
+                if (chosen.url) {
+                    this.recentlyPlayed.add(chosen.url);
+                    // Keep recent list to a reasonable size
+                    if (this.recentlyPlayed.size > 20) {
+                        const first = this.recentlyPlayed.values().next().value;
+                        this.recentlyPlayed.delete(first);
+                    }
+                }
+
+                return chosen.url;
+            } else {
+                console.log(`No CC0 sounds found for: ${searchQuery}`);
+                
+                // For music, try fallback with broader license (CC-BY) and progressive fallback queries
+                if (type === 'music') {
+                    const queriesToTry = [searchQuery, ...fallbackQueries];
+                    
+                    for (const tryQuery of queriesToTry) {
+                        console.log(`Retrying music search with CC-BY for: "${tryQuery}"...`);
+                        const fallbackParams = new URLSearchParams({
+                            query: tryQuery,
+                            filter: `duration:[30 TO *] tag:music`,
+                            fields: 'id,name,previews,duration,license',
+                            sort: 'rating_desc',
+                            page_size: 10
+                        });
+                        
+                        const fallbackResponse = await fetch(`https://freesound.org/apiv2/search/text/?${fallbackParams}`, {
+                            headers: {
+                                'Authorization': `Token ${this.freesoundApiKey}`
+                            }
+                        });
+                        
+                        if (fallbackResponse.ok) {
+                            const fallbackData = await fallbackResponse.json();
+                            if (fallbackData.results && fallbackData.results.length > 0) {
+                                const r = fallbackData.results[0];
+                                const url = r.previews['preview-hq-mp3'] || r.previews['preview-lq-mp3'];
+                                if (url) {
+                                    console.log(`✓ Found music (${r.license}): "${r.name}" (${r.duration}s)`);
+                                    this.soundCache.set(cacheKey, url);
+                                    this.recentlyPlayed.add(url);
+                                    return url;
+                                }
+                            }
+                        }
+                    }
+                    
+                    console.log(`No music found after all fallbacks`);
+                }
+                
+                return null;
+            }
+            
+        } catch (error) {
+            console.error('Freesound search error:', error);
+            this.updateStatus('Freesound search failed, retrying...');
+            return null;
+        }
+    }
+    
+    // ===== AUDIO PLAYBACK =====
+    
+    // Duck music volume when SFX plays
+    duckMusic(duration = 0.6) {
+        if (!this.musicGainNode || this.duckingInProgress) return;
+        const p = this.getDuckParams();
+        this.duckingInProgress = true;
+        const now = this.audioContext.currentTime;
+        const target = this.getMusicTargetGain();
+        const floorMul = Math.max(0.08, Math.min(1, p.floor));
+        const duckTo = Math.max(0.0001, target * floorMul);
+
+        this.musicGainNode.gain.cancelScheduledValues(now);
+        this.musicGainNode.gain.setValueAtTime(this.musicGainNode.gain.value, now);
+        this.musicGainNode.gain.exponentialRampToValueAtTime(duckTo, now + p.attack);
+        this.musicGainNode.gain.setValueAtTime(duckTo, now + p.attack + p.hold + Math.max(0, duration - 0.1));
+        this.musicGainNode.gain.exponentialRampToValueAtTime(target, now + p.attack + p.hold + duration + p.release);
+        setTimeout(() => { this.duckingInProgress = false; }, (p.attack + p.hold + duration + p.release) * 1000);
+    }
+
+    getDuckParams() {
+        // Bias ducking based on mood: more intense => deeper duck and slightly longer release
+        const m = this.moodBias; // 0..1
+        return {
+            attack: this.duckParams.attack,
+            hold: this.duckParams.hold,
+            release: this.duckParams.release + m * 0.1,
+            floor: this.duckParams.floor * (0.8 + (1 - m) * 0.4) // calmer => less deep duck
+        };
+    }
+    
+    async playAudio(url, options) {
+        if (!url) return null;
+        
+        try {
+            // For SFX, try to use Web Audio API with decoded buffers for better performance
+            if (options.type === 'sfx') {
+                return await this.playSFXBuffer(url, options);
+            } else {
+                // For music, use HTMLAudioElement (better for streaming long files)
+                return await this.playMusicElement(url, options);
+            }
+        } catch (error) {
+            console.error('Audio playback error:', error);
+            this.updateStatus('⚠️ Audio playback error - sound may be blocked');
+            return null;
+        }
+    }
+    
+    async playSFXBuffer(url, options) {
+        // Duck music when playing SFX
+        this.duckMusic(0.6);
+        
+        // Try to fetch and decode the audio
+        try {
+            let buffer = this.activeBuffers.get(url);
+            
+            if (!buffer) {
+                const response = await fetch(url);
+                const arrayBuffer = await response.arrayBuffer();
+                buffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                this.activeBuffers.set(url, buffer);
+            }
+
+            // Compute normalization gain (cached)
+            let normGain = this.sfxNormGains.get(url);
+            if (normGain === undefined) {
+                normGain = this.computeNormalizationGain(buffer);
+                this.sfxNormGains.set(url, normGain);
+            }
+            
+            // Create nodes for this SFX: source -> panner -> gain -> sfxComp -> sfxBusGain -> master
+            const source = this.audioContext.createBufferSource();
+            const panner = this.audioContext.createPanner();
+            panner.panningModel = 'HRTF';
+            panner.distanceModel = 'inverse';
+            panner.refDistance = 1;
+            panner.maxDistance = 50;
+            panner.rolloffFactor = 1;
+            const gainNode = this.audioContext.createGain();
+            
+            source.buffer = buffer;
+            // Store original (pre-user) volume, apply normalization and user SFX level
+            const original = Math.max(0, Math.min(1, options.volume));
+            const effective = Math.max(0, Math.min(1, original * normGain * this.sfxLevel));
+            gainNode.gain.value = effective;
+
+            // Light spatialization: random left/right placement for variety
+            const az = Math.random() < 0.5 ? -1 : 1;
+            panner.positionX.value = az * (0.5 + Math.random());
+            panner.positionY.value = 0;
+            panner.positionZ.value = -0.5 - Math.random() * 0.5;
+            
+            // Connect
+            source.connect(panner);
+            panner.connect(gainNode);
+            gainNode.connect(this.sfxCompressor);
+            
+            const id = Date.now() + Math.random();
+            const sfxInfo = { source, panner, gainNode, name: options.name, originalVolume: original, normGain };
+            this.activeSounds.set(id, sfxInfo);
+            
+            source.onended = () => {
+                this.activeSounds.delete(id);
+                this.updateSoundsList();
+            };
+            
+            source.start(0);
+            console.log(`Playing SFX buffer: ${options.name} at ${Math.round(options.volume * 100)}%`);
+            this.updateSoundsList();
+
+            // Prefetch alternates to diversify repeats
+            this.prefetchAlternates(options.name).catch(()=>{});
+            
+            return sfxInfo;
+        } catch (error) {
+            // Fallback to HTMLAudioElement if buffer decoding fails (CORS issues)
+            console.log('Buffer decoding failed, falling back to HTMLAudioElement for SFX');
+            return await this.playSFXElement(url, options);
+        }
+    }
+    
+    async playSFXElement(url, options) {
+        // Fallback for SFX when Web Audio buffer fails
+        this.duckMusic(0.6);
+        
+        const audio = new Audio(url);
+        // Apply normalization if known
+        const norm = this.sfxNormGains.get(url) ?? 1;
+        // Store original volume and apply user SFX level and normalization
+        audio.originalVolume = Math.max(0, Math.min(1, options.volume));
+        audio.volume = Math.max(0, Math.min(1, audio.originalVolume * norm * this.sfxLevel));
+        audio.crossOrigin = "anonymous";
+        
+        await audio.play();
+        console.log(`Playing SFX element: ${options.name} at ${Math.round(options.volume * 100)}%`);
+        
+        const id = Date.now() + Math.random();
+        this.activeSounds.set(id, audio);
+        audio.onended = () => {
+            this.activeSounds.delete(id);
+            this.updateSoundsList();
+        };
+        
+        this.updateSoundsList();
+        return audio;
+    }
+    
+    async playMusicElement(url, options) {
+        const newAudio = new Audio(url);
+        newAudio.loop = options.loop;
+        newAudio.dataset.type = options.type;
+        newAudio.dataset.name = options.name;
+        newAudio.crossOrigin = "anonymous";
+
+        // Create media element source and connect to music gain
+        try {
+            const source = this.audioContext.createMediaElementSource(newAudio);
+            source.connect(this.musicGainNode);
+            // We keep the previous source connected until fade completes
+            this.pendingMusicSource = source;
+        } catch (error) {
+            // If already connected or error, fall back to element volume
+        }
+
+        // Crossfade: start new at 0, fade up; fade out current if exists
+        const targetVol = options.volume;
+        newAudio.volume = 0;
+        await newAudio.play();
+
+        const oldAudio = this.currentMusic;
+        const fadeMs = 600;
+        const steps = 12;
+        const stepTime = Math.max(10, Math.round(fadeMs / steps));
+        let i = 0;
+        const fadeTimer = setInterval(() => {
+            i++;
+            const t = i / steps;
+            newAudio.volume = Math.min(1, t * targetVol);
+            if (oldAudio) oldAudio.volume = Math.max(0, (1 - t) * (oldAudio.volume || targetVol));
+            if (i >= steps) {
+                clearInterval(fadeTimer);
+                if (oldAudio) { try { oldAudio.pause(); } catch(_){} }
+                // Disconnect old source and swap current source
+                if (this.currentMusicSource) { try { this.currentMusicSource.disconnect(); } catch(_){}
+                }
+                if (this.pendingMusicSource) {
+                    this.currentMusicSource = this.pendingMusicSource; this.pendingMusicSource = null;
+                }
+                // Ensure musicGain reflects target
+                try { this.musicGainNode.gain.setValueAtTime(targetVol, this.audioContext.currentTime); } catch(_){}
+            }
+        }, stepTime);
+
+        this.currentMusic = newAudio;
+        this.updateSoundsList();
+        return newAudio;
+    }
+    
+    fadeOutAudio(audio, ms = 300) {
+        if (!audio) return;
+        const steps = 12;
+        const stepTime = Math.max(10, Math.round(ms / steps));
+        let i = 0;
+        const startVol = audio.volume || 1;
+        const timer = setInterval(() => {
+            i++;
+            const t = i / steps;
+            audio.volume = Math.max(0, startVol * (1 - t));
+            if (i >= steps) { clearInterval(timer); try { audio.pause(); } catch(_){} }
+        }, stepTime);
+    }
+    
+    calculateVolume(intensity) {
+        return this.minVolume + (intensity * (this.maxVolume - this.minVolume));
+    }
+
+    getMusicTargetGain() {
+        const moodMul = 0.85 + this.moodBias * 0.3; // modest bias
+        return Math.max(0, Math.min(1, (this.currentMusicBase || 0.5) * moodMul * this.musicLevel));
+    }
+
+    computeNormalizationGain(buffer) {
+        try {
+            const chData = buffer.getChannelData(0);
+            let sumSq = 0;
+            const len = chData.length;
+            const stride = Math.max(1, Math.floor(len / 48000)); // sample up to ~48k points
+            let count = 0;
+            for (let i = 0; i < len; i += stride) { const v = chData[i]; sumSq += v * v; count++; }
+            const rms = Math.sqrt(sumSq / Math.max(1, count));
+            const targetRMS = 0.1; // ~-20 dBFS perceived
+            if (!isFinite(rms) || rms <= 0) return 1;
+            const gain = targetRMS / rms;
+            // Clamp normalization to avoid extreme boosts
+            return Math.max(0.5, Math.min(2.5, gain));
+        } catch (_) { return 1; }
+    }
+    
+    updateSoundsList() {
+        const container = document.getElementById('currentSounds');
+        container.innerHTML = '';
+        
+        // Add music
+        if (this.currentMusic && !this.currentMusic.paused) {
+            const item = document.createElement('div');
+            item.className = 'sound-item';
+            const mg = this.musicGainNode ? this.musicGainNode.gain.value : 1;
+            const ev = (this.currentMusic.volume || 1);
+            item.innerHTML = `
+                <span class="sound-type">Music</span>
+                <span class="sound-name">${this.currentMusic.dataset.name}</span>
+                <span class="sound-volume">${Math.round(mg * ev * 100)}%</span>
+            `;
+            container.appendChild(item);
+        }
+        
+        // Add SFX
+        this.activeSounds.forEach((soundObj) => {
+            const item = document.createElement('div');
+            item.className = 'sound-item';
+            const name = soundObj.name || (soundObj.dataset ? soundObj.dataset.name : 'Unknown');
+            const volume = soundObj.gainNode ? 
+                Math.round(soundObj.gainNode.gain.value * 100) : 
+                Math.round((soundObj.volume || 0.5) * 100);
+            
+            item.innerHTML = `
+                <span class="sound-type">SFX</span>
+                <span class="sound-name">${name}</span>
+                <span class="sound-volume">${volume}%</span>
+            `;
+            container.appendChild(item);
+        });
+        
+        if (container.children.length === 0) {
+            container.innerHTML = '<div class="sound-item inactive">No sounds playing</div>';
+        }
+    }
+    
+    // ===== VISUALIZER =====
+    setupVisualizer() {
+        this.canvas = document.getElementById('visualizer');
+        this.canvasCtx = this.canvas.getContext('2d');
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+    }
+    
+    resizeCanvas() {
+        this.canvas.width = this.canvas.offsetWidth;
+        this.canvas.height = this.canvas.offsetHeight;
+    }
+    
+    startVisualizer() {
+        const draw = () => {
+            this.visualizerAnimationId = requestAnimationFrame(draw);
+            
+            const bufferLength = this.analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            this.analyser.getByteFrequencyData(dataArray);
+            
+            this.canvasCtx.fillStyle = '#000';
+            this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            const barWidth = (this.canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+            
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = (dataArray[i] / 255) * this.canvas.height * 0.8;
+                
+                const gradient = this.canvasCtx.createLinearGradient(0, this.canvas.height, 0, 0);
+                gradient.addColorStop(0, '#8a2be2');
+                gradient.addColorStop(0.5, '#bb86fc');
+                gradient.addColorStop(1, '#03dac6');
+                
+                this.canvasCtx.fillStyle = gradient;
+                this.canvasCtx.fillRect(x, this.canvas.height - barHeight, barWidth, barHeight);
+                
+                x += barWidth + 1;
+            }
+        };
+        
+        draw();
+    }
+    
+    stopVisualizer() {
+        if (this.visualizerAnimationId) {
+            cancelAnimationFrame(this.visualizerAnimationId);
+        }
+    }
+    
+    // ===== CONTROL METHODS =====
+    async testMicrophone() {
+    this.updateStatus('Testing microphone access...');
+        
+        try {
+            // Request microphone permission
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Create audio context to test volume
+            const testContext = new AudioContext();
+            const source = testContext.createMediaStreamSource(stream);
+            const testAnalyser = testContext.createAnalyser();
+            testAnalyser.fftSize = 256;
+            source.connect(testAnalyser);
+            
+            const dataArray = new Uint8Array(testAnalyser.frequencyBinCount);
+            
+            let testDuration = 0;
+            const testInterval = setInterval(() => {
+                testAnalyser.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                
+                if (average > 5) {
+                    this.updateStatus(`Microphone working. Volume: ${Math.round(average)}/255`);
+                } else {
+                    this.updateStatus(`Microphone detected. Please speak... (${Math.round(average)}/255)`);
+                }
+                
+                testDuration++;
+                if (testDuration > 50) { // 5 seconds
+                    clearInterval(testInterval);
+                    stream.getTracks().forEach(track => track.stop());
+                    testContext.close();
+                    this.updateStatus('Microphone test complete. You can now start listening.');
+                }
+            }, 100);
+            
+        } catch (error) {
+            console.error('Microphone test failed:', error);
+            
+            if (error.name === 'NotAllowedError') {
+                this.updateStatus('Microphone access denied. Please check browser permissions.');
+                alert('Microphone Permission Denied!\n\nTo fix:\n1. Click the site information icon in the address bar\n2. Set Microphone to "Allow"\n3. Refresh the page\n4. Try again');
+            } else if (error.name === 'NotFoundError') {
+                this.updateStatus('No microphone found. Please connect a microphone.');
+            } else {
+                this.updateStatus('Microphone test failed: ' + error.message);
+            }
+        }
+    }
+    
+    async startListening() {
+        if (!this.apiKey) {
+            alert('Please set your API key first');
+            return;
+        }
+        
+        this.isListening = true;
+        
+        // Resume audio context if suspended (browser requirement)
+        if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
+        
+        // Update UI first
+        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('stopBtn').classList.remove('hidden');
+        document.querySelector('.visualizer-section').classList.add('listening');
+        
+        // Start visualizer
+        this.startVisualizer();
+        
+        // Start speech recognition
+        try {
+            this.recognition.start();
+            this.updateStatus('Requesting microphone... Please speak!');
+            
+            // Add helpful tip after 3 seconds if no speech detected
+            setTimeout(() => {
+                if (this.isListening && this.transcriptBuffer.length === 0) {
+                    this.updateStatus('Tip: Speak clearly and close to your microphone');
+                }
+            }, 3000);
+            
+            // Start periodic live analysis while listening
+            if (this.analysisTimer) clearInterval(this.analysisTimer);
+            this.lastAnalysisTime = 0;
+                this.analysisTimer = setInterval(() => this.maybeAnalyzeLive(), 1000); // Check every second for faster response
+            
+        } catch (error) {
+            console.error('Failed to start recognition:', error);
+            
+            if (error.message && error.message.includes('already started')) {
+                // Recognition already running, that's fine
+                this.updateStatus('Listening... Speak clearly!');
+            } else {
+                alert('Failed to start speech recognition. Please:\n1. Check microphone permissions\n2. Ensure you\'re using Chrome or Edge\n3. Make sure no other app is using the mic');
+                this.isListening = false;
+                this.stopListening();
+            }
+        }
+
+        // Begin preloading likely SFX shortly after starting (non-blocking, no overlay here)
+        const version = ++this.preloadVersion;
+        setTimeout(() => this.preloadSfxForCurrentMode(version), 300);
+    }
+    
+    stopListening() {
+        this.isListening = false;
+        this.currentInterim = '';
+        if (this.analysisTimer) {
+            clearInterval(this.analysisTimer);
+            this.analysisTimer = null;
+        }
+        
+        // Stop speech recognition
+        if (this.recognition) {
+            this.recognition.stop();
+        }
+        
+        // Stop all audio completely
+        if (this.currentMusic) {
+            try {
+                this.currentMusic.pause();
+                this.currentMusic.currentTime = 0;
+            } catch (e) {
+                console.log('Error stopping music:', e);
+            }
+            this.currentMusic = null;
+        }
+        
+        if (this.currentMusicSource) {
+            try {
+                this.currentMusicSource.disconnect();
+            } catch (e) {}
+            this.currentMusicSource = null;
+        }
+        
+        this.activeSounds.forEach(soundObj => {
+            try {
+                if (soundObj.source) {
+                    // Web Audio buffer source
+                    soundObj.source.stop();
+                } else if (soundObj.pause) {
+                    // HTMLAudioElement
+                    soundObj.pause();
+                    soundObj.currentTime = 0;
+                }
+            } catch (e) {
+                console.log('Error stopping sound:', e);
+            }
+        });
+        this.activeSounds.clear();
+        
+        // Update UI
+        document.getElementById('startBtn').classList.remove('hidden');
+        document.getElementById('stopBtn').classList.add('hidden');
+        document.querySelector('.visualizer-section').classList.remove('listening');
+        
+        // Stop visualizer
+        this.stopVisualizer();
+        
+        // Clear canvas
+        this.canvasCtx.fillStyle = '#000';
+        this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.updateStatus('Stopped. Ready to listen again.');
+        this.updateSoundsList();
+    }
+    
+    updateStatus(message) {
+        document.getElementById('statusText').textContent = message;
+        console.log('Status:', message);
+    }
+
+    // ===== VOICE COMMANDS =====
+    handleVoiceCommands(text) {
+        const t = text.toLowerCase();
+        let handled = false;
+        const say = (msg) => this.updateStatus(msg);
+        if (/\b(skip|next) (track|song|music)\b/.test(t)) {
+            // Force music change by setting change true with same query to refetch
+            if (this.currentMusic) { this.fadeOutAudio(this.currentMusic, 300); }
+            this.updateStatus('Skipping track...');
+            handled = true;
+        }
+        if (/\bquieter music\b|\bturn (the )?music down\b/.test(t)) {
+            this.musicLevel = Math.max(0, this.musicLevel - 0.1);
+            localStorage.setItem('cueai_music_level', String(this.musicLevel));
+            say(`Music level: ${Math.round(this.musicLevel*100)}%`);
+            const target = this.getMusicTargetGain();
+            try { this.musicGainNode.gain.setValueAtTime(target, this.audioContext.currentTime); } catch(_){}
+            handled = true;
+        }
+        if (/\blower (the )?music\b|\bquieter\b/.test(t)) {
+            // already covered
+        }
+        if (/\blouder music\b|\bturn (the )?music up\b/.test(t)) {
+            this.musicLevel = Math.min(1, this.musicLevel + 0.1);
+            localStorage.setItem('cueai_music_level', String(this.musicLevel));
+            say(`Music level: ${Math.round(this.musicLevel*100)}%`);
+            const target = this.getMusicTargetGain();
+            try { this.musicGainNode.gain.setValueAtTime(target, this.audioContext.currentTime); } catch(_){}
+            handled = true;
+        }
+        if (/\bmute sfx\b|\bmute sound effects\b/.test(t)) {
+            this.sfxEnabled = false; localStorage.setItem('cueai_sfx_enabled', 'false'); say('Sound effects muted'); handled = true;
+        }
+        if (/\bunmute sfx\b|\bunmute sound effects\b/.test(t)) {
+            this.sfxEnabled = true; localStorage.setItem('cueai_sfx_enabled', 'true'); say('Sound effects unmuted'); handled = true;
+        }
+        if (/\bmute music\b/.test(t)) {
+            this.musicEnabled = false; localStorage.setItem('cueai_music_enabled', 'false'); if (this.currentMusic) this.fadeOutAudio(this.currentMusic, 250); say('Music muted'); handled = true;
+        }
+        if (/\bunmute music\b/.test(t)) {
+            this.musicEnabled = true; localStorage.setItem('cueai_music_enabled', 'true'); say('Music unmuted'); handled = true;
+        }
+        const modeMatch = t.match(/\bswitch to (horror|christmas|halloween|dnd|bedtime|sing|auto)\b/);
+        if (modeMatch) { this.selectMode(modeMatch[1]); handled = true; }
+        return handled;
+    }
+
+    // ===== PREDICTIVE PREFETCH =====
+    predictivePrefetch(text) {
+        if (!this.freesoundApiKey || !this.sfxEnabled) return;
+        const t = text.toLowerCase();
+        // simple debounce
+        if (this._predictiveBusy) return; this._predictiveBusy = true; setTimeout(()=>{this._predictiveBusy=false;}, 400);
+        const cues = [
+            { k: /\bbark|woof\b/, q: 'dog bark' },
+            { k: /\bknock|door\b/, q: 'door knock' },
+            { k: /\bthunder|storm\b/, q: 'thunder' },
+            { k: /\bfootsteps?\b/, q: 'footsteps' },
+            { k: /\bcreak\b/, q: 'door creak' },
+            { k: /\bwind|whoosh\b/, q: 'wind whoosh' },
+        ];
+        const toWarm = cues.filter(c => c.k.test(t)).map(c => c.q).slice(0,2);
+        toWarm.forEach(async (q) => {
+            const cacheKey = `sfx:${q}`;
+            if (this.soundCache.has(cacheKey)) return; // already cached URL
+            const url = await this.searchAudio(q, 'sfx');
+            if (!url) return;
+            if (!this.activeBuffers.has(url)) {
+                try {
+                    const resp = await fetch(url); const ab = await resp.arrayBuffer();
+                    const buf = await this.audioContext.decodeAudioData(ab); this.activeBuffers.set(url, buf);
+                } catch(_){}
+            }
+        });
+    }
+
+    // ===== PREFETCH ALTERNATES =====
+    async prefetchAlternates(query) {
+        if (!this.freesoundApiKey && !this.pixabayApiKey) return;
+        const q = query.toLowerCase();
+        const related = {
+            'door creak': ['door squeak','wood creak'],
+            'wind whoosh': ['wind howl','wind gust'],
+            'footsteps': ['footsteps hallway','footsteps gravel'],
+            'wolf howl': ['dog howl','coyote howl'],
+            'witch cackle': ['creepy laugh','evil laugh'],
+            'thunder': ['thunder rumble','lightning strike']
+        };
+        const alts = related[q] || [];
+        for (const alt of alts.slice(0,2)) {
+            const url = await this.searchAudio(alt, 'sfx');
+            if (url && !this.activeBuffers.has(url)) {
+                try { const resp = await fetch(url); const ab = await resp.arrayBuffer(); const buf = await this.audioContext.decodeAudioData(ab); this.activeBuffers.set(url, buf);} catch(_){}
+            }
+        }
+    }
+
+    // ===== STINGERS =====
+    scheduleNextStinger() {
+        if (!this.sfxEnabled) return;
+        if (this.stingerTimer) clearTimeout(this.stingerTimer);
+        const interval = 20000 + Math.random() * 25000; // 20–45s
+        this.stingerTimer = setTimeout(async () => {
+            const stingerSet = this.getModeStingers();
+            const choice = stingerSet[Math.floor(Math.random()*stingerSet.length)];
+            const url = await this.searchAudio(choice, 'sfx');
+            if (url) { await this.playAudio(url, { type:'sfx', name: choice, volume: this.calculateVolume(0.5), loop:false }); }
+            this.scheduleNextStinger();
+        }, interval);
+    }
+
+    getModeStingers() {
+        const map = {
+            bedtime: ['owl hoot','wind whoosh','fire crackling'],
+            dnd: ['magic whoosh','coin jingle','torch crackle'],
+            horror: ['whisper','heartbeat','radio static'],
+            halloween: ['witch cackle','wolf howl','door creak'],
+            christmas: ['jingle bells','bell chime','wind arctic'],
+            sing: ['crowd cheer','applause','clap'],
+            auto: ['wind whoosh','door creak','footsteps']
+        };
+        return map[this.currentMode] || map.auto;
+    }
+
+    // ===== SFX PRELOADING (expanded, concurrency-limited) =====
+    async preloadSfxForCurrentMode(versionToken) {
+        if ((!this.freesoundApiKey && !this.pixabayApiKey) || !this.sfxEnabled) return;
+        if (this.preloadInProgress) return;
+        const base = this.modePreloadSets[this.currentMode] || this.modePreloadSets.auto;
+        const merged = [...new Set([...(base || []), ...this.genericPreloadSet])];
+        const target = merged.slice(0, 20); // cap at 20
+        if (target.length === 0) return;
+
+        this.preloadInProgress = true;
+        const startedAt = Date.now();
+        try {
+            const tasks = target.map(q => async () => {
+                // Abort if mode changed during preload
+                if (versionToken !== this.preloadVersion) return;
+                const cacheKey = `sfx:${q}`;
+                // If fully ready, skip
+                if (this.soundCache.has(cacheKey)) {
+                    const cachedUrl = this.soundCache.get(cacheKey);
+                    if (cachedUrl && this.activeBuffers.has(cachedUrl)) return;
+                }
+                const url = await this.searchAudio(q, 'sfx');
+                if (!url) return;
+                try {
+                    if (!this.activeBuffers.has(url)) {
+                        const resp = await fetch(url);
+                        const ab = await resp.arrayBuffer();
+                        const buf = await this.audioContext.decodeAudioData(ab);
+                        this.activeBuffers.set(url, buf);
+                    }
+                } catch (_) {
+                    // Decoding may fail due to CORS; playback will fallback later
+                }
+            });
+
+            await this.runWithConcurrency(tasks, this.getPreloadConcurrency());
+            const elapsed = Date.now() - startedAt;
+            this.updateStatus(`Prepared sounds (${target.length}) in ${Math.max(1, Math.round(elapsed/100)/10)}s`);
+        } catch (e) {
+            console.log('Preload failed:', e?.message || e);
+        } finally {
+            this.preloadInProgress = false;
+        }
+    }
+
+    async runWithConcurrency(taskFns, limit = 5) {
+        const queue = [...taskFns];
+        const runners = new Array(Math.min(limit, queue.length)).fill(0).map(async () => {
+            while (queue.length) {
+                const fn = queue.shift();
+                try { await fn(); } catch (_) {}
+            }
+        });
+        await Promise.all(runners);
+    }
+
+    getPreloadConcurrency() {
+        const conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+        const effective = conn?.effectiveType || '4g';
+        const base = this.lowLatencyMode ? 7 : 4;
+        if (effective.includes('2g')) return Math.max(2, base - 2);
+        if (effective.includes('3g')) return Math.max(3, base - 1);
+        return base;
+    }
+
+    showLoadingOverlay(message = 'Preparing sounds...') {
+        const overlay = document.getElementById('loadingOverlay');
+        const msg = document.getElementById('loadingMessage');
+        if (msg) msg.textContent = message;
+        if (overlay) overlay.classList.remove('hidden');
+    }
+
+    hideLoadingOverlay() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.classList.add('hidden');
+    }
+
+    updateApiStatusIndicators() {
+        const openaiStatus = document.getElementById('openaiStatus');
+        const freesoundStatus = document.getElementById('freesoundStatus');
+        const pixabayStatus = document.getElementById('pixabayStatus');
+        
+        if (openaiStatus) {
+            if (this.apiKey && this.apiKey.length > 10) {
+                openaiStatus.className = 'api-status active';
+                openaiStatus.setAttribute('aria-label', 'OpenAI API key is configured');
+            } else {
+                openaiStatus.className = 'api-status inactive';
+                openaiStatus.setAttribute('aria-label', 'OpenAI API key is missing');
+            }
+        }
+        
+        if (freesoundStatus) {
+            if (this.freesoundApiKey && this.freesoundApiKey.length > 10) {
+                freesoundStatus.className = 'api-status active';
+                freesoundStatus.setAttribute('aria-label', 'Freesound API key is configured');
+            } else {
+                freesoundStatus.className = 'api-status inactive';
+                freesoundStatus.setAttribute('aria-label', 'Freesound API key is missing');
+            }
+        }
+        
+        if (pixabayStatus) {
+            if (this.pixabayApiKey && this.pixabayApiKey.length > 10) {
+                pixabayStatus.className = 'api-status active';
+                pixabayStatus.setAttribute('aria-label', 'Pixabay API key is configured');
+            } else {
+                pixabayStatus.className = 'api-status inactive';
+                pixabayStatus.setAttribute('aria-label', 'Pixabay API key is missing');
+            }
+        }
+    }
+}
+
+// ===== INITIALIZE APP =====
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new CueAI();
+    console.log('🎵 CueAI initialized successfully!');
+});

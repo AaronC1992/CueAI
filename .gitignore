@@ -1,0 +1,33 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors/IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Node/JS common
+node_modules/
+dist/
+build/
+.cache/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Env/secrets
+.env
+.env.*
+
+# Coverage/Reports
+coverage/
+reports/
+
+# Misc
+*.local
+*.tmp
+*.swp

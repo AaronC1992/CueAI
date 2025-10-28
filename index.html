@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#8a2be2">
+    <title>CueAI - Intelligent Audio Companion</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <meta name="description" content="AI-powered ambient sound designer for storytelling">
+</head>
+<body>
+    <!-- API Key Setup Modal (OpenAI only) -->
+    <div id="apiKeyModal" class="modal">
+        <div class="modal-content">
+            <h2>Setup CueAI</h2>
+            <p>Enter your OpenAI API key</p>
+
+            <div class="provider-info">
+                <p>Get your key at: <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></p>
+                <p class="info-text">Note: You need an active billing setup to use the API.</p>
+            </div>
+
+            <input type="password" id="apiKeyInput" placeholder="sk-...">
+            <button id="saveApiKey" class="btn-primary">Save & Continue</button>
+            <p class="info-text">Your key is stored securely in your browser only.</p>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="appContainer" class="hidden">
+        <!-- Header -->
+        <header>
+            <h1>🎵 CueAI</h1>
+            <p class="tagline">Intelligent Audio Companion</p>
+            <button id="tutorialBtn" class="btn-tutorial">📖 Tutorial</button>
+        </header>
+
+        <!-- Mode Selection -->
+        <section class="mode-selector">
+            <h3>Select Mode</h3>
+            <select id="modeDropdown" class="mode-dropdown">
+                <option value="bedtime">Bedtime Story</option>
+                <option value="dnd" selected>D&D Campaign</option>
+                <option value="horror">Horror</option>
+                <option value="christmas">Christmas</option>
+                <option value="halloween">Halloween</option>
+                <option value="sing">Sing Mode</option>
+                <option value="auto">Auto-Detect</option>
+            </select>
+        </section>
+
+        <!-- Volume Controls -->
+        <section class="volume-controls">
+            <h3>Volume Range</h3>
+            <div class="slider-container">
+                <label>Minimum: <span id="minVolumeValue">20</span>%</label>
+                <input type="range" id="minVolume" min="0" max="100" value="20">
+            </div>
+            <div class="slider-container">
+                <label>Maximum: <span id="maxVolumeValue">70</span>%</label>
+                <input type="range" id="maxVolume" min="0" max="100" value="70">
+            </div>
+            <h3 style="margin-top:20px">Mixer</h3>
+            <div class="slider-container">
+                <label>Music Level: <span id="musicLevelValue">50</span>%</label>
+                <input type="range" id="musicLevel" min="0" max="100" value="50">
+            </div>
+            <div class="slider-container">
+                <label>Sound Effects Level: <span id="sfxLevelValue">90</span>%</label>
+                <input type="range" id="sfxLevel" min="0" max="100" value="90">
+            </div>
+            <h3 style="margin-top:20px">Mood & Performance</h3>
+            <div class="slider-container">
+                <label>Mood/Intensity: <span id="moodBiasValue">50</span>%</label>
+                <input type="range" id="moodBias" min="0" max="100" value="50">
+            </div>
+            <div class="toggle-row" style="margin-top:8px">
+                <label for="lowLatencyMode">Low Latency Mode</label>
+                <label class="switch">
+                    <input type="checkbox" id="lowLatencyMode">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Audio Visualizer -->
+        <section class="visualizer-section">
+            <canvas id="visualizer"></canvas>
+            <div id="statusText" class="status-text">Ready to listen...</div>
+        </section>
+
+        <!-- Control Buttons -->
+        <section class="controls">
+            <button id="testMicBtn" class="btn-test">Test Microphone</button>
+            <button id="startBtn" class="btn-start">Start Listening</button>
+            <button id="stopBtn" class="btn-stop hidden">Stop Listening</button>
+            <button id="stopAudioBtn" class="btn-stop-audio">Stop Audio</button>
+        </section>
+
+        <!-- Playback Options -->
+        <section class="playback-options">
+            <h3>Playback Options</h3>
+            <div class="toggle-row">
+                <label for="toggleMusic">Music</label>
+                <label class="switch">
+                    <input type="checkbox" id="toggleMusic" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <label for="toggleSfx">Sound Effects</label>
+                <label class="switch">
+                    <input type="checkbox" id="toggleSfx" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p class="info-text">Tip: Turn one off to have the AI play only music or only SFX.</p>
+        </section>
+
+        <!-- Live Transcript -->
+        <section class="transcript-section">
+            <h3>What I'm Hearing</h3>
+            <div id="transcript" class="transcript-box">Waiting for audio input...</div>
+        </section>
+
+        <!-- Current Sounds -->
+        <section class="sounds-section">
+            <h3>Currently Playing</h3>
+            <div id="currentSounds" class="sounds-list">
+                <div class="sound-item inactive">No sounds playing</div>
+            </div>
+        </section>
+
+        <!-- Settings Footer -->
+        <footer>
+            <div class="api-status-row">
+                <button id="setupFreesound" class="btn-secondary">Setup Audio Sources</button>
+                <span id="pixabayStatus" class="api-status" aria-label="Pixabay API status (Future Support)" title="Pixabay (Future Support)"></span>
+                <span id="freesoundStatus" class="api-status" aria-label="Freesound API status"></span>
+            </div>
+            <div class="api-status-row">
+                <button id="resetApiKey" class="btn-secondary">Reset OpenAI Key</button>
+                <span id="openaiStatus" class="api-status" aria-label="OpenAI API status"></span>
+            </div>
+            <p class="version">v1.1 | CueAI © 2025</p>
+        </footer>
+    </div>
+
+    <!-- Audio Sources Setup Modal -->
+    <div id="freesoundModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Setup Audio Sources</h2>
+            <p>Configure your audio API keys for high-quality sound playback</p>
+            
+            <div style="margin-top: 25px;">
+                <h3 style="color: #bb86fc; font-size: 1.1em; margin-bottom: 10px;">Freesound (Primary)</h3>
+                <p class="info-text">Massive community library with 500,000+ sounds. Get your free key at: <a href="https://freesound.org/apiv2/apply/" target="_blank">freesound.org/apiv2/apply</a></p>
+                <input type="password" id="freesoundKeyInput" placeholder="Your Freesound API key...">
+            </div>
+            
+            <div style="margin-top: 25px;">
+                <h3 style="color: #666; font-size: 1.1em; margin-bottom: 10px;">Pixabay (Future Support)</h3>
+                <p class="info-text" style="color: #666;">Audio API coming soon. Free tier currently unavailable.</p>
+                <input type="password" id="pixabayKeyInput" placeholder="Reserved for future expansion..." disabled style="opacity: 0.5;" title="Pixabay audio will be supported in a future update">
+            </div>
+            
+            <p class="info-text" style="margin-top: 20px; font-size: 0.9em;">💡 Tip: Start with Freesound for the best variety of sounds. More sources coming soon!</p>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button id="saveAudioKeys" class="btn-primary">Save Keys</button>
+                <button id="cancelFreesound" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorialModal" class="modal hidden">
+        <div class="modal-content tutorial-content">
+            <button id="closeTutorial" class="close-btn">✕</button>
+            <h2>🎵 CueAI Tutorial</h2>
+            <p class="tutorial-intro">Welcome to CueAI! Here's everything you need to know to get started.</p>
+            
+            <div class="tutorial-section">
+                <h3>🎭 Modes</h3>
+                <p><strong>Bedtime Story:</strong> Calm, gentle sounds for soothing storytelling.</p>
+                <p><strong>D&D Campaign:</strong> Fantasy adventure atmosphere with combat and environmental SFX.</p>
+                <p><strong>Horror:</strong> Tense, eerie ambience with suspenseful stingers.</p>
+                <p><strong>Christmas:</strong> Festive bells, winter sounds, and joyful holiday music.</p>
+                <p><strong>Halloween:</strong> Playful spooky vibes with cackling, chains, and autumn atmosphere.</p>
+                <p><strong>Sing Mode:</strong> Musical accompaniment that matches your vocals and tempo.</p>
+                <p><strong>Auto-Detect:</strong> AI detects the mood and setting automatically.</p>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>🎚️ Volume Controls</h3>
+                <p><strong>Min/Max Volume:</strong> Set the range for automatic volume adjustments.</p>
+                <p><strong>Music Level:</strong> Control background music volume independently (0-100%).</p>
+                <p><strong>Sound Effects Level:</strong> Control SFX volume independently (0-100%).</p>
+                <p><strong>Mood/Intensity:</strong> Bias audio choices from calm (0%) to intense (100%). Higher values = louder music, deeper ducking, more dramatic effects.</p>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>⚡ Performance</h3>
+                <p><strong>Low Latency Mode:</strong> Increases preloading speed for faster sound reactions. Best for fast internet connections.</p>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>🎵 Playback Options</h3>
+                <p><strong>Music Toggle:</strong> Turn background music on/off.</p>
+                <p><strong>SFX Toggle:</strong> Turn sound effects on/off.</p>
+                <p class="info-text">Tip: Turn one off to have the AI play only music or only SFX.</p>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>🎤 Voice Commands</h3>
+                <p>Control CueAI hands-free while listening:</p>
+                <ul>
+                    <li><strong>"Skip track"</strong> or <strong>"Next song"</strong> - Change the music</li>
+                    <li><strong>"Quieter music"</strong> or <strong>"Louder music"</strong> - Adjust music volume by 10%</li>
+                    <li><strong>"Mute music"</strong> or <strong>"Unmute music"</strong> - Toggle music on/off</li>
+                    <li><strong>"Mute sound effects"</strong> or <strong>"Unmute SFX"</strong> - Toggle SFX on/off</li>
+                    <li><strong>"Switch to [mode]"</strong> - Change mode (e.g., "switch to horror")</li>
+                </ul>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>🔊 Audio Features</h3>
+                <p><strong>Music Ducking:</strong> Music automatically lowers when sound effects play, then returns smoothly.</p>
+                <p><strong>Spatial Audio:</strong> SFX are positioned in stereo for immersive depth.</p>
+                <p><strong>Loudness Normalization:</strong> All sounds are balanced to consistent volume.</p>
+                <p><strong>Crossfades:</strong> Music transitions smoothly without abrupt cuts.</p>
+                <p><strong>Stingers:</strong> Periodic ambient sounds play every 20-45 seconds for variety.</p>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>⚙️ Setup</h3>
+                <p><strong>OpenAI API Key:</strong> Required for AI-powered sound analysis. Get yours at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></p>
+                <p><strong>Audio Sources:</strong></p>
+                <ul>
+                    <li><strong>Freesound (Primary):</strong> Massive community library. Get your free key at <a href="https://freesound.org/apiv2/apply/" target="_blank">freesound.org/apiv2/apply</a></li>
+                    <li><strong>Pixabay (Future Support):</strong> Audio API not available on the free tier yet; no setup needed for now.</li>
+                </ul>
+                <p class="info-text">💡 Best practice: Add your Freesound key to enable high-quality sounds today. Additional sources will be enabled in updates. Keys are stored locally in your browser only.</p>
+            </div>
+
+            <div class="tutorial-section">
+                <h3>💡 Tips</h3>
+                <ul>
+                    <li>Speak clearly and close to your microphone for best results</li>
+                    <li>Instant triggers: Words like "bang", "crash", "knock", "bark" play sounds immediately</li>
+                    <li>Use the Mood slider to match your story's intensity</li>
+                    <li>Enable Low Latency Mode for split-second reactions</li>
+                    <li>The AI learns context over time - keep talking for better sound matching</li>
+                </ul>
+            </div>
+
+            <button id="closeTutorialBtn" class="btn-primary" style="margin-top: 20px;">Got It!</button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay (shown during mode preload) -->
+    <div id="loadingOverlay" class="overlay hidden" aria-live="polite" aria-busy="true">
+        <div class="overlay-content">
+            <div class="spinner" aria-hidden="true"></div>
+            <div id="loadingMessage">Preparing sounds...</div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script>
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => console.log('SW registered:', registration.scope))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
