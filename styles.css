@@ -336,8 +336,6 @@ header h1 {
     transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
 }
 
-.tooltip:hover .tooltip-content,
-.tooltip:focus-within .tooltip-content,
 .tooltip.show .tooltip-content {
     visibility: visible;
     opacity: 1;
