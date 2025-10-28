@@ -772,28 +772,46 @@ class CueAI {
     stopAllAudio() {
         // Cancel stingers
         if (this.stingerTimer) { clearTimeout(this.stingerTimer); this.stingerTimer = null; }
-        // Soft fade music
+
+        // Stop and fully release music element + source immediately
         if (this.currentMusic) {
-            this.fadeOutAudio(this.currentMusic, 300);
+            try {
+                this.currentMusic.pause();
+                this.currentMusic.currentTime = 0;
+                // Drop src to abort any streaming and release network
+                this.currentMusic.src = '';
+                this.currentMusic.load();
+            } catch(_) {}
             this.currentMusic = null;
         }
         if (this.currentMusicSource) {
             try { this.currentMusicSource.disconnect(); } catch (_) {}
             this.currentMusicSource = null;
         }
-        // Fade out SFX quickly
+
+        // Stop all active SFX and disconnect nodes/elements immediately
         this.activeSounds.forEach((soundObj) => {
             try {
-                if (soundObj.gainNode) {
-                    const g = soundObj.gainNode.gain;
-                    g.cancelScheduledValues(this.audioContext.currentTime);
-                    g.setTargetAtTime(0.0001, this.audioContext.currentTime, 0.05);
+                if (soundObj.source) {
+                    // Web Audio buffer source path
+                    try { soundObj.source.stop(); } catch(_) {}
+                    try { soundObj.source.disconnect(); } catch(_) {}
+                    try { soundObj.panner && soundObj.panner.disconnect(); } catch(_) {}
+                    try { soundObj.gainNode && soundObj.gainNode.disconnect(); } catch(_) {}
+                } else if (soundObj.pause) {
+                    // HTMLAudioElement path
+                    soundObj.pause();
+                    soundObj.currentTime = 0;
+                    try { soundObj.src = ''; soundObj.load(); } catch(_) {}
                 }
-                if (soundObj.source) setTimeout(() => { try { soundObj.source.stop(); } catch(_){} }, 120);
-                if (soundObj.pause) soundObj.pause();
             } catch (_) {}
         });
         this.activeSounds.clear();
+
+        // Clear any queued sounds if used
+        if (Array.isArray(this.soundQueue)) this.soundQueue.length = 0;
+
+        // Reflect empty state in UI
         this.updateSoundsList();
     }
 
