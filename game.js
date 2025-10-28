@@ -450,6 +450,14 @@ class CueAI {
         document.getElementById('tutorialBtn').addEventListener('click', () => this.showTutorial());
         document.getElementById('closeTutorial').addEventListener('click', () => this.hideTutorial());
         document.getElementById('closeTutorialBtn').addEventListener('click', () => this.hideTutorial());
+
+    // Feedback modal
+    const feedbackBtn = document.getElementById('feedbackBtn');
+    if (feedbackBtn) feedbackBtn.addEventListener('click', () => this.showFeedback());
+    const sendFeedbackBtn = document.getElementById('sendFeedbackBtn');
+    if (sendFeedbackBtn) sendFeedbackBtn.addEventListener('click', () => this.sendFeedbackEmail());
+    const cancelFeedback = document.getElementById('cancelFeedback');
+    if (cancelFeedback) cancelFeedback.addEventListener('click', () => this.hideFeedback());
     }
     
     selectMode(mode) {
