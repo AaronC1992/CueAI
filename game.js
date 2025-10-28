@@ -107,6 +107,9 @@ class CueAI {
     // Cache / recent playback tracking
     this.soundCache = new Map();
     this.recentlyPlayed = new Set(); // track recent URLs to reduce repeats
+    // SFX anti-repeat
+    this.sfxCooldownMs = 3500; // minimum gap between same-category SFX
+    this.sfxCooldowns = new Map(); // bucket -> nextAllowedTime
         
             // Instant trigger keywords for immediate sound effects
             this.instantKeywords = {
@@ -733,22 +736,8 @@ class CueAI {
         }
     
         async playInstantSound(config) {
-            if (!this.sfxEnabled) return;
-            // Limit simultaneous sounds
-            if (this.activeSounds.size >= this.maxSimultaneousSounds) {
-                return;
-            }
-        
-            const soundUrl = await this.searchAudio(config.query, 'sfx');
-            if (soundUrl) {
-                await this.playAudio(soundUrl, {
-                    type: 'sfx',
-                    name: config.query,
-                    volume: this.calculateVolume(config.volume),
-                    loop: false
-                });
-                this.updateStatus(`Instant sound: ${config.query}`);
-            }
+                // Reuse unified SFX path to benefit from cooldown logic
+                await this.playSoundEffect({ query: config.query, priority: 10, volume: config.volume });
         }
     
     // ===== AI CONTEXT ANALYSIS =====
@@ -1002,16 +991,43 @@ ${modeSpecificRules[this.currentMode]}`;
         if (this.activeSounds.size >= this.maxSimultaneousSounds) {
             return;
         }
+        // Cooldown to prevent rapid repeats of the same effect
+        const bucket = this.getSfxBucket(sfxData.query || '');
+        const now = Date.now();
+        const nextAllowed = this.sfxCooldowns.get(bucket) || 0;
+        if (now < nextAllowed) {
+            // Skip duplicate within cooldown window
+            return;
+        }
         
         const soundUrl = await this.searchAudio(sfxData.query, 'sfx');
         if (soundUrl) {
-            await this.playAudio(soundUrl, {
+            const played = await this.playAudio(soundUrl, {
                 type: 'sfx',
                 name: sfxData.query,
                 volume: this.calculateVolume(sfxData.volume || 0.7),
                 loop: false
             });
+            if (played) {
+                // Start cooldown for this bucket
+                this.sfxCooldowns.set(bucket, Date.now() + this.sfxCooldownMs);
+            }
         }
+    }
+
+    // Normalize and bucket SFX queries so variants like "door creak" and "door slam" share cooldown
+    getSfxBucket(query) {
+        const q = (query || '').toLowerCase();
+        if (q.includes('door')) return 'door';
+        if (q.includes('footstep')) return 'footsteps';
+        if (q.includes('whoosh') || q.includes('wind')) return 'wind';
+        if (q.includes('wolf') && q.includes('howl')) return 'wolf-howl';
+        if (q.includes('jingle') || q.includes('bell')) return 'bells';
+        if (q.includes('thunder')) return 'thunder';
+        if (q.includes('creak')) return 'creak';
+        if (q.includes('knock')) return 'knock';
+        // Fallback to normalized query as its own bucket
+        return q.replace(/\s+/g,' ').trim();
     }
     
     // ===== PIXABAY INTEGRATION =====
