@@ -272,7 +272,7 @@
     <div id="feedbackModal" class="modal hidden">
         <div class="modal-content">
             <h2>🐞 Feedback / 💡 Suggestion</h2>
-            <p class="info-text">This will open your email client to send feedback directly to Aaron.</p>
+            <p class="info-text">This opens your email app or Gmail with a prefilled message to Aaron. You'll need to press Send to deliver it.</p>
 
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <select id="feedbackType" class="mode-dropdown" style="flex:0.6;">
@@ -287,8 +287,10 @@
 
             <p class="info-text">Recipient: <strong>aaroncue92@gmail.com</strong></p>
 
-            <div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">
-                <button id="sendFeedbackBtn" class="btn-primary">Send Email</button>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:15px;">
+                <button id="sendFeedbackBtn" class="btn-primary">Open Email App</button>
+                <button id="openGmailBtn" class="btn-secondary">Open in Gmail</button>
+                <button id="copyFeedbackBtn" class="btn-secondary">Copy Details</button>
                 <button id="cancelFeedback" class="btn-secondary">Cancel</button>
             </div>
         </div>

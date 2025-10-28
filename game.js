@@ -234,10 +234,11 @@ class CueAI {
             `UA: ${navigator.userAgent}`
         ].join('\n');
         
-        const body = `${type}\n\n${message}\n\n---\nContext\n${ctx}`;
-        const mailto = `mailto:aaroncue92@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const body = `${type}\n\n${message}\n\n---\nContext\n${ctx}`;
+    const mailto = `mailto:aaroncue92@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent('aaroncue92@gmail.com')}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         
-        // Try open mail client
+        // Try open default mail client
         try {
             const a = document.createElement('a');
             a.href = mailto;
@@ -253,6 +254,56 @@ class CueAI {
         }
         
         this.hideFeedback();
+    }
+
+    openFeedbackInGmail() {
+        const type = (document.getElementById('feedbackType')?.value || 'Feedback').trim();
+        const subjectInput = (document.getElementById('feedbackSubject')?.value || '').trim();
+        const message = (document.getElementById('feedbackText')?.value || '').trim();
+        const subject = subjectInput || `${type} - CueAI`;
+        const versionText = document.querySelector('.version')?.textContent || 'v1.x';
+        const ctx = [
+            `Mode: ${this.currentMode}`,
+            `Music: ${this.musicEnabled ? 'on' : 'off'}, SFX: ${this.sfxEnabled ? 'on' : 'off'}`,
+            `Mood: ${Math.round(this.moodBias*100)}%`,
+            `URL: ${location.href}`,
+            `App: ${versionText}`,
+            `UA: ${navigator.userAgent}`
+        ].join('\n');
+        const body = `${type}\n\n${message}\n\n---\nContext\n${ctx}`;
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent('aaroncue92@gmail.com')}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        try {
+            window.open(gmailUrl, '_blank', 'noopener');
+            this.updateStatus('Opening Gmail compose...');
+        } catch (_) {
+            this.updateStatus('Could not open Gmail. Copying content...');
+            try { navigator.clipboard.writeText(`${subject}\n\n${body}`); } catch(_){ }
+        }
+        this.hideFeedback();
+    }
+
+    copyFeedbackDetails() {
+        const type = (document.getElementById('feedbackType')?.value || 'Feedback').trim();
+        const subjectInput = (document.getElementById('feedbackSubject')?.value || '').trim();
+        const message = (document.getElementById('feedbackText')?.value || '').trim();
+        const subject = subjectInput || `${type} - CueAI`;
+        const versionText = document.querySelector('.version')?.textContent || 'v1.x';
+        const ctx = [
+            `Mode: ${this.currentMode}`,
+            `Music: ${this.musicEnabled ? 'on' : 'off'}, SFX: ${this.sfxEnabled ? 'on' : 'off'}`,
+            `Mood: ${Math.round(this.moodBias*100)}%`,
+            `URL: ${location.href}`,
+            `App: ${versionText}`,
+            `UA: ${navigator.userAgent}`
+        ].join('\n');
+        const body = `${subject}\n\n${message}\n\n---\nContext\n${ctx}`;
+        try {
+            navigator.clipboard.writeText(body);
+            this.updateStatus('Feedback details copied to clipboard');
+            alert('Copied! Paste this into your email to: aaroncue92@gmail.com');
+        } catch (_) {
+            this.updateStatus('Copy failed.');
+        }
     }
 
     hideTutorial() {
@@ -446,7 +497,7 @@ class CueAI {
         document.getElementById('saveAudioKeys').addEventListener('click', () => this.saveAudioKeys());
         document.getElementById('cancelFreesound').addEventListener('click', () => this.hideFreesoundSetup());
 
-        // Tutorial
+    // Tutorial
         document.getElementById('tutorialBtn').addEventListener('click', () => this.showTutorial());
         document.getElementById('closeTutorial').addEventListener('click', () => this.hideTutorial());
         document.getElementById('closeTutorialBtn').addEventListener('click', () => this.hideTutorial());
@@ -456,6 +507,10 @@ class CueAI {
     if (feedbackBtn) feedbackBtn.addEventListener('click', () => this.showFeedback());
     const sendFeedbackBtn = document.getElementById('sendFeedbackBtn');
     if (sendFeedbackBtn) sendFeedbackBtn.addEventListener('click', () => this.sendFeedbackEmail());
+    const openGmailBtn = document.getElementById('openGmailBtn');
+    if (openGmailBtn) openGmailBtn.addEventListener('click', () => this.openFeedbackInGmail());
+    const copyFeedbackBtn = document.getElementById('copyFeedbackBtn');
+    if (copyFeedbackBtn) copyFeedbackBtn.addEventListener('click', () => this.copyFeedbackDetails());
     const cancelFeedback = document.getElementById('cancelFeedback');
     if (cancelFeedback) cancelFeedback.addEventListener('click', () => this.hideFeedback());
     }
