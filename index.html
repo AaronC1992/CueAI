@@ -35,6 +35,7 @@
             <h1>🎵 CueAI</h1>
             <p class="tagline">Intelligent Audio Companion</p>
             <button id="tutorialBtn" class="btn-tutorial">📖 Tutorial</button>
+            <button id="feedbackBtn" class="btn-tutorial" style="right: 150px;">🐞 Feedback</button>
         </header>
 
         <!-- Mode Selection -->
@@ -77,7 +78,14 @@
                 <input type="range" id="moodBias" min="0" max="100" value="50">
             </div>
             <div class="toggle-row" style="margin-top:8px">
-                <label for="lowLatencyMode">Low Latency Mode</label>
+                <label for="lowLatencyMode" id="lowLatencyTooltip" class="tooltip" aria-describedby="lowLatencyTip" title="Boosts responsiveness by preloading more sounds in parallel and prioritizing fast reactions. Best on strong networks and modern devices. May use more bandwidth and battery.">
+                    Low Latency Mode
+                    <button type="button" id="lowLatencyHelp" class="tooltip-icon" aria-label="What is Low Latency Mode?" aria-describedby="lowLatencyTip">?</button>
+                    <span id="lowLatencyTip" role="tooltip" class="tooltip-content">
+                        Boosts responsiveness by preloading more sounds in parallel and prioritizing fast reactions.
+                        Best on strong networks and modern devices. May use more bandwidth and battery.
+                    </span>
+                </label>
                 <label class="switch">
                     <input type="checkbox" id="lowLatencyMode">
                     <span class="slider"></span>
@@ -257,6 +265,32 @@
             </div>
 
             <button id="closeTutorialBtn" class="btn-primary" style="margin-top: 20px;">Got It!</button>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>🐞 Feedback / 💡 Suggestion</h2>
+            <p class="info-text">This will open your email client to send feedback directly to Aaron.</p>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <select id="feedbackType" class="mode-dropdown" style="flex:0.6;">
+                    <option value="Bug Report">Bug Report</option>
+                    <option value="Suggestion">Suggestion</option>
+                    <option value="Question">Question</option>
+                </select>
+                <input type="text" id="feedbackSubject" placeholder="Subject (optional)" style="flex:1;" />
+            </div>
+
+            <textarea id="feedbackText" rows="6" placeholder="Describe the bug, suggestion, or question..." style="margin-top:12px; width:100%; resize:vertical;"></textarea>
+
+            <p class="info-text">Recipient: <strong>aaroncue92@gmail.com</strong></p>
+
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">
+                <button id="sendFeedbackBtn" class="btn-primary">Send Email</button>
+                <button id="cancelFeedback" class="btn-secondary">Cancel</button>
+            </div>
         </div>
     </div>
 

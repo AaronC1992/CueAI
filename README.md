@@ -213,12 +213,12 @@ Edit `buildAnalysisPrompt()` method to fine-tune AI behavior:
 ## Privacy & Security
 
 ### Data Handling
-- ✅ **API Key (OpenAI)**: Stored locally in browser (localStorage)
-- ✅ **Freesound API Key**: Optional, stored locally in browser (localStorage)
-- ✅ **Transcripts**: Sent only to OpenAI, not stored by this app
-- ✅ **Audio**: Processed locally, never recorded
-- ✅ **No Server**: Entirely client-side application
-- ✅ **No Tracking**: No analytics or third-party scripts
+- **API Key (OpenAI)**: Stored locally in browser (localStorage)
+- **Freesound API Key**: Optional, stored locally in browser (localStorage)
+- **Transcripts**: Sent only to OpenAI, not stored by this app
+- **Audio**: Processed locally, never recorded
+- **No Server**: Entirely client-side application
+- **No Tracking**: No analytics or third-party scripts
 
 ### Recommendations
 - Use HTTPS when deploying online

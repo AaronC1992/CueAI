@@ -208,6 +208,52 @@ class CueAI {
     showTutorial() {
         document.getElementById('tutorialModal').classList.remove('hidden');
     }
+    
+    showFeedback() {
+        document.getElementById('feedbackModal').classList.remove('hidden');
+    }
+    
+    hideFeedback() {
+        document.getElementById('feedbackModal').classList.add('hidden');
+    }
+    
+    sendFeedbackEmail() {
+        const type = (document.getElementById('feedbackType')?.value || 'Feedback').trim();
+        const subjectInput = (document.getElementById('feedbackSubject')?.value || '').trim();
+        const message = (document.getElementById('feedbackText')?.value || '').trim();
+        const subject = subjectInput || `${type} - CueAI`;
+        
+        // Gather minimal context
+        const versionText = document.querySelector('.version')?.textContent || 'v1.x';
+        const ctx = [
+            `Mode: ${this.currentMode}`,
+            `Music: ${this.musicEnabled ? 'on' : 'off'}, SFX: ${this.sfxEnabled ? 'on' : 'off'}`,
+            `Mood: ${Math.round(this.moodBias*100)}%`,
+            `URL: ${location.href}`,
+            `App: ${versionText}`,
+            `UA: ${navigator.userAgent}`
+        ].join('\n');
+        
+        const body = `${type}\n\n${message}\n\n---\nContext\n${ctx}`;
+        const mailto = `mailto:aaroncue92@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        
+        // Try open mail client
+        try {
+            const a = document.createElement('a');
+            a.href = mailto;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            this.updateStatus('Opening your email app...');
+        } catch (e) {
+            this.updateStatus('Could not open email app. Copying email content...');
+            try { navigator.clipboard.writeText(`${subject}\n\n${body}`); } catch(_) {}
+            alert('If your email app did not open, please paste the copied text into an email to: aaroncue92@gmail.com');
+        }
+        
+        this.hideFeedback();
+    }
 
     hideTutorial() {
         document.getElementById('tutorialModal').classList.add('hidden');
@@ -336,7 +382,47 @@ class CueAI {
                 localStorage.setItem('cueai_low_latency', JSON.stringify(this.lowLatencyMode));
                 this.preloadConcurrency = this.getPreloadConcurrency();
                 this.updateStatus(`Low Latency Mode ${this.lowLatencyMode ? 'enabled' : 'disabled'}`);
+                // Briefly show tooltip when enabled
+                if (this.lowLatencyMode) {
+                    const lbl = document.getElementById('lowLatencyTooltip');
+                    if (lbl) {
+                        lbl.classList.add('show');
+                        setTimeout(() => lbl.classList.remove('show'), 2500);
+                    }
+                }
             });
+        }
+        // Low Latency tooltip interactions (hover via CSS; add touch/keyboard support)
+        const ttLabel = document.getElementById('lowLatencyTooltip');
+        const ttHelp = document.getElementById('lowLatencyHelp');
+        let pressTimer;
+        const showTip = () => ttLabel && ttLabel.classList.add('show');
+        const hideTip = () => ttLabel && ttLabel.classList.remove('show');
+        if (ttHelp) {
+            // Keyboard focus toggles via focus/blur
+            ttHelp.addEventListener('focus', showTip);
+            ttHelp.addEventListener('blur', hideTip);
+            ttHelp.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (ttLabel.classList.contains('show')) hideTip(); else showTip();
+            });
+            // Touch long-press shows tooltip briefly
+            ttHelp.addEventListener('touchstart', () => {
+                clearTimeout(pressTimer);
+                pressTimer = setTimeout(showTip, 450);
+            }, { passive: true });
+            const endTouch = () => {
+                clearTimeout(pressTimer);
+                // Keep visible for a short time, then hide
+                setTimeout(hideTip, 2200);
+            };
+            ttHelp.addEventListener('touchend', endTouch, { passive: true });
+            ttHelp.addEventListener('touchcancel', endTouch, { passive: true });
+        }
+        // Also show tooltip when the checkbox itself receives keyboard focus
+        if (lowLatencyToggle && ttLabel) {
+            lowLatencyToggle.addEventListener('focus', showTip);
+            lowLatencyToggle.addEventListener('blur', hideTip);
         }
         
         // Control Buttons
