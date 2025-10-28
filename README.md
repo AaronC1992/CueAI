@@ -2,6 +2,8 @@
 
 **Version 1.0 MVP (OpenAI-only, client-side)**
 
+[![Open App](https://img.shields.io/badge/Open%20App-Live-2ea44f?logo=googlechrome&logoColor=white)](https://aaronc1992.github.io/CueAI/)
+
 An AI-powered ambient sound designer that listens to conversations and automatically plays contextually-appropriate music and sound effects. Perfect for enhancing bedtime stories and D&D campaigns!
 
 ---
