@@ -6,6 +6,13 @@ An AI-powered ambient sound designer that listens to conversations and automatic
 
 ---
 
+## Run the App (Live)
+
+- ▶️ Open in your browser: https://aaronc1992.github.io/CueAI/
+- Tip: If the page was open before, do a hard refresh twice to activate the latest service worker (v4).
+
+---
+
 ## Features
 
 ### Core Functionality
