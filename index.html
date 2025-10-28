@@ -273,9 +273,14 @@
         // Register service worker for PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => console.log('SW registered:', registration.scope))
-                    .catch(err => console.log('SW registration failed:', err));
+                try {
+                    const swUrl = new URL('service-worker.js', window.location.href);
+                    navigator.serviceWorker.register(swUrl.href)
+                        .then(registration => console.log('SW registered:', registration.scope))
+                        .catch(err => console.log('SW registration failed:', err));
+                } catch (e) {
+                    console.log('SW registration error:', e);
+                }
             });
         }
     </script>

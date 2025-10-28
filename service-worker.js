@@ -1,13 +1,13 @@
 // CueAI Service Worker
-const CACHE_NAME = 'cueai-v3';
+const CACHE_NAME = 'cueai-v4';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/game.js',
-  '/manifest.json',
-  '/icon.svg',
-  '/favicon.svg'
+  './',
+  './index.html',
+  './styles.css',
+  './game.js',
+  './manifest.json',
+  './icon.svg',
+  './favicon.svg'
 ];
 
 // Install event - cache core files
@@ -28,7 +28,8 @@ self.addEventListener('fetch', (event) => {
   // Handle legacy icon paths from older manifests to avoid 404 noise
   if (
     url.origin === self.location.origin &&
-    (url.pathname === '/icon-192.png' || url.pathname === '/icon-512.png')
+    (url.pathname.endsWith('/icon-192.png') || url.pathname.endsWith('/icon-512.png') ||
+     url.pathname.endsWith('icon-192.png') || url.pathname.endsWith('icon-512.png'))
   ) {
     // Return a tiny valid transparent PNG to satisfy the request
     const tinyPng =

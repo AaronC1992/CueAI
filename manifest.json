@@ -2,14 +2,14 @@
   "name": "CueAI - Intelligent Audio Companion",
   "short_name": "CueAI",
   "description": "AI-powered ambient sound designer that listens to conversations and automatically plays contextually-appropriate music and sound effects",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#8a2be2",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
