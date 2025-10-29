@@ -1,11 +1,12 @@
 // CueAI Service Worker
-const CACHE_NAME = 'cueai-v4';
+const CACHE_NAME = 'cueai-v5';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './game.js',
   './manifest.json',
+  './saved-sounds.json',
   './icon.svg',
   './favicon.svg'
 ];

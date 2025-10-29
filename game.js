@@ -108,10 +108,12 @@ class CueAI {
     this.soundCache = new Map();
     this.recentlyPlayed = new Set(); // track recent URLs to reduce repeats
     // SFX anti-repeat
-    this.sfxCooldownMs = 3500; // minimum gap between same-category SFX
-    this.sfxCooldowns = new Map(); // bucket -> nextAllowedTime
-        
-            // Instant trigger keywords for immediate sound effects
+        this.sfxCooldownMs = 3500; // minimum gap between same-category SFX
+        this.sfxCooldowns = new Map(); // bucket -> nextAllowedTime
+        // Saved sounds (local quick-access library)
+        this.savedSounds = { files: [] };
+        this.userSavedSoundsPref = JSON.parse(localStorage.getItem('cueai_saved_sounds_enabled') ?? 'true');
+        this.savedSoundsEnabled = false;            // Instant trigger keywords for immediate sound effects
             this.instantKeywords = {
                 'bang': { query: 'gunshot explosion', volume: 0.9 },
                 'crash': { query: 'crash metal', volume: 0.8 },
@@ -159,9 +161,36 @@ class CueAI {
         this.initializeSpeechRecognition();
         this.setupVisualizer();
         this.updateApiStatusIndicators();
+        // Load local saved sounds (dev/local only)
+        this.loadSavedSounds().catch(()=>{});
     }
-    
-    // ===== API KEY MANAGEMENT =====
+
+    async loadSavedSounds() {
+        try {
+            const resp = await fetch('saved-sounds.json', { cache: 'no-cache' });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (Array.isArray(data?.files)) {
+                this.savedSounds.files = data.files.map(f => ({
+                    type: (f.type === 'music' ? 'music' : 'sfx'),
+                    name: String(f.name || '').toLowerCase(),
+                    file: String(f.file || ''),
+                    keywords: Array.isArray(f.keywords) ? f.keywords.map(k=>String(k||'').toLowerCase()) : []
+                }));
+                const host = location.hostname || '';
+                const isLocal = location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1';
+                const isPages = /github\.io$/i.test(host);
+                this.savedSoundsEnabled = isLocal && this.savedSounds.files.length > 0 && !isPages && !!this.userSavedSoundsPref;
+                console.log(`Loaded saved sounds: ${this.savedSounds.files.length}; enabled=${this.savedSoundsEnabled}`);
+                // Reflect toggle if present
+                const toggleSaved = document.getElementById('toggleSaved');
+                if (toggleSaved) {
+                    toggleSaved.checked = !!this.userSavedSoundsPref && this.savedSoundsEnabled;
+                    toggleSaved.disabled = !(isLocal && !isPages && this.savedSounds.files.length > 0);
+                }
+            }
+        } catch(_) {}
+    }    // ===== API KEY MANAGEMENT =====
     checkApiKey() {
         const modal = document.getElementById('apiKeyModal');
         const appContainer = document.getElementById('appContainer');
@@ -460,8 +489,9 @@ class CueAI {
         }
         
         // Playback toggles
-        const toggleMusic = document.getElementById('toggleMusic');
-        const toggleSfx = document.getElementById('toggleSfx');
+    const toggleMusic = document.getElementById('toggleMusic');
+    const toggleSfx = document.getElementById('toggleSfx');
+    const toggleSaved = document.getElementById('toggleSaved');
         if (toggleMusic) {
             toggleMusic.checked = !!this.musicEnabled;
             toggleMusic.addEventListener('change', (e) => {
@@ -492,6 +522,28 @@ class CueAI {
                     this.activeSounds.clear();
                     this.updateSoundsList();
                 }
+            });
+        }
+        if (toggleSaved) {
+            // Initialize toggle state; disabled if not local or no manifest
+            const host = location.hostname || '';
+            const isLocal = location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1';
+            const isPages = /github\.io$/i.test(host);
+            toggleSaved.disabled = !(isLocal && !isPages);
+            toggleSaved.checked = !!this.userSavedSoundsPref && !toggleSaved.disabled;
+            toggleSaved.addEventListener('change', (e) => {
+                this.userSavedSoundsPref = e.target.checked;
+                localStorage.setItem('cueai_saved_sounds_enabled', JSON.stringify(this.userSavedSoundsPref));
+                const wasEnabled = this.savedSoundsEnabled;
+                // If enabling, re-load manifest to pick up any new files
+                if (this.userSavedSoundsPref) {
+                    this.loadSavedSounds().catch(()=>{});
+                } else {
+                    this.savedSoundsEnabled = false;
+                }
+                // Compute current enabled state (may be updated by loadSavedSounds async)
+                this.savedSoundsEnabled = (isLocal && !isPages && this.savedSounds.files.length > 0 && !!this.userSavedSoundsPref);
+                this.updateStatus(`Saved sounds ${this.savedSoundsEnabled ? 'enabled' : 'disabled'}${toggleSaved.disabled ? ' (local only)' : ''}`);
             });
         }
         
@@ -1074,6 +1126,11 @@ ${modeSpecificRules[this.currentMode]}`;
 
     // ===== DUAL-SOURCE AUDIO SEARCH =====
     async searchAudio(query, type) {
+        // Try local Saved sounds first (dev/local only)
+        if (this.savedSoundsEnabled) {
+            const local = this.searchLocalSaved(query, type);
+            if (local) return local;
+        }
         // Try Pixabay first if key is set (faster when available)
         // Note: Currently falls back immediately as free tier has no audio
         let url = null;
@@ -1100,6 +1157,69 @@ ${modeSpecificRules[this.currentMode]}`;
         }
         
         return url;
+    }
+
+    // ===== LOCAL SAVED SOUNDS =====
+    searchLocalSaved(query, type) {
+        try {
+            if (!this.savedSoundsEnabled || !this.savedSounds?.files?.length) return null;
+            const norm = (s) => String(s||'').toLowerCase().replace(/[-_]/g,' ').replace(/\s+/g,' ').trim();
+            const base = norm(query);
+            if (!base) return null;
+            
+            // Build expanded token set with synonyms
+            const tokens = base.split(' ').filter(Boolean);
+            const expand = new Set(tokens);
+            tokens.forEach(t=>{
+                if (t.startsWith('footstep')) expand.add('footsteps');
+                if (t === 'bark' || t === 'woof') { expand.add('dog'); expand.add('bark'); }
+                if (t === 'howl') { expand.add('wolf'); expand.add('dog'); }
+                if (t === 'creak' || t === 'squeak') { expand.add('door'); expand.add('wood'); }
+                if (t === 'door') expand.add('creak');
+                if (t === 'whoosh' || t === 'swish') expand.add('wind');
+                if (t === 'lightning') expand.add('thunder');
+                if (t === 'meow') expand.add('cat');
+                if (t === 'explosion' || t === 'boom') { expand.add('blast'); expand.add('bang'); }
+                if (t === 'scream' || t === 'yell') { expand.add('woman'); expand.add('horror'); }
+                if (t === 'monster' || t === 'zombie') { expand.add('growl'); expand.add('undead'); }
+            });
+            const exTokens = Array.from(expand);
+            
+            const candidates = this.savedSounds.files.filter(f => f.type === (type === 'music' ? 'music' : 'sfx'));
+            let best = null, bestScore = 0;
+            
+            for (const f of candidates) {
+                const hay = norm([
+                    f.name || '',
+                    f.file || '',
+                    ...(Array.isArray(f.keywords) ? f.keywords : [])
+                ].join(' '));
+                
+                let score = 0;
+                // Token matching
+                for (const t of exTokens) {
+                    if (t && hay.includes(t)) score += 1;
+                }
+                // Phrase boost
+                if (hay.includes(base)) score += 2;
+                // Category bonus for common patterns
+                if (type === 'sfx') {
+                    if (/footstep|walk/.test(hay) && /footstep|walk/.test(base)) score += 0.5;
+                    if (/dog|bark/.test(hay) && /dog|bark|woof/.test(base)) score += 0.5;
+                    if (/explosion|blast|boom/.test(hay) && /explosion|boom|bang|blast/.test(base)) score += 0.5;
+                }
+                if (type === 'music' && /music|christmas|ambient|piano/.test(hay)) score += 0.5;
+                
+                if (score > bestScore) { best = f; bestScore = score; }
+            }
+            
+            if (best && bestScore >= 1) {
+                const url = encodeURI(best.file);
+                console.log(`✓ Found via Saved sounds: ${query} -> ${best.name} (score: ${bestScore})`);
+                return url;
+            }
+            return null;
+        } catch(_) { return null; }
     }
 
     // ===== FREESOUND.ORG INTEGRATION =====

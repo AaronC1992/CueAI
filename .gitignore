@@ -31,3 +31,6 @@ reports/
 *.local
 *.tmp
 *.swp
+ 
+# Local audio library (large files, keep out of repo)
+Saved sounds/
