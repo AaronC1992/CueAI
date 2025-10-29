@@ -180,13 +180,13 @@ class CueAI {
                 const host = location.hostname || '';
                 const isLocal = location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1';
                 const isPages = /github\.io$/i.test(host);
-                this.savedSoundsEnabled = isLocal && this.savedSounds.files.length > 0 && !isPages && !!this.userSavedSoundsPref;
+                this.savedSoundsEnabled = this.savedSounds.files.length > 0 && !!this.userSavedSoundsPref;
                 console.log(`Loaded saved sounds: ${this.savedSounds.files.length}; enabled=${this.savedSoundsEnabled}`);
                 // Reflect toggle if present
                 const toggleSaved = document.getElementById('toggleSaved');
                 if (toggleSaved) {
                     toggleSaved.checked = !!this.userSavedSoundsPref && this.savedSoundsEnabled;
-                    toggleSaved.disabled = !(isLocal && !isPages && this.savedSounds.files.length > 0);
+                    toggleSaved.disabled = !(this.savedSounds.files.length > 0);
                 }
             }
         } catch(_) {}
@@ -525,12 +525,12 @@ class CueAI {
             });
         }
         if (toggleSaved) {
-            // Initialize toggle state; disabled if not local or no manifest
+            // Initialize toggle state
             const host = location.hostname || '';
             const isLocal = location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1';
             const isPages = /github\.io$/i.test(host);
-            toggleSaved.disabled = !(isLocal && !isPages);
-            toggleSaved.checked = !!this.userSavedSoundsPref && !toggleSaved.disabled;
+            toggleSaved.disabled = false; // Always enable the toggle
+            toggleSaved.checked = !!this.userSavedSoundsPref;
             toggleSaved.addEventListener('change', (e) => {
                 this.userSavedSoundsPref = e.target.checked;
                 localStorage.setItem('cueai_saved_sounds_enabled', JSON.stringify(this.userSavedSoundsPref));
@@ -542,8 +542,8 @@ class CueAI {
                     this.savedSoundsEnabled = false;
                 }
                 // Compute current enabled state (may be updated by loadSavedSounds async)
-                this.savedSoundsEnabled = (isLocal && !isPages && this.savedSounds.files.length > 0 && !!this.userSavedSoundsPref);
-                this.updateStatus(`Saved sounds ${this.savedSoundsEnabled ? 'enabled' : 'disabled'}${toggleSaved.disabled ? ' (local only)' : ''}`);
+                this.savedSoundsEnabled = (this.savedSounds.files.length > 0 && !!this.userSavedSoundsPref);
+                this.updateStatus(`Saved sounds ${this.savedSoundsEnabled ? 'enabled' : 'disabled'}`);
             });
         }
         
