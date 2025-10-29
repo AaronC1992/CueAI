@@ -845,13 +845,13 @@ class CueAI {
         };
         
         const modeSpecificRules = {
-            bedtime: '- For bedtime mode: prioritize calm, gentle sounds; music stays very stable; ONLY play SFX if explicitly mentioned by the user (e.g., "the dog barked", "door creaked") — do NOT add ambient filler sounds',
-            dnd: '- For D&D mode: match the action and environment described; SFX ONLY when explicitly mentioned (e.g., "I swing my sword", "thunder rumbles"); avoid filler ambient sounds',
-            horror: '- For horror mode: prioritize tension, eerie ambience, subtle stingers; SFX ONLY when explicitly described (e.g., "the door creaked open", "footsteps echoed"); no filler',
-            christmas: '- For Christmas mode: use joyful bells, sleigh sounds, winter wind, crackling fireplace; music query MUST include terms like "jingle bells", "christmas carol", "holiday cheer", or "festive bells"; SFX ONLY for explicit cues (e.g., "sleigh bells jingled", "fire crackling")',
-            halloween: '- For Halloween mode: playful spooky sounds (cackling, chains, bats, owls); not too scary, fun and atmospheric; SFX ONLY when user explicitly mentions them',
-            sing: '- For Sing mode: listen to melody, tempo, and genre; provide complementary instrumental backing, harmonies, and rhythmic effects; change music only if the song style shifts dramatically; SFX sparingly, only for explicit vocal cues',
-            auto: '- SFX ONLY when the user explicitly mentions a sound or action (e.g., "knock on the door", "dog barked"); do NOT add ambient filler'
+            bedtime: '- For bedtime mode: ambient context sounds OK (crickets at night, gentle wind, soft fire); but ONE-OFF actions (dog bark, door knock, footsteps) ONLY play once when mentioned, never repeat',
+            dnd: '- For D&D mode: ambient context sounds OK (tavern crowd, wind in cave, crackling torch); but ONE-OFF actions (sword clash, arrow shot, door slam) play ONLY when explicitly mentioned, never repeat',
+            horror: '- For horror mode: ambient context sounds OK (wind, distant thunder, creaking house); but ONE-OFF actions (scream, door slam, footsteps) ONLY when explicitly mentioned, never repeat',
+            christmas: '- For Christmas mode: ambient context sounds OK (jingle bells ambience, crackling fire, wind); music query MUST include "christmas" or "jingle bells"; ONE-OFF actions play once only',
+            halloween: '- For Halloween mode: ambient context sounds OK (wind, owl hoot, distant chains); ONE-OFF actions (cackle, howl, door creak) play once when mentioned, never repeat',
+            sing: '- For Sing mode: listen to melody, tempo, and genre; provide complementary instrumental backing, harmonies, and rhythmic effects; change music only if song style shifts; SFX sparingly for explicit vocal cues only',
+            auto: '- Ambient context sounds OK when setting is clear (crickets at night, wind in storm); ONE-OFF actions (dog bark, knock, crash) ONLY when user mentions them, never repeat'
         };
 
         const moodPct = Math.round(this.moodBias * 100);
@@ -885,11 +885,12 @@ Return ONLY a JSON object (no markdown, no explanation) with this structure:
 Rules:
 - Music should be ambient/instrumental only and STABLE (change: false unless scene dramatically shifts)
 - Music is long-term atmosphere; only suggest change: true for major scene transitions
-- SFX should be specific (e.g., "sword clash", "thunder", "crackling fire", "footsteps")
-- SFX ONLY when the user explicitly mentions a sound or action in their speech
-- Do NOT add ambient filler SFX (e.g., crickets, wind, fire) unless the user explicitly says them
-- Return max 2 SFX per analysis, and ONLY if directly mentioned
-- If nothing interesting is happening or no sounds are mentioned, return null for music and empty array for sfx
+- SFX categories:
+  * AMBIENT/CONTEXT sounds: OK to suggest based on setting (e.g., crickets at night, wind in storm, crackling fire)
+  * ONE-OFF ACTION sounds: ONLY play ONCE when user mentions them (e.g., "dog barked" → one bark; do NOT repeat)
+- Do NOT repeat one-off action sounds (dog bark, door knock, scream, footsteps) multiple times unless the user explicitly says it happens again
+- Return max 2 SFX per analysis
+- If nothing new is happening, return empty array for sfx
 ${modeSpecificRules[this.currentMode]}`;
     }
     
