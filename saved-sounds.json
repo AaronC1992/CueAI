@@ -23,6 +23,7 @@
     {"type":"sfx","name":"footsteps wood stairs","file":"Saved sounds/footsteps_wood_stairs.wav","keywords":["footsteps","stairs","wood","creak"]},
     {"type":"sfx","name":"glass shatter","file":"Saved sounds/glass-shatter.wav","keywords":["glass","shatter","break","crash"]},
     {"type":"sfx","name":"gun shot","file":"Saved sounds/gun-shot.wav","keywords":["gun","shot","bang","weapon"]},
+    {"type":"sfx","name":"gunshot distant","file":"Saved sounds/gunshot-distant.wav","keywords":["gun","shot","distant","far","echo","weapon"]},
     {"type":"sfx","name":"heart monitor dying","file":"Saved sounds/heart-beep-monitor_dieing-long-beep.mp3","keywords":["heart","monitor","beep","flatline","hospital"]},
     {"type":"sfx","name":"heartbeat","file":"Saved sounds/heart_beat.mp3","keywords":["heart","beat","pulse","thump"]},
     {"type":"sfx","name":"heavy breathing","file":"Saved sounds/heavy-breathing.wav","keywords":["breathing","breath","heavy","panting"]},
