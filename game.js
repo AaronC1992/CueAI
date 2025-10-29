@@ -1423,7 +1423,11 @@ ${modeSpecificRules[this.currentMode]}`;
         // Try local Saved sounds first (dev/local only)
         if (this.savedSoundsEnabled) {
             const local = this.searchLocalSaved(query, type);
-            if (local) return local;
+            if (local) {
+                // Seed cache so prefetch checks can skip repeated lookups
+                try { this.soundCache.set(`${type}:${query}`, local); } catch (_) {}
+                return local;
+            }
         }
         // Try Pixabay first if key is set (faster when available)
         // Note: Currently falls back immediately as free tier has no audio
