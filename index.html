@@ -52,6 +52,32 @@
             </select>
         </section>
 
+        <!-- Stories -->
+        <section class="stories-selector">
+            <h3>Stories</h3>
+            <div class="stories-row">
+                <select id="storiesDropdown" class="mode-dropdown" aria-label="Choose a story to read">
+                    <option value="">-- Select a Story --</option>
+                    <option value="cinderella">Cinderella</option>
+                    <option value="snow_white">Snow White</option>
+                    <option value="sleeping_beauty">Sleeping Beauty</option>
+                    <option value="rapunzel">Rapunzel</option>
+                    <option value="beauty_and_the_beast">Beauty and the Beast</option>
+                    <option value="hansel_and_gretel">Hansel and Gretel</option>
+                    <option value="frog_prince">The Frog Prince</option>
+                </select>
+                <button id="startStoryBtn" class="btn-primary" style="margin-left:10px;">Start Story</button>
+            </div>
+            <div class="toggle-row" style="margin-top:8px">
+                <label for="autoStartStoryListening">Auto start listening on story start</label>
+                <label class="switch">
+                    <input type="checkbox" id="autoStartStoryListening">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p class="info-text">Reading Mode opens a fullscreen screen with the story text and highlights words as you speak.</p>
+        </section>
+
         <!-- Volume Controls -->
         <section class="volume-controls">
             <h3>Volume Range</h3>
@@ -319,6 +345,15 @@
             <div class="spinner" aria-hidden="true"></div>
             <div id="loadingMessage">Preparing sounds...</div>
         </div>
+    </div>
+
+    <!-- Story Reading Overlay -->
+    <div id="storyOverlay" class="story-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="storyTitle">
+        <div class="story-header">
+            <button id="closeStory" class="btn-secondary">← Back</button>
+            <h2 id="storyTitle" class="story-title">Story</h2>
+        </div>
+        <div id="storyContent" class="story-content" tabindex="0" aria-live="polite"></div>
     </div>
 
     <script src="game.js"></script>

@@ -116,6 +116,8 @@ class CueAI {
     this.savedSoundsEnabled = false;            // Instant trigger keywords for immediate sound effects
     // AI prediction (auto analysis + auto-playback); default OFF
     this.predictionEnabled = JSON.parse(localStorage.getItem('cueai_prediction_enabled') ?? 'false');
+    // Story preferences
+    this.autoStartStoryListening = JSON.parse(localStorage.getItem('cueai_auto_start_story_listening') ?? 'false');
             this.instantKeywords = {
                 'bang': { query: 'gunshot explosion', volume: 0.9 },
                 'crash': { query: 'crash metal', volume: 0.8 },
@@ -165,6 +167,8 @@ class CueAI {
         this.updateApiStatusIndicators();
         // Load local saved sounds (dev/local only)
         this.loadSavedSounds().catch(()=>{});
+        // Load built-in stories
+        this.loadStories().catch(()=>{});
     }
 
     async loadSavedSounds() {
@@ -193,6 +197,217 @@ class CueAI {
             }
         } catch(_) {}
     }    // ===== API KEY MANAGEMENT =====
+
+    // ===== STORIES =====
+    async loadStories() {
+        try {
+            const resp = await fetch('stories.json', { cache: 'no-cache' });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            this.stories = {};
+            for (const s of (data.stories || [])) {
+                this.stories[s.id] = { id: s.id, title: s.title, text: s.text };
+            }
+        } catch (_) {}
+    }
+
+    showStoryOverlay(storyId) {
+        if (!this.stories || !this.stories[storyId]) return;
+        this.currentStory = this.stories[storyId];
+        this.storyActive = true;
+        this.storyIndex = 0;
+        const contentEl = document.getElementById('storyContent');
+        const titleEl = document.getElementById('storyTitle');
+        if (titleEl) titleEl.textContent = this.currentStory.title;
+        // Tokenize text into words and separators
+        const tokens = this.tokenizeStory(this.currentStory.text);
+        this.storyTokens = tokens;
+        this.storyNorm = tokens.map(t => this.normalizeWord(t));
+        // Render spans
+        if (contentEl) {
+            const frag = document.createDocumentFragment();
+            tokens.forEach((tok, i) => {
+                if (/^\s+$/.test(tok)) {
+                    frag.appendChild(document.createTextNode(tok));
+                } else {
+                    const span = document.createElement('span');
+                    span.textContent = tok;
+                    span.className = 'story-word';
+                    span.dataset.index = String(i);
+                    frag.appendChild(span);
+                }
+            });
+            contentEl.innerHTML = '';
+            contentEl.appendChild(frag);
+            contentEl.scrollTop = 0;
+            contentEl.focus({ preventScroll: true });
+        }
+        // Prefetch initial sounds from first chunk
+        this.prefetchStoryWindow();
+        // Show overlay
+        const overlay = document.getElementById('storyOverlay');
+        if (overlay) overlay.classList.remove('hidden');
+    }
+
+    hideStoryOverlay() {
+        this.storyActive = false;
+        this.currentStory = null;
+        this.storyTokens = [];
+        this.storyNorm = [];
+        const overlay = document.getElementById('storyOverlay');
+        if (overlay) overlay.classList.add('hidden');
+    }
+
+    tokenizeStory(text) {
+        // Split into word-like tokens; keep punctuation and line breaks as separate tokens for display
+        const parts = text.split(/(\s+|[^\w']+)/g).filter(p => p !== undefined && p !== '');
+        return parts;
+    }
+
+    normalizeWord(tok) {
+        return String(tok).toLowerCase().replace(/[^a-z0-9']+/g, '');
+    }
+
+    advanceStoryWithTranscript(text) {
+        if (!this.storyActive || !text) return;
+        const spoken = text.toLowerCase().replace(/[^a-z0-9'\s]+/g, ' ').split(/\s+/).filter(Boolean);
+        if (spoken.length === 0) return;
+        let i = this.storyIndex;
+        let progressed = 0;
+        for (const w of spoken) {
+            // Advance over any non-word tokens
+            while (i < this.storyNorm.length && this.storyNorm[i] === '') i++;
+            if (i >= this.storyNorm.length) break;
+            if (this.eqLoose(this.storyNorm[i], w)) {
+                i++; progressed++;
+                this.maybeTriggerStorySfx(w);
+            } else {
+                // Allow skipping minor words like 'the','and' occasionally
+                if (/^(the|and|a|an|to|of|in|on|at|with)$/.test(this.storyNorm[i])) { i++; }
+            }
+        }
+        if (i > this.storyIndex) {
+            this.storyIndex = i;
+            this.updateStoryHighlight();
+            this.prefetchStoryWindow();
+        }
+    }
+
+    eqLoose(a, b) {
+        if (!a || !b) return a === b;
+        if (a === b) return true;
+        // Normalize possessives
+        const base = (s) => s.replace(/'(s)?$/, '');
+        // Strip common suffixes
+        const strip = (s) => {
+            let r = s;
+            r = r.replace(/(ing|ed|ly|er|est)$/,'');
+            r = r.replace(/(es|s)$/,'');
+            return r;
+        };
+        const a1 = strip(base(a));
+        const b1 = strip(base(b));
+        if (a1 && b1 && a1 === b1) return true;
+        const irregular = { wolves:'wolf', children:'child', men:'man', women:'woman', geese:'goose', mice:'mouse', feet:'foot', teeth:'tooth' };
+        if (irregular[a] && irregular[a] === b) return true;
+        if (irregular[b] && irregular[b] === a) return true;
+        return false;
+    }
+
+    updateStoryHighlight() {
+        const contentEl = document.getElementById('storyContent');
+        if (!contentEl) return;
+        const children = contentEl.querySelectorAll('.story-word');
+        for (let k = 0; k < children.length; k++) {
+            const el = children[k];
+            const idx = parseInt(el.dataset.index || '0', 10);
+            el.classList.toggle('highlight', idx < this.storyIndex);
+            el.classList.toggle('active', idx === this.storyIndex);
+        }
+        // Keep current line in view
+        const active = contentEl.querySelector('.story-word.active');
+        if (active) {
+            const rect = active.getBoundingClientRect();
+            const crect = contentEl.getBoundingClientRect();
+            if (rect.top < crect.top + 40 || rect.bottom > crect.bottom - 60) {
+                contentEl.scrollTop += (rect.top - crect.top) - 100;
+            }
+        }
+    }
+
+    // Map common keywords in stories to SFX searches
+    getStoryCueMap() {
+        return {
+            'bell': 'bell chime',
+            'bells': 'bell chime',
+            'clock': 'tick tock',
+            'midnight': 'clock chime',
+            'horse': 'horse galloping',
+            'horses': 'horse galloping',
+            'coach': 'carriage creak',
+            'step': 'footsteps',
+            'steps': 'footsteps',
+            'door': 'door creak',
+            'knock': 'door knock',
+            'wind': 'wind whoosh',
+            'storm': 'thunder',
+            'thunder': 'thunder',
+            'rain': 'rain on windows',
+            'owl': 'owl hoot',
+            'wolf': 'wolf howl',
+            'crowd': 'crowd cheering',
+            'applause': 'applause',
+            'fire': 'fireplace',
+            'flame': 'fireplace',
+            'witch': 'witch cackle',
+            'magic': 'magic whoosh',
+            'spell': 'magic spell',
+            'sword': 'sword swing',
+            'glass': 'glass shatter',
+            'mirror': 'glass shatter',
+            'beast': 'monster growl',
+            'dragon': 'dragon growl',
+            'heart': 'heartbeat',
+            'cry': 'woman scream',
+            'scream': 'woman scream',
+        };
+    }
+
+    prefetchStoryWindow() {
+        if (!this.sfxEnabled) return;
+        const cueMap = this.getStoryCueMap();
+        const windowTokens = this.storyNorm.slice(this.storyIndex, this.storyIndex + 80);
+        const seen = new Set();
+        for (const w of windowTokens) {
+            if (!w) continue;
+            const key = w in cueMap ? w : null;
+            if (key && !seen.has(key)) {
+                seen.add(key);
+                const q = cueMap[key];
+                // Warm cache similarly to predictivePrefetch
+                const cacheKey = `sfx:${q}`;
+                if (this.soundCache.has(cacheKey)) continue;
+                this.searchAudio(q, 'sfx').then(async (url) => {
+                    if (!url) return;
+                    if (!this.activeBuffers.has(url)) {
+                        try {
+                            const resp = await fetch(url); const ab = await resp.arrayBuffer();
+                            const buf = await this.audioContext.decodeAudioData(ab); this.activeBuffers.set(url, buf);
+                        } catch(_) {}
+                    }
+                });
+            }
+        }
+    }
+
+    maybeTriggerStorySfx(word) {
+        if (!this.sfxEnabled) return;
+        const cueMap = this.getStoryCueMap();
+        const q = cueMap[word];
+        if (q) {
+            this.playSoundEffect({ query: q, priority: 6, volume: 0.7 }).catch(()=>{});
+        }
+    }
     checkApiKey() {
         const modal = document.getElementById('apiKeyModal');
         const appContainer = document.getElementById('appContainer');
@@ -594,6 +809,52 @@ class CueAI {
     if (copyFeedbackBtn) copyFeedbackBtn.addEventListener('click', () => this.copyFeedbackDetails());
     const cancelFeedback = document.getElementById('cancelFeedback');
     if (cancelFeedback) cancelFeedback.addEventListener('click', () => this.hideFeedback());
+
+        // Stories UI
+        const startStoryBtn = document.getElementById('startStoryBtn');
+        const storiesDropdown = document.getElementById('storiesDropdown');
+        const closeStory = document.getElementById('closeStory');
+        if (startStoryBtn && storiesDropdown) {
+            startStoryBtn.addEventListener('click', () => {
+                const id = storiesDropdown.value;
+                if (!id) { this.updateStatus('Please choose a story first'); return; }
+                // Ensure stories manifest loaded
+                if (!this.stories) {
+                    this.loadStories().finally(() => this.startStoryFlow(id));
+                } else {
+                    this.startStoryFlow(id);
+                }
+            });
+        }
+        if (closeStory) {
+            closeStory.addEventListener('click', () => this.hideStoryOverlay());
+        }
+        // Auto-start story listening toggle
+        const autoStartStoryToggle = document.getElementById('autoStartStoryListening');
+        if (autoStartStoryToggle) {
+            autoStartStoryToggle.checked = !!this.autoStartStoryListening;
+            autoStartStoryToggle.addEventListener('change', (e) => {
+                this.autoStartStoryListening = e.target.checked;
+                localStorage.setItem('cueai_auto_start_story_listening', JSON.stringify(this.autoStartStoryListening));
+            });
+        }
+        // ESC to close story overlay
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.storyActive) {
+                this.hideStoryOverlay();
+            }
+        });
+    }
+
+    startStoryFlow(id) {
+        // Auto-switch to Bedtime mode for stories
+        try { this.selectMode('bedtime'); } catch(_) {}
+        // Show overlay
+        this.showStoryOverlay(id);
+        // Optionally auto-start listening
+        if (this.autoStartStoryListening && !this.isListening) {
+            this.startListening();
+        }
     }
     
     selectMode(mode) {
@@ -738,6 +999,8 @@ class CueAI {
             this.transcriptBuffer.push(finalTranscript.trim());
             this.currentInterim = '';
             this.updateTranscriptDisplay();
+            // Advance story highlighting on finalized phrases
+            this.advanceStoryWithTranscript(finalTranscript);
             
                 // Voice commands & instant triggers
                 this.handleVoiceCommands(finalTranscript);
@@ -754,6 +1017,8 @@ class CueAI {
             // Track interim text continuously
             this.currentInterim = interimTranscript.trim();
             this.updateTranscriptDisplay();
+            // Soft-advance story highlighting on interim to keep pace while reading
+            this.advanceStoryWithTranscript(interimTranscript);
             
                 // Also check interim for instant triggers and predictive prefetch
                 this.checkInstantKeywords(interimTranscript);

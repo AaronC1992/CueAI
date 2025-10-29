@@ -1,4 +1,5 @@
-# OS
+# Exclude oversized or unwanted local assets
+Saved sounds/waves-sea-shore.wav# OS
 .DS_Store
 Thumbs.db
 
