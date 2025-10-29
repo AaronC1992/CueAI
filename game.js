@@ -845,13 +845,13 @@ class CueAI {
         };
         
         const modeSpecificRules = {
-            bedtime: '- For bedtime mode: prioritize calm, gentle sounds; music stays very stable',
-            dnd: '- For D&D mode: match the action and environment described; SFX for combat, music for scene atmosphere',
-            horror: '- For horror mode: prioritize tension, eerie ambience, subtle stingers, avoid overly loud repetitive SFX unless context indicates a jump scare',
-            christmas: '- For Christmas mode: use joyful bells, sleigh sounds, winter wind, crackling fireplace; music query MUST include terms like "jingle bells", "christmas carol", "holiday cheer", or "festive bells" to ensure recognizable Christmas music',
-            halloween: '- For Halloween mode: playful spooky sounds (cackling, chains, bats, owls); not too scary, fun and atmospheric',
-            sing: '- For Sing mode: listen to melody, tempo, and genre; provide complementary instrumental backing, harmonies, and rhythmic effects; change music only if the song style shifts dramatically',
-            auto: ''
+            bedtime: '- For bedtime mode: prioritize calm, gentle sounds; music stays very stable; ONLY play SFX if explicitly mentioned by the user (e.g., "the dog barked", "door creaked") — do NOT add ambient filler sounds',
+            dnd: '- For D&D mode: match the action and environment described; SFX ONLY when explicitly mentioned (e.g., "I swing my sword", "thunder rumbles"); avoid filler ambient sounds',
+            horror: '- For horror mode: prioritize tension, eerie ambience, subtle stingers; SFX ONLY when explicitly described (e.g., "the door creaked open", "footsteps echoed"); no filler',
+            christmas: '- For Christmas mode: use joyful bells, sleigh sounds, winter wind, crackling fireplace; music query MUST include terms like "jingle bells", "christmas carol", "holiday cheer", or "festive bells"; SFX ONLY for explicit cues (e.g., "sleigh bells jingled", "fire crackling")',
+            halloween: '- For Halloween mode: playful spooky sounds (cackling, chains, bats, owls); not too scary, fun and atmospheric; SFX ONLY when user explicitly mentions them',
+            sing: '- For Sing mode: listen to melody, tempo, and genre; provide complementary instrumental backing, harmonies, and rhythmic effects; change music only if the song style shifts dramatically; SFX sparingly, only for explicit vocal cues',
+            auto: '- SFX ONLY when the user explicitly mentions a sound or action (e.g., "knock on the door", "dog barked"); do NOT add ambient filler'
         };
 
         const moodPct = Math.round(this.moodBias * 100);
@@ -886,9 +886,10 @@ Rules:
 - Music should be ambient/instrumental only and STABLE (change: false unless scene dramatically shifts)
 - Music is long-term atmosphere; only suggest change: true for major scene transitions
 - SFX should be specific (e.g., "sword clash", "thunder", "crackling fire", "footsteps")
-- SFX are moment-to-moment reactions; use these for immediate action cues
-- Return max 2 SFX per analysis
-- If nothing interesting is happening, return null for music and empty array for sfx
+- SFX ONLY when the user explicitly mentions a sound or action in their speech
+- Do NOT add ambient filler SFX (e.g., crickets, wind, fire) unless the user explicitly says them
+- Return max 2 SFX per analysis, and ONLY if directly mentioned
+- If nothing interesting is happening or no sounds are mentioned, return null for music and empty array for sfx
 ${modeSpecificRules[this.currentMode]}`;
     }
     
