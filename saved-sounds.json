@@ -52,7 +52,6 @@
     {"type":"sfx","name":"thunder storm","file":"Saved sounds/thunder_storm.mp3","keywords":["thunder","storm","rain","lightning"]},
     {"type":"sfx","name":"tick tock","file":"Saved sounds/tick-tock.wav","keywords":["tick","tock","clock","time"]},
     {"type":"sfx","name":"train passing","file":"Saved sounds/train-passing-by.wav","keywords":["train","passing","railroad","locomotive"]},
-    {"type":"sfx","name":"waves sea shore","file":"Saved sounds/waves-sea-shore.wav","keywords":["waves","sea","shore","ocean","beach"]},
     {"type":"sfx","name":"whoosh","file":"Saved sounds/whoosh.flac","keywords":["whoosh","wind","swish","fast"]},
     {"type":"sfx","name":"wind chimes","file":"Saved sounds/wind-chimes.wav","keywords":["wind","chimes","bells","gentle"]},
     {"type":"sfx","name":"wind whistling window","file":"Saved sounds/wind-whistling-through-window.mp3","keywords":["wind","whistling","window","draft"]},
