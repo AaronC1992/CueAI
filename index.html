@@ -125,6 +125,13 @@
                 </label>
             </div>
             <div class="toggle-row">
+                <label for="togglePrediction">Use AI Predictions (auto sounds)</label>
+                <label class="switch">
+                    <input type="checkbox" id="togglePrediction">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
                 <label for="toggleSaved">Use Saved Sounds (Local)</label>
                 <label class="switch">
                     <input type="checkbox" id="toggleSaved" checked>
@@ -132,7 +139,8 @@
                 </label>
             </div>
             <p class="info-text">Tip: Turn one off to have the AI play only music or only SFX.</p>
-            <p class="info-text">💡 Saved Sounds: Uses your local "Saved sounds" folder for instant playback (local/dev only, disabled on GitHub Pages).</p>
+            <p class="info-text">💡 Saved Sounds: Uses your "Saved sounds" folder (works locally and on GitHub Pages).</p>
+            <p class="info-text">🧠 AI Predictions: When enabled, CueAI analyzes what you say and auto-plays matching sounds. Default is off.</p>
         </section>
 
         <!-- Live Transcript -->

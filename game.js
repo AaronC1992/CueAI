@@ -113,7 +113,9 @@ class CueAI {
         // Saved sounds (local quick-access library)
         this.savedSounds = { files: [] };
         this.userSavedSoundsPref = JSON.parse(localStorage.getItem('cueai_saved_sounds_enabled') ?? 'true');
-        this.savedSoundsEnabled = false;            // Instant trigger keywords for immediate sound effects
+    this.savedSoundsEnabled = false;            // Instant trigger keywords for immediate sound effects
+    // AI prediction (auto analysis + auto-playback); default OFF
+    this.predictionEnabled = JSON.parse(localStorage.getItem('cueai_prediction_enabled') ?? 'false');
             this.instantKeywords = {
                 'bang': { query: 'gunshot explosion', volume: 0.9 },
                 'crash': { query: 'crash metal', volume: 0.8 },
@@ -492,6 +494,7 @@ class CueAI {
     const toggleMusic = document.getElementById('toggleMusic');
     const toggleSfx = document.getElementById('toggleSfx');
     const toggleSaved = document.getElementById('toggleSaved');
+    const togglePrediction = document.getElementById('togglePrediction');
         if (toggleMusic) {
             toggleMusic.checked = !!this.musicEnabled;
             toggleMusic.addEventListener('change', (e) => {
@@ -544,6 +547,29 @@ class CueAI {
                 // Compute current enabled state (may be updated by loadSavedSounds async)
                 this.savedSoundsEnabled = (this.savedSounds.files.length > 0 && !!this.userSavedSoundsPref);
                 this.updateStatus(`Saved sounds ${this.savedSoundsEnabled ? 'enabled' : 'disabled'}`);
+            });
+        }
+
+        // AI Predictions toggle
+        if (togglePrediction) {
+            togglePrediction.checked = !!this.predictionEnabled; // default OFF unless previously enabled
+            togglePrediction.addEventListener('change', (e) => {
+                this.predictionEnabled = e.target.checked;
+                localStorage.setItem('cueai_prediction_enabled', JSON.stringify(this.predictionEnabled));
+                this.updateStatus(`AI predictions ${this.predictionEnabled ? 'enabled' : 'disabled'}`);
+                // Manage timers while listening
+                if (!this.predictionEnabled) {
+                    if (this.analysisTimer) { clearInterval(this.analysisTimer); this.analysisTimer = null; }
+                    if (this.stingerTimer) { clearTimeout(this.stingerTimer); this.stingerTimer = null; }
+                } else {
+                    if (this.isListening && !this.analysisTimer) {
+                        this.lastAnalysisTime = 0;
+                        this.analysisTimer = setInterval(() => this.maybeAnalyzeLive(), 1000);
+                    }
+                    if (this.isListening && this.currentMusic && !this.currentMusic.paused) {
+                        this.scheduleNextStinger();
+                    }
+                }
             });
         }
         
@@ -868,6 +894,7 @@ class CueAI {
     }
 
     maybeAnalyzeLive() {
+        if (!this.predictionEnabled) return;
         const now = Date.now();
         if (this.analysisInProgress) return;
         if (now - this.lastAnalysisTime < this.analysisInterval) return;
@@ -1003,6 +1030,8 @@ ${modeSpecificRules[this.currentMode]}`;
     // ===== SOUND DECISION ENGINE =====
     async processSoundDecisions(decisions) {
         console.log('Sound Decisions:', decisions);
+        // Respect AI prediction toggle: do not auto-play when disabled
+        if (!this.predictionEnabled) { return; }
         
         // Handle Music
         if (this.musicEnabled && decisions.music && decisions.music.query) {
@@ -1832,10 +1861,12 @@ ${modeSpecificRules[this.currentMode]}`;
                 }
             }, 3000);
             
-            // Start periodic live analysis while listening
+            // Start periodic live analysis while listening (only if predictions enabled)
             if (this.analysisTimer) clearInterval(this.analysisTimer);
             this.lastAnalysisTime = 0;
+            if (this.predictionEnabled) {
                 this.analysisTimer = setInterval(() => this.maybeAnalyzeLive(), 1000); // Check every second for faster response
+            }
             
         } catch (error) {
             console.error('Failed to start recognition:', error);
@@ -1972,7 +2003,7 @@ ${modeSpecificRules[this.currentMode]}`;
 
     // ===== PREDICTIVE PREFETCH =====
     predictivePrefetch(text) {
-        if (!this.freesoundApiKey || !this.sfxEnabled) return;
+        if (!this.freesoundApiKey || !this.sfxEnabled || !this.predictionEnabled) return;
         const t = text.toLowerCase();
         // simple debounce
         if (this._predictiveBusy) return; this._predictiveBusy = true; setTimeout(()=>{this._predictiveBusy=false;}, 400);
@@ -2022,7 +2053,7 @@ ${modeSpecificRules[this.currentMode]}`;
 
     // ===== STINGERS =====
     scheduleNextStinger() {
-        if (!this.sfxEnabled) return;
+        if (!this.sfxEnabled || !this.predictionEnabled) return;
         if (this.stingerTimer) clearTimeout(this.stingerTimer);
         const interval = 20000 + Math.random() * 25000; // 20–45s
         this.stingerTimer = setTimeout(async () => {
