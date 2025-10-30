@@ -1493,8 +1493,15 @@ ${modeSpecificRules[this.currentMode]}`;
             return;
         }
         
-        // Build full URL (backend serves from /media/ route)
-        const soundUrl = `${this.backendUrl}${sound.src}`;
+        // Build full URL
+        let soundUrl;
+        if (sound.src.startsWith('http://') || sound.src.startsWith('https://')) {
+            // Absolute URL (CDN, external source)
+            soundUrl = sound.src;
+        } else {
+            // Relative URL (hosted on backend)
+            soundUrl = `${this.backendUrl}${sound.src}`;
+        }
         
         // Apply volume with mood bias
         const moodMul = 0.85 + this.moodBias * 0.3;
@@ -1576,7 +1583,14 @@ ${modeSpecificRules[this.currentMode]}`;
         }
         
         // Build full URL
-        const soundUrl = `${this.backendUrl}${sound.src}`;
+        let soundUrl;
+        if (sound.src.startsWith('http://') || sound.src.startsWith('https://')) {
+            // Absolute URL (CDN, external source)
+            soundUrl = sound.src;
+        } else {
+            // Relative URL (hosted on backend)
+            soundUrl = `${this.backendUrl}${sound.src}`;
+        }
         
         // Apply volume with SFX level
         const effectiveVol = Math.max(0, Math.min(1, (sfxData.volume || 0.7) * this.sfxLevel));
