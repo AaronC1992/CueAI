@@ -52,6 +52,27 @@ app.get('/sounds', (req, res) => {
   res.json({ sounds: soundCatalog });
 });
 
+// GET /test-chroma - test Chroma connection without OpenAI
+app.get('/test-chroma', async (req, res) => {
+  try {
+    const collection = await chromaCollectionPromise;
+    const queryResult = await collection.query({
+      queryTexts: ["dragon roar"],
+      nResults: 3
+    });
+    res.json({ 
+      success: true,
+      matches: queryResult.ids[0] || [],
+      message: "Chroma is working"
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      success: false,
+      error: err.message 
+    });
+  }
+});
+
 // POST /analyze - semantic search + OpenAI analysis
 app.post('/analyze', async (req, res) => {
   const { transcript, mode, context } = req.body;
