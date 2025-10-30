@@ -8,12 +8,14 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "express": "^4.19.0",
+    "@chroma-core/default-embed": "^0.1.8",
+    "chromadb": "^1.10.5",
+    "chromadb-default-embed": "^2.14.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.0",
-    "ws": "^8.16.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.0",
     "node-fetch": "^3.3.2",
-    "chromadb": "^1.8.1"
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

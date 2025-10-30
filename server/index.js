@@ -9,6 +9,8 @@ import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from 'ws';
 import { readFile } from 'fs/promises';
 import { ChromaClient } from 'chromadb';
+import adminRouter from './routes/admin.js';
+import chromaCollectionPromise from './config/chroma.js';
 
 dotenv.config();
 
@@ -20,42 +22,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public')); // for hosting media files later
 
-// ===== CHROMA CLIENT =====
-let chromaClient;
-let soundsCollection;
-
-async function initChroma() {
-  // Skip Chroma if no API key configured
-  if (!process.env.CHROMA_API_KEY || process.env.CHROMA_API_KEY.includes('your_')) {
-    console.warn('⚠ Chroma API key not configured, skipping vector search (will use OpenAI only)');
-    return;
-  }
-  
-  try {
-    chromaClient = new ChromaClient({
-      path: process.env.CHROMA_HOST || 'http://localhost:8000',
-      tenant: process.env.CHROMA_TENANT || 'default_tenant',
-      database: process.env.CHROMA_DATABASE || 'default_database',
-      auth: process.env.CHROMA_API_KEY ? { 
-        provider: 'token',
-        credentials: process.env.CHROMA_API_KEY 
-      } : undefined
-    });
-    
-    // Get or create collection
-    try {
-      soundsCollection = await chromaClient.getOrCreateCollection({
-        name: 'cueai-sounds',
-        metadata: { description: 'CueAI sound effects and music catalog' }
-      });
-      console.log('✓ Chroma collection ready:', soundsCollection.name);
-    } catch (err) {
-      console.warn('Chroma collection setup skipped:', err.message);
-    }
-  } catch (err) {
-    console.warn('Chroma client init failed (will skip vector search):', err.message);
-  }
-}
+// Admin routes
+app.use('/admin', adminRouter);
 
 // ===== LOAD SOUND CATALOG =====
 let soundCatalog = [];
@@ -65,36 +33,8 @@ async function loadSoundCatalog() {
     const data = await readFile('./soundCatalog.json', 'utf-8');
     soundCatalog = JSON.parse(data);
     console.log(`✓ Loaded ${soundCatalog.length} sounds from catalog`);
-    
-    // Optionally embed catalog into Chroma on startup
-    if (soundsCollection && soundCatalog.length > 0) {
-      await embedSoundCatalog();
-    }
   } catch (err) {
     console.error('Failed to load sound catalog:', err.message);
-  }
-}
-
-async function embedSoundCatalog() {
-  try {
-    const ids = soundCatalog.map(s => s.id);
-    const documents = soundCatalog.map(s => 
-      `${s.type} ${s.tags.join(' ')} ${s.id}`.toLowerCase()
-    );
-    const metadatas = soundCatalog.map(s => ({
-      type: s.type,
-      tags: s.tags.join(','),
-      src: s.src
-    }));
-    
-    await soundsCollection.add({
-      ids,
-      documents,
-      metadatas
-    });
-    console.log('✓ Embedded sound catalog into Chroma');
-  } catch (err) {
-    console.warn('Failed to embed catalog into Chroma:', err.message);
   }
 }
 
@@ -116,24 +56,28 @@ app.post('/analyze', async (req, res) => {
   try {
     // Step 1: Query Chroma for top 5 matching sounds
     let chromaResults = [];
-    if (soundsCollection) {
-      try {
-        const queryResult = await soundsCollection.query({
-          queryTexts: [transcript.toLowerCase()],
-          nResults: 5
-        });
-        chromaResults = queryResult.ids[0] || [];
-        console.log('Chroma matches:', chromaResults);
-      } catch (err) {
-        console.warn('Chroma query failed:', err.message);
-      }
+    let matchedSounds = [];
+    
+    try {
+      const collection = await chromaCollectionPromise;
+      const queryResult = await collection.query({
+        queryTexts: [transcript.toLowerCase()],
+        nResults: 5
+      });
+      chromaResults = queryResult.ids[0] || [];
+      console.log('Chroma matches:', chromaResults);
+      
+      // Map IDs to full sound objects
+      matchedSounds = chromaResults
+        .map(id => soundCatalog.find(s => s.id === id))
+        .filter(Boolean);
+    } catch (err) {
+      console.warn('Chroma query failed (using all sounds):', err.message);
+      // Fallback: use all sounds if Chroma fails
+      matchedSounds = soundCatalog;
     }
     
     // Step 2: Build OpenAI prompt
-    const matchedSounds = chromaResults
-      .map(id => soundCatalog.find(s => s.id === id))
-      .filter(Boolean);
-    
     const prompt = buildAnalysisPrompt(transcript, mode, context, matchedSounds);
     
     // Step 3: Call OpenAI
@@ -169,10 +113,18 @@ app.post('/analyze', async (req, res) => {
 });
 
 // GET /health - healthcheck for Render
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let chromaStatus = false;
+  try {
+    const collection = await chromaCollectionPromise;
+    chromaStatus = !!collection;
+  } catch (err) {
+    console.warn('Chroma health check failed:', err.message);
+  }
+  
   res.json({ 
     status: 'ok', 
-    chroma: !!soundsCollection,
+    chroma: chromaStatus,
     sounds: soundCatalog.length 
   });
 });
@@ -349,8 +301,8 @@ const server = app.listen(PORT, () => {
 });
 
 // Initialize async resources after server starts
-initChroma().then(() => loadSoundCatalog()).catch(err => {
-  console.error('Initialization error:', err);
+loadSoundCatalog().catch(err => {
+  console.error('Catalog load error:', err);
 });
 
 // Attach WebSocket upgrade handler
