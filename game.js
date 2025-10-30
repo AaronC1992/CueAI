@@ -272,25 +272,74 @@ class CueAI {
         if (!this.storyActive || !text) return;
         const spoken = text.toLowerCase().replace(/[^a-z0-9'\s]+/g, ' ').split(/\s+/).filter(Boolean);
         if (spoken.length === 0) return;
+        
+        // Track sliding window of recent spoken words for recovery
+        if (!this._recentSpoken) this._recentSpoken = [];
+        this._recentSpoken.push(...spoken);
+        if (this._recentSpoken.length > 30) this._recentSpoken = this._recentSpoken.slice(-30);
+        
         let i = this.storyIndex;
         let progressed = 0;
+        
+        // Try strict sequential match first
         for (const w of spoken) {
-            // Advance over any non-word tokens
             while (i < this.storyNorm.length && this.storyNorm[i] === '') i++;
             if (i >= this.storyNorm.length) break;
             if (this.eqLoose(this.storyNorm[i], w)) {
                 i++; progressed++;
                 this.maybeTriggerStorySfx(w);
             } else {
-                // Allow skipping minor words like 'the','and' occasionally
                 if (/^(the|and|a|an|to|of|in|on|at|with)$/.test(this.storyNorm[i])) { i++; }
             }
         }
+        
+        // If stuck (no progress after 3+ words spoken), try lookahead recovery
+        if (progressed === 0 && spoken.length >= 3) {
+            const recovered = this.attemptStoryRecovery(spoken);
+            if (recovered > this.storyIndex) {
+                console.log(`Story recovery: jumped from ${this.storyIndex} to ${recovered}`);
+                i = recovered;
+                progressed = recovered - this.storyIndex;
+            }
+        }
+        
         if (i > this.storyIndex) {
             this.storyIndex = i;
             this.updateStoryHighlight();
             this.prefetchStoryWindow();
         }
+    }
+    
+    attemptStoryRecovery(spoken) {
+        // Scan ahead in story tokens to find where the spoken phrase might resume
+        const lookahead = 40; // tokens ahead to scan
+        const minMatch = Math.min(3, spoken.length); // require at least 3 matching words
+        const window = this.storyNorm.slice(this.storyIndex, this.storyIndex + lookahead);
+        
+        // Try to find a substring of spoken words in the lookahead window
+        for (let startIdx = 0; startIdx < window.length - minMatch; startIdx++) {
+            let matched = 0;
+            let j = 0;
+            for (let k = startIdx; k < window.length && j < spoken.length; k++) {
+                if (window[k] === '') continue; // skip whitespace tokens
+                if (this.eqLoose(window[k], spoken[j])) {
+                    matched++;
+                    j++;
+                } else {
+                    // Allow skipping small words in story
+                    if (/^(the|and|a|an|to|of|in|on|at|with|it|is|was)$/.test(window[k])) {
+                        continue;
+                    } else {
+                        break; // mismatch, try next start position
+                    }
+                }
+            }
+            if (matched >= minMatch) {
+                // Found a good match; return the absolute story index
+                return this.storyIndex + startIdx;
+            }
+        }
+        return this.storyIndex; // no recovery found
     }
 
     eqLoose(a, b) {
