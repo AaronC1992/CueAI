@@ -178,13 +178,17 @@ class CueAI {
     }
     
     getBackendUrl() {
+        // Force production backend (comment out for local dev)
+        // return 'https://cueai-backend.onrender.com';
+        
         // Auto-detect backend URL based on environment
         const host = location.hostname || '';
         if (location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1') {
-            return 'http://localhost:3000';
+            // Use production backend even in local dev if local server not running
+            return 'https://cueai-backend.onrender.com';
         }
-        // Production: update this with your Render URL after deployment
-        return 'https://cueai-backend.onrender.com'; // TODO: Replace with actual Render URL
+        // Production: already using Render URL
+        return 'https://cueai-backend.onrender.com';
     }
     
     async loadSoundCatalog() {
