@@ -680,11 +680,16 @@ class CueAI {
                 this.musicLevel = e.target.value / 100;
                 localStorage.setItem('cueai_music_level', String(this.musicLevel));
                 if (musicLevelValue) musicLevelValue.textContent = e.target.value;
-                // Apply to current music gain immediately
-                const target = this.getMusicTargetGain();
-                try {
-                    this.musicGainNode.gain.setValueAtTime(target, this.audioContext.currentTime);
-                } catch (_) {}
+                // Apply to current music (Howler or legacy Web Audio)
+                if (this.currentMusic && this.currentMusic._howl) {
+                    const target = Math.max(0, Math.min(1, this.currentMusic.volume * this.musicLevel));
+                    this.currentMusic._howl.volume(target);
+                } else if (this.musicGainNode) {
+                    const target = this.getMusicTargetGain();
+                    try {
+                        this.musicGainNode.gain.setValueAtTime(target, this.audioContext.currentTime);
+                    } catch (_) {}
+                }
                 this.updateSoundsList();
             });
         }
@@ -696,9 +701,12 @@ class CueAI {
                 this.sfxLevel = e.target.value / 100;
                 localStorage.setItem('cueai_sfx_level', String(this.sfxLevel));
                 if (sfxLevelValue) sfxLevelValue.textContent = e.target.value;
-                // Update all active SFX gains
+                // Update all active SFX (Howler or legacy)
                 this.activeSounds.forEach((soundObj) => {
-                    if (soundObj.gainNode && typeof soundObj.originalVolume === 'number') {
+                    if (soundObj._howl && typeof soundObj.originalVolume === 'number') {
+                        const newVol = Math.max(0, Math.min(1, soundObj.originalVolume * this.sfxLevel));
+                        soundObj._howl.volume(newVol);
+                    } else if (soundObj.gainNode && typeof soundObj.originalVolume === 'number') {
                         soundObj.gainNode.gain.setValueAtTime(
                             Math.max(0, Math.min(1, soundObj.originalVolume * this.sfxLevel)),
                             this.audioContext.currentTime
@@ -1198,14 +1206,18 @@ class CueAI {
         // Cancel stingers
         if (this.stingerTimer) { clearTimeout(this.stingerTimer); this.stingerTimer = null; }
 
-        // Stop and fully release music element + source immediately
+        // Stop and release music (Howler or legacy)
         if (this.currentMusic) {
             try {
-                this.currentMusic.pause();
-                this.currentMusic.currentTime = 0;
-                // Drop src to abort any streaming and release network
-                this.currentMusic.src = '';
-                this.currentMusic.load();
+                if (this.currentMusic._howl) {
+                    this.currentMusic._howl.stop();
+                    this.currentMusic._howl.unload();
+                } else if (this.currentMusic.pause) {
+                    this.currentMusic.pause();
+                    this.currentMusic.currentTime = 0;
+                    this.currentMusic.src = '';
+                    this.currentMusic.load();
+                }
             } catch(_) {}
             this.currentMusic = null;
         }
@@ -1214,10 +1226,13 @@ class CueAI {
             this.currentMusicSource = null;
         }
 
-        // Stop all active SFX and disconnect nodes/elements immediately
+        // Stop all active SFX (Howler or legacy Web Audio/HTMLAudioElement)
         this.activeSounds.forEach((soundObj) => {
             try {
-                if (soundObj.source) {
+                if (soundObj._howl) {
+                    soundObj._howl.stop();
+                    soundObj._howl.unload();
+                } else if (soundObj.source) {
                     // Web Audio buffer source path
                     try { soundObj.source.stop(); } catch(_) {}
                     try { soundObj.source.disconnect(); } catch(_) {}
@@ -1801,20 +1816,25 @@ ${modeSpecificRules[this.currentMode]}`;
     
     // Duck music volume when SFX plays
     duckMusic(duration = 0.6) {
-        if (!this.musicGainNode || this.duckingInProgress) return;
+        if (this.duckingInProgress) return;
+        if (!this.currentMusic || !this.currentMusic._howl) return;
+        
         const p = this.getDuckParams();
         this.duckingInProgress = true;
-        const now = this.audioContext.currentTime;
-        const target = this.getMusicTargetGain();
+        
+        const howl = this.currentMusic._howl;
+        const currentVol = howl.volume();
         const floorMul = Math.max(0.08, Math.min(1, p.floor));
-        const duckTo = Math.max(0.0001, target * floorMul);
-
-        this.musicGainNode.gain.cancelScheduledValues(now);
-        this.musicGainNode.gain.setValueAtTime(this.musicGainNode.gain.value, now);
-        this.musicGainNode.gain.exponentialRampToValueAtTime(duckTo, now + p.attack);
-        this.musicGainNode.gain.setValueAtTime(duckTo, now + p.attack + p.hold + Math.max(0, duration - 0.1));
-        this.musicGainNode.gain.exponentialRampToValueAtTime(target, now + p.attack + p.hold + duration + p.release);
-        setTimeout(() => { this.duckingInProgress = false; }, (p.attack + p.hold + duration + p.release) * 1000);
+        const duckTo = Math.max(0.01, currentVol * floorMul);
+        
+        // Duck down
+        howl.fade(currentVol, duckTo, p.attack * 1000);
+        
+        // Duck back up after hold + duration
+        setTimeout(() => {
+            howl.fade(duckTo, currentVol, p.release * 1000);
+            setTimeout(() => { this.duckingInProgress = false; }, p.release * 1000);
+        }, (p.attack + p.hold + duration) * 1000);
     }
 
     getDuckParams() {
@@ -1850,73 +1870,38 @@ ${modeSpecificRules[this.currentMode]}`;
         // Duck music when playing SFX
         this.duckMusic(0.6);
         
-        // Try to fetch and decode the audio
-        try {
-            let buffer = this.activeBuffers.get(url);
-            
-            if (!buffer) {
-                const response = await fetch(url);
-                const arrayBuffer = await response.arrayBuffer();
-                buffer = await this.audioContext.decodeAudioData(arrayBuffer);
-                this.activeBuffers.set(url, buffer);
-            }
-
-            // Compute normalization gain (cached)
-            let normGain = this.sfxNormGains.get(url);
-            if (normGain === undefined) {
-                normGain = this.computeNormalizationGain(buffer);
-                this.sfxNormGains.set(url, normGain);
-            }
-            
-            // Create nodes for this SFX: source -> panner -> gain -> sfxComp -> sfxBusGain -> master
-            const source = this.audioContext.createBufferSource();
-            const panner = this.audioContext.createPanner();
-            panner.panningModel = 'HRTF';
-            panner.distanceModel = 'inverse';
-            panner.refDistance = 1;
-            panner.maxDistance = 50;
-            panner.rolloffFactor = 1;
-            const gainNode = this.audioContext.createGain();
-            
-            source.buffer = buffer;
-            // Store original (pre-user) volume, apply normalization and user SFX level
-            const original = Math.max(0, Math.min(1, options.volume));
-            const effective = Math.max(0, Math.min(1, original * normGain * this.sfxLevel));
-            gainNode.gain.value = effective;
-
-            // Light spatialization: random left/right placement for variety
-            const az = Math.random() < 0.5 ? -1 : 1;
-            panner.positionX.value = az * (0.5 + Math.random());
-            panner.positionY.value = 0;
-            panner.positionZ.value = -0.5 - Math.random() * 0.5;
-            
-            // Connect
-            source.connect(panner);
-            panner.connect(gainNode);
-            gainNode.connect(this.sfxCompressor);
-            
-            const id = Date.now() + Math.random();
-            const sfxInfo = { source, panner, gainNode, name: options.name, originalVolume: original, normGain };
-            this.activeSounds.set(id, sfxInfo);
-            
-            source.onended = () => {
+        // Use Howler for SFX with spatial positioning
+        const original = Math.max(0, Math.min(1, options.volume));
+        const effective = Math.max(0, Math.min(1, original * this.sfxLevel));
+        
+        // Random stereo positioning for variety
+        const az = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5);
+        
+        const howl = new Howl({
+            src: [url],
+            volume: effective,
+            stereo: az, // -1 (left) to 1 (right)
+            onload: () => console.log(`SFX loaded: ${options.name}`),
+            onloaderror: (id, err) => console.log('SFX load error:', err),
+            onplayerror: (id, err) => console.log('SFX play error:', err),
+            onend: () => {
                 this.activeSounds.delete(id);
                 this.updateSoundsList();
-            };
-            
-            source.start(0);
-            console.log(`Playing SFX buffer: ${options.name} at ${Math.round(options.volume * 100)}%`);
-            this.updateSoundsList();
-
-            // Prefetch alternates to diversify repeats
-            this.prefetchAlternates(options.name).catch(()=>{});
-            
-            return sfxInfo;
-        } catch (error) {
-            // Fallback to HTMLAudioElement if buffer decoding fails (CORS issues)
-            console.log('Buffer decoding failed, falling back to HTMLAudioElement for SFX');
-            return await this.playSFXElement(url, options);
-        }
+                howl.unload();
+            }
+        });
+        
+        const soundId = howl.play();
+        const id = Date.now() + Math.random();
+        this.activeSounds.set(id, { _howl: howl, soundId, name: options.name, originalVolume: original, type: 'sfx' });
+        
+        console.log(`Playing SFX: ${options.name} at ${Math.round(effective * 100)}%`);
+        this.updateSoundsList();
+        
+        // Prefetch alternates to diversify repeats
+        this.prefetchAlternates(options.name).catch(()=>{});
+        
+        return { _howl: howl, soundId, name: options.name };
     }
     
     async playSFXElement(url, options) {
@@ -1946,68 +1931,57 @@ ${modeSpecificRules[this.currentMode]}`;
     }
     
     async playMusicElement(url, options) {
-        const newAudio = new Audio(url);
-        newAudio.loop = options.loop;
-        newAudio.dataset.type = options.type;
-        newAudio.dataset.name = options.name;
-        newAudio.crossOrigin = "anonymous";
+        const targetVol = options.volume;
+        const oldHowl = this.currentMusic;
 
-        // Create media element source and connect to music gain
-        try {
-            const source = this.audioContext.createMediaElementSource(newAudio);
-            source.connect(this.musicGainNode);
-            // We keep the previous source connected until fade completes
-            this.pendingMusicSource = source;
-        } catch (error) {
-            // If already connected or error, fall back to element volume
+        // Fade out old music
+        if (oldHowl && oldHowl._howl) {
+            oldHowl._howl.fade(oldHowl._howl.volume(), 0, 600);
+            setTimeout(() => {
+                try { oldHowl._howl.stop(); oldHowl._howl.unload(); } catch(_){}
+            }, 650);
         }
 
-        // Crossfade: start new at 0, fade up; fade out current if exists
-        const targetVol = options.volume;
-        newAudio.volume = 0;
-        await newAudio.play();
+        // Create new Howl instance for music
+        const newHowl = new Howl({
+            src: [url],
+            html5: true, // stream for long music files
+            loop: !!options.loop,
+            volume: 0,
+            onload: () => console.log(`Music loaded: ${options.name}`),
+            onloaderror: (id, err) => console.error('Music load error:', err),
+            onplayerror: (id, err) => console.error('Music play error:', err)
+        });
 
-        const oldAudio = this.currentMusic;
-        const fadeMs = 600;
-        const steps = 12;
-        const stepTime = Math.max(10, Math.round(fadeMs / steps));
-        let i = 0;
-        const fadeTimer = setInterval(() => {
-            i++;
-            const t = i / steps;
-            newAudio.volume = Math.min(1, t * targetVol);
-            if (oldAudio) oldAudio.volume = Math.max(0, (1 - t) * (oldAudio.volume || targetVol));
-            if (i >= steps) {
-                clearInterval(fadeTimer);
-                if (oldAudio) { try { oldAudio.pause(); } catch(_){} }
-                // Disconnect old source and swap current source
-                if (this.currentMusicSource) { try { this.currentMusicSource.disconnect(); } catch(_){}
-                }
-                if (this.pendingMusicSource) {
-                    this.currentMusicSource = this.pendingMusicSource; this.pendingMusicSource = null;
-                }
-                // Ensure musicGain reflects target
-                try { this.musicGainNode.gain.setValueAtTime(targetVol, this.audioContext.currentTime); } catch(_){}
-            }
-        }, stepTime);
+        newHowl.play();
+        newHowl.fade(0, targetVol, 600);
 
-        this.currentMusic = newAudio;
+        // Store reference with metadata
+        this.currentMusic = { _howl: newHowl, name: options.name, type: options.type, volume: targetVol };
         this.updateSoundsList();
-        return newAudio;
+        return this.currentMusic;
     }
     
     fadeOutAudio(audio, ms = 300) {
         if (!audio) return;
-        const steps = 12;
-        const stepTime = Math.max(10, Math.round(ms / steps));
-        let i = 0;
-        const startVol = audio.volume || 1;
-        const timer = setInterval(() => {
-            i++;
-            const t = i / steps;
-            audio.volume = Math.max(0, startVol * (1 - t));
-            if (i >= steps) { clearInterval(timer); try { audio.pause(); } catch(_){} }
-        }, stepTime);
+        if (audio._howl) {
+            audio._howl.fade(audio._howl.volume(), 0, ms);
+            setTimeout(() => {
+                try { audio._howl.stop(); audio._howl.unload(); } catch(_){}
+            }, ms + 50);
+        } else if (audio.pause) {
+            // Legacy HTMLAudioElement fallback
+            const steps = 12;
+            const stepTime = Math.max(10, Math.round(ms / steps));
+            let i = 0;
+            const startVol = audio.volume || 1;
+            const timer = setInterval(() => {
+                i++;
+                const t = i / steps;
+                audio.volume = Math.max(0, startVol * (1 - t));
+                if (i >= steps) { clearInterval(timer); try { audio.pause(); } catch(_){} }
+            }, stepTime);
+        }
     }
     
     calculateVolume(intensity) {
@@ -2040,28 +2014,38 @@ ${modeSpecificRules[this.currentMode]}`;
         const container = document.getElementById('currentSounds');
         container.innerHTML = '';
         
-        // Add music
-        if (this.currentMusic && !this.currentMusic.paused) {
-            const item = document.createElement('div');
-            item.className = 'sound-item';
-            const mg = this.musicGainNode ? this.musicGainNode.gain.value : 1;
-            const ev = (this.currentMusic.volume || 1);
-            item.innerHTML = `
-                <span class="sound-type">Music</span>
-                <span class="sound-name">${this.currentMusic.dataset.name}</span>
-                <span class="sound-volume">${Math.round(mg * ev * 100)}%</span>
-            `;
-            container.appendChild(item);
+        // Add music (Howler or legacy)
+        if (this.currentMusic) {
+            const playing = this.currentMusic._howl ? this.currentMusic._howl.playing() : (!this.currentMusic.paused);
+            if (playing) {
+                const item = document.createElement('div');
+                item.className = 'sound-item';
+                const vol = this.currentMusic._howl ? 
+                    Math.round(this.currentMusic._howl.volume() * 100) :
+                    Math.round((this.currentMusic.volume || 1) * 100);
+                const name = this.currentMusic.name || (this.currentMusic.dataset ? this.currentMusic.dataset.name : 'Unknown');
+                item.innerHTML = `
+                    <span class="sound-type">Music</span>
+                    <span class="sound-name">${name}</span>
+                    <span class="sound-volume">${vol}%</span>
+                `;
+                container.appendChild(item);
+            }
         }
         
-        // Add SFX
+        // Add SFX (Howler or legacy)
         this.activeSounds.forEach((soundObj) => {
             const item = document.createElement('div');
             item.className = 'sound-item';
             const name = soundObj.name || (soundObj.dataset ? soundObj.dataset.name : 'Unknown');
-            const volume = soundObj.gainNode ? 
-                Math.round(soundObj.gainNode.gain.value * 100) : 
-                Math.round((soundObj.volume || 0.5) * 100);
+            let volume = 50;
+            if (soundObj._howl) {
+                volume = Math.round(soundObj._howl.volume() * 100);
+            } else if (soundObj.gainNode) {
+                volume = Math.round(soundObj.gainNode.gain.value * 100);
+            } else if (soundObj.volume !== undefined) {
+                volume = Math.round(soundObj.volume * 100);
+            }
             
             item.innerHTML = `
                 <span class="sound-type">SFX</span>
