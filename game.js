@@ -1,9 +1,13 @@
 // ===== CUEAI - INTELLIGENT AUDIO COMPANION =====
 // Author: Expert AI Team
-// Version: 1.0 MVP
+// Version: 2.0 - Backend Integration
 
 class CueAI {
     constructor() {
+        // Backend Configuration
+        this.backendUrl = this.getBackendUrl();
+        this.soundCatalog = []; // Loaded from backend /sounds endpoint
+        
         // Core Configuration
     this.apiKey = localStorage.getItem('cueai_api_key') || null;
         this.freesoundApiKey = localStorage.getItem('freesound_api_key') || null;
@@ -165,10 +169,39 @@ class CueAI {
         this.initializeSpeechRecognition();
         this.setupVisualizer();
         this.updateApiStatusIndicators();
-        // Load local saved sounds (dev/local only)
+        // Load sound catalog from backend
+        this.loadSoundCatalog().catch(() => console.warn('Backend catalog unavailable'));
+        // Load local saved sounds (legacy/fallback)
         this.loadSavedSounds().catch(()=>{});
         // Load built-in stories
         this.loadStories().catch(()=>{});
+    }
+    
+    getBackendUrl() {
+        // Auto-detect backend URL based on environment
+        const host = location.hostname || '';
+        if (location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1') {
+            return 'http://localhost:3000';
+        }
+        // Production: update this with your Render URL after deployment
+        return 'https://cueai-backend.onrender.com'; // TODO: Replace with actual Render URL
+    }
+    
+    async loadSoundCatalog() {
+        try {
+            const resp = await fetch(`${this.backendUrl}/sounds`, { 
+                cache: 'no-cache',
+                signal: AbortSignal.timeout(5000)
+            });
+            if (!resp.ok) throw new Error(`Backend /sounds: ${resp.status}`);
+            const data = await resp.json();
+            if (Array.isArray(data?.sounds)) {
+                this.soundCatalog = data.sounds;
+                console.log(`✓ Loaded ${this.soundCatalog.length} sounds from backend`);
+            }
+        } catch (err) {
+            console.warn('Failed to load backend catalog:', err.message);
+        }
     }
 
     async loadSavedSounds() {
@@ -1182,9 +1215,9 @@ class CueAI {
         try {
             // Capture analysis version to avoid applying stale results after mode change
             const versionAtStart = this.analysisVersion;
-            const prompt = this.buildAnalysisPrompt(recentTranscript);
             
-            const response = await this.callOpenAI(prompt);
+            // Call backend /analyze endpoint
+            const response = await this.callBackendAnalyze(recentTranscript);
             
             // If mode changed during the async call, ignore this result
             if (this.analysisVersion !== versionAtStart) {
@@ -1199,6 +1232,31 @@ class CueAI {
             console.error('AI Analysis error:', error);
             this.updateStatus('Analysis error. Retrying...');
         }
+    }
+    
+    async callBackendAnalyze(transcript) {
+        // Build context for backend
+        const context = {
+            mode: this.currentMode,
+            musicEnabled: this.musicEnabled,
+            sfxEnabled: this.sfxEnabled,
+            moodBias: this.moodBias,
+            recentSounds: Array.from(this.recentlyPlayed).slice(-5),
+            recentMusic: this.currentMusic?.dataset?.id || null
+        };
+        
+        const resp = await fetch(`${this.backendUrl}/analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript, mode: this.currentMode, context }),
+            signal: AbortSignal.timeout(10000)
+        });
+        
+        if (!resp.ok) {
+            throw new Error(`Backend /analyze: ${resp.status}`);
+        }
+        
+        return await resp.json();
     }
 
     // Stop all audio immediately and clear tracking
@@ -1395,21 +1453,63 @@ ${modeSpecificRules[this.currentMode]}`;
         // Respect AI prediction toggle: do not auto-play when disabled
         if (!this.predictionEnabled) { return; }
         
-        // Handle Music
-        if (this.musicEnabled && decisions.music && decisions.music.query) {
-            await this.updateMusic(decisions.music);
+        // Handle Music (backend returns { id, action, volume })
+        if (this.musicEnabled && decisions.music && decisions.music.id) {
+            await this.updateMusicById(decisions.music);
         }
         
-        // Handle Sound Effects
+        // Handle Sound Effects (backend returns [{ id, when, volume }])
         if (this.sfxEnabled && decisions.sfx && decisions.sfx.length > 0) {
             for (const sfx of decisions.sfx) {
-                await this.playSoundEffect(sfx);
+                await this.playSoundEffectById(sfx);
             }
         }
         
-    this.updateStatus(`${decisions.reasoning || 'Playing sounds...'}`);
+    this.updateStatus(`${decisions.scene || 'Playing sounds...'}`);
     }
     
+    async updateMusicById(musicData) {
+        if (!this.musicEnabled) {
+            this.updateStatus('Music disabled (toggle off)');
+            return;
+        }
+        
+        // Find sound in catalog
+        const sound = this.soundCatalog.find(s => s.id === musicData.id);
+        if (!sound) {
+            console.warn('Music ID not found in catalog:', musicData.id);
+            return;
+        }
+        
+        // Don't change if same music already playing and action is "play_or_continue"
+        if (musicData.action === 'play_or_continue' && 
+            this.currentMusic && 
+            this.currentMusic.dataset?.id === musicData.id) {
+            console.log('Music already playing, continuing:', musicData.id);
+            return;
+        }
+        
+        // Build full URL (backend serves from /media/ route)
+        const soundUrl = `${this.backendUrl}${sound.src}`;
+        
+        // Apply volume with mood bias
+        const moodMul = 0.85 + this.moodBias * 0.3;
+        const baseVol = musicData.volume || 0.5;
+        const effectiveVol = Math.max(0, Math.min(1, baseVol * moodMul * this.musicLevel));
+        
+        await this.playAudio(soundUrl, {
+            type: 'music',
+            name: sound.id,
+            volume: effectiveVol,
+            loop: sound.loop || true,
+            id: sound.id
+        });
+        
+        // Start stingers scheduling
+        this.scheduleNextStinger();
+    }
+    
+    // Legacy updateMusic for fallback (Freesound/Saved Sounds)
     async updateMusic(musicData) {
         if (!this.musicEnabled) {
             this.updateStatus('Music disabled (toggle off)');
@@ -1445,6 +1545,53 @@ ${modeSpecificRules[this.currentMode]}`;
         }
     }
     
+    async playSoundEffectById(sfxData) {
+        if (!this.sfxEnabled) {
+            this.updateStatus('SFX disabled (toggle off)');
+            return;
+        }
+        // Limit simultaneous sounds
+        if (this.activeSounds.size >= this.maxSimultaneousSounds) {
+            return;
+        }
+        
+        // Find sound in catalog
+        const sound = this.soundCatalog.find(s => s.id === sfxData.id);
+        if (!sound) {
+            console.warn('SFX ID not found in catalog:', sfxData.id);
+            return;
+        }
+        
+        // Cooldown to prevent rapid repeats of the same effect
+        const bucket = this.getSfxBucket(sfxData.id);
+        const now = Date.now();
+        const nextAllowed = this.sfxCooldowns.get(bucket) || 0;
+        if (now < nextAllowed) {
+            // Skip duplicate within cooldown window
+            return;
+        }
+        
+        // Build full URL
+        const soundUrl = `${this.backendUrl}${sound.src}`;
+        
+        // Apply volume with SFX level
+        const effectiveVol = Math.max(0, Math.min(1, (sfxData.volume || 0.7) * this.sfxLevel));
+        
+        const played = await this.playAudio(soundUrl, {
+            type: 'sfx',
+            name: sound.id,
+            volume: effectiveVol,
+            loop: false,
+            id: sound.id
+        });
+        
+        if (played) {
+            // Start cooldown for this bucket
+            this.sfxCooldowns.set(bucket, Date.now() + this.sfxCooldownMs);
+        }
+    }
+    
+    // Legacy playSoundEffect for fallback (Freesound/Saved Sounds)
     async playSoundEffect(sfxData) {
         if (!this.sfxEnabled) {
             this.updateStatus('SFX disabled (toggle off)');

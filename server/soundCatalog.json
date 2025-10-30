@@ -1,0 +1,42 @@
+[
+  {
+    "id": "ep_fantasy_tension_loop",
+    "type": "music",
+    "tags": ["fantasy", "dnd", "tense", "cave", "dungeon"],
+    "src": "/media/ep_fantasy_tension_loop.mp3",
+    "loop": true,
+    "license": "epidemic-sound-pro-2025-10"
+  },
+  {
+    "id": "ep_door_creak_01",
+    "type": "sfx",
+    "tags": ["door", "creak", "horror", "castle", "wood"],
+    "src": "/media/ep_door_creak_01.mp3",
+    "loop": false,
+    "license": "epidemic-sound-pro-2025-10"
+  },
+  {
+    "id": "ep_dragon_roar",
+    "type": "sfx",
+    "tags": ["dragon", "roar", "monster", "fantasy", "beast"],
+    "src": "/media/ep_dragon_roar.mp3",
+    "loop": false,
+    "license": "epidemic-sound-pro-2025-10"
+  },
+  {
+    "id": "ep_forest_ambience",
+    "type": "music",
+    "tags": ["forest", "nature", "ambient", "peaceful", "birds"],
+    "src": "/media/ep_forest_ambience.mp3",
+    "loop": true,
+    "license": "epidemic-sound-pro-2025-10"
+  },
+  {
+    "id": "ep_footsteps_stone",
+    "type": "sfx",
+    "tags": ["footsteps", "stone", "castle", "dungeon", "walk"],
+    "src": "/media/ep_footsteps_stone.mp3",
+    "loop": false,
+    "license": "epidemic-sound-pro-2025-10"
+  }
+]

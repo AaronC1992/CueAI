@@ -1,11 +1,22 @@
 # CueAI - Intelligent Audio Companion
 
-**Version 1.0 MVP (OpenAI-only, client-side)**
+**Version 2.0 - Full-Stack Architecture (Node.js + Deepgram + Chroma)**
 
 [![Open App](https://img.shields.io/badge/Open%20App-Live-2ea44f?logo=googlechrome&logoColor=white)](https://aaronc1992.github.io/CueAI/)
-[![Contact Aaron](https://img.shields.io/badge/Contact%20Aaron-API%20Key%20Codes-DB4437?logo=gmail&logoColor=white)](mailto:aaroncue92@gmail.com)
+[![Backend](https://img.shields.io/badge/Backend-Render-46E3B7?logo=render&logoColor=white)](https://cueai-backend.onrender.com)
 
-An AI-powered ambient sound designer that listens to conversations and automatically plays contextually-appropriate music and sound effects. Perfect for enhancing bedtime stories and D&D campaigns!
+An AI-powered ambient sound designer that listens to conversations and automatically plays contextually-appropriate music and sound effects. Now with professional-grade speech recognition, semantic sound search, and curated audio catalog!
+
+---
+
+## 🎉 What's New in v2.0
+
+- **Backend Architecture**: Node.js server on Render with Express REST API
+- **Deepgram STT**: Real-time speech-to-text via WebSocket streaming (replaces Web Speech API)
+- **Chroma Vector DB**: Semantic sound search for intelligent audio matching
+- **Epidemic Sound Catalog**: Professionally curated music and SFX library
+- **Howler.js Audio**: Modern audio engine with crossfades and spatial positioning
+- **Stories Mode**: Interactive reading mode with word highlighting and auto-SFX
 
 ---
 
@@ -87,29 +98,40 @@ Note for PWA features: Service worker and installable app features require HTTPS
 ## Architecture
 
 ### Technology Stack
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Speech Recognition**: Web Speech API (browser-native)
-- **AI Engine**: OpenAI GPT-4o-mini API
-- **Audio**: Web Audio API + Freesound previews (Token auth)
-- **Visualizer**: HTML5 Canvas
 
-### System Flow
+**Frontend**:
+- HTML5, CSS3, Vanilla JavaScript
+- Howler.js v2.2.4 (audio playback)
+- Progressive Web App (PWA) with service worker
+
+**Backend** (Node.js):
+- Express 4.19 (REST API)
+- ws 8.16 (WebSocket for Deepgram)
+- chromadb 1.8.1 (vector database)
+- node-fetch 3.3.2 (HTTP client)
+- Deployed on Render
+
+**APIs & Services**:
+- Deepgram (real-time STT streaming)
+- OpenAI GPT-4o-mini (context analysis)
+- Chroma (semantic vector search)
+- Epidemic Sound Pro (curated audio)
+
+### System Flow (v2.0)
 ```
-Microphone Input
+Browser Microphone
     ↓
-Speech Recognition (continuous)
+WebSocket → Backend → Deepgram API
     ↓
-Transcript Buffer (rolling 30s window)
+Real-time Transcription
     ↓
-AI Analysis (every 4s)
+Backend /analyze Endpoint
+    ├─ Chroma Vector Search (top 5 matching sounds)
+    └─ OpenAI Analysis (strict JSON response)
     ↓
-OpenAI GPT-4o-mini (context → sound decisions)
-    ↓
-Sound Decision Engine
-    ↓
-Audio Playback System
-    ├─ Music Track (single, looping)
-    └─ SFX Layers (up to 3 simultaneous)
+Frontend Howler.js Playback
+    ├─ Music Track (streaming, looping)
+    └─ SFX Layers (stereo positioning, ducking)
 ```
 
 ### Key Components
@@ -274,19 +296,140 @@ Edit `buildAnalysisPrompt()` method to fine-tune AI behavior:
 
 ---
 
+## Backend Setup (Local Development)
+
+### Prerequisites
+- Node.js 18+ ([Download](https://nodejs.org/))
+- API Keys:
+  - OpenAI API Key ([Get here](https://platform.openai.com/api-keys))
+  - Deepgram API Key ([Get here](https://deepgram.com/))
+  - Chroma API Key (optional, [Get here](https://trychroma.com/))
+- Epidemic Sound Pro subscription (for audio files)
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/AaronC1992/CueAI.git
+   cd CueAI
+   ```
+
+2. **Install backend dependencies**:
+   ```bash
+   cd server
+   npm install
+   ```
+
+3. **Create `.env` file** (based on `.env.example`):
+   ```bash
+   OPENAI_API_KEY=sk-...
+   DEEPGRAM_API_KEY=...
+   CHROMA_API_KEY=...
+   CHROMA_HOST=https://api.trychroma.com
+   PORT=3000
+   ```
+
+4. **Add Epidemic Sound files** (manually download from your Pro account):
+   - Create `server/media/` folder
+   - Download audio files and place in `server/media/`
+   - Update `server/soundCatalog.json` with file paths
+
+5. **Start backend server**:
+   ```bash
+   npm run dev  # Development mode with hot-reload
+   # OR
+   npm start    # Production mode
+   ```
+
+6. **Test backend**:
+   ```bash
+   # Health check
+   curl http://localhost:3000/health
+   
+   # Get sound catalog
+   curl http://localhost:3000/sounds
+   
+   # Test analysis
+   curl -X POST http://localhost:3000/analyze \
+     -H "Content-Type: application/json" \
+     -d '{"transcript":"The dragon roars","mode":"dnd"}'
+   ```
+
+7. **Open frontend**:
+   - Visit `http://localhost:8080` (if using start-server scripts)
+   - Or open `index.html` directly (will connect to localhost:3000 backend)
+
+### Backend API Endpoints
+
+**GET /sounds**
+- Returns full sound catalog
+- Response: `{ sounds: [{ id, type, tags, src, loop }] }`
+
+**POST /analyze**
+- Analyzes transcript and returns sound decisions
+- Body: `{ transcript: string, mode: string, context: object }`
+- Response: `{ scene: string, music: { id, action, volume }, sfx: [{ id, when, volume }] }`
+
+**GET /health**
+- Healthcheck for monitoring
+- Response: `{ status: "ok", chroma: boolean, sounds: number }`
+
+**WebSocket /ws/transcribe**
+- Real-time audio streaming to Deepgram
+- Send: Audio data (binary)
+- Receive: `{ transcript: string }`
+
+### Deployment to Render
+
+1. **Push code to GitHub**:
+   ```bash
+   git add .
+   git commit -m "Add backend v2.0"
+   git push origin main
+   ```
+
+2. **Create Render account**: https://render.com/
+
+3. **Create new Web Service**:
+   - Connect your GitHub repo
+   - Use blueprint: `render.yaml`
+   - Set environment variables in Render dashboard:
+     - `OPENAI_API_KEY`
+     - `DEEPGRAM_API_KEY`
+     - `CHROMA_API_KEY`
+     - `CHROMA_HOST`
+
+4. **Deploy**:
+   - Render will auto-deploy from `main` branch
+   - Get your backend URL: `https://cueai-backend.onrender.com`
+
+5. **Update frontend**:
+   - Edit `game.js` → `getBackendUrl()` method
+   - Replace production URL with your Render URL
+   - Commit and push to GitHub Pages
+
 ## Development
 
 ### File Structure
 ```
 CueAI/
-├── index.html          # Main HTML structure
-├── styles.css          # All CSS styling
-├── game.js             # Core JavaScript logic (OpenAI + Freesound)
-├── manifest.json       # PWA manifest
-├── service-worker.js   # PWA service worker
-├── start-server.bat    # Windows batch script to start local server
-├── start-server.ps1    # PowerShell script to start local server
-└── README.md           # This file
+├── index.html              # Main HTML UI
+├── styles.css              # All CSS styling
+├── game.js                 # Frontend logic (Howler + backend calls)
+├── manifest.json           # PWA manifest
+├── service-worker.js       # PWA service worker
+├── saved-sounds.json       # Local audio manifest (106 files)
+├── stories.json            # Fairy tale texts for Stories mode
+├── start-server.bat        # Windows batch script for local dev
+├── start-server.ps1        # PowerShell script for local dev
+├── render.yaml             # Render deployment config
+├── README.md               # This file
+└── server/                 # Backend Node.js application
+    ├── package.json        # Node dependencies
+    ├── index.js            # Express app + WebSocket server
+    ├── soundCatalog.json   # Epidemic Sound audio catalog
+    ├── .env.example        # Environment variables template
+    └── .env                # Your API keys (git-ignored)
 ```
 
 ### Adding New Modes

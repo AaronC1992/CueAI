@@ -1,0 +1,30 @@
+# Render Blueprint for CueAI Backend
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: cueai-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: CHROMA_API_KEY
+        sync: false
+      - key: CHROMA_HOST
+        value: https://api.trychroma.com
+    # Optional: Static file serving for Epidemic Sound media
+    # disk:
+    #   name: media-storage
+    #   mountPath: /opt/render/project/src/server/media
+    #   sizeGB: 10
