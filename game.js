@@ -896,15 +896,48 @@ class CueAI {
     }
 
     startStoryFlow(id) {
-        // Auto-switch to Bedtime mode for stories
-        try { this.selectMode('bedtime'); } catch(_) {}
-        // Show overlay
+        // Auto-switch to Bedtime mode for stories and wait for preload to complete
+        this.startStoryFlowAsync(id).catch(()=>{});
+    }
+
+    async startStoryFlowAsync(id) {
+        let needWait = false;
+        let waitToken = this.preloadVersion;
+
+        // Switch to bedtime only if not already
+        if (this.currentMode !== 'bedtime') {
+            try { 
+                const before = this.preloadVersion;
+                this.selectMode('bedtime'); 
+                const after = this.preloadVersion;
+                if (after !== before) { needWait = true; waitToken = after; }
+            } catch(_) {}
+        } else if (this.preloadInProgress) {
+            needWait = true; waitToken = this.preloadVersion;
+        }
+
+        // If a preload is in progress for bedtime, wait briefly for it to finish
+        if (needWait) {
+            await this.waitForPreloadComplete(waitToken, 15000); // up to 15s safety
+        }
+
+        // Show story overlay after preload completes (or timeout)
         this.showStoryOverlay(id);
-        // Optionally auto-start listening
         if (this.autoStartStoryListening && !this.isListening) {
             this.startListening();
         }
     }
+
+    async waitForPreloadComplete(versionToken, timeoutMs = 12000) {
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+            if (!this.preloadInProgress && this.preloadVersion === versionToken) return true;
+            await this.sleep(120);
+        }
+        return false; // timed out
+    }
+
+    sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
     
     selectMode(mode) {
         this.currentMode = mode;
