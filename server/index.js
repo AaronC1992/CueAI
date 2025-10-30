@@ -34,6 +34,8 @@ async function initChroma() {
   try {
     chromaClient = new ChromaClient({
       path: process.env.CHROMA_HOST || 'http://localhost:8000',
+      tenant: process.env.CHROMA_TENANT || 'default_tenant',
+      database: process.env.CHROMA_DATABASE || 'default_database',
       auth: process.env.CHROMA_API_KEY ? { 
         provider: 'token',
         credentials: process.env.CHROMA_API_KEY 
@@ -340,10 +342,15 @@ wss.on('connection', (ws) => {
 });
 
 // ===== START SERVER =====
-const server = app.listen(PORT, async () => {
+const server = app.listen(PORT, () => {
   console.log(`🎵 CueAI Server running on port ${PORT}`);
-  await initChroma();
-  await loadSoundCatalog();
+  console.log(`✓ Health: http://localhost:${PORT}/health`);
+  console.log(`✓ Sounds: http://localhost:${PORT}/sounds`);
+});
+
+// Initialize async resources after server starts
+initChroma().then(() => loadSoundCatalog()).catch(err => {
+  console.error('Initialization error:', err);
 });
 
 // Attach WebSocket upgrade handler
@@ -364,4 +371,14 @@ process.on('SIGTERM', () => {
     console.log('Server closed');
     process.exit(0);
   });
+});
+
+// Error handling
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
 });
