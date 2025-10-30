@@ -22,6 +22,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public')); // for hosting media files later
 
+// Request timeout middleware (prevent long-running requests on free tier)
+app.use((req, res, next) => {
+  req.setTimeout(28000); // 28 second timeout (under Render's 30s limit)
+  res.setTimeout(28000);
+  next();
+});
+
 // Admin routes
 app.use('/admin', adminRouter);
 
@@ -183,30 +190,45 @@ async function callOpenAI(prompt) {
     throw new Error('OpenAI API key not configured. Please set OPENAI_API_KEY in .env file.');
   }
   
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: 'You are a JSON-only audio decision engine. Always return valid JSON.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 400
-    })
-  });
+  // Add timeout and memory-efficient fetch
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
   
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(`OpenAI error: ${response.status} ${err.error?.message || ''}`);
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are a JSON-only audio decision engine. Always return valid JSON.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 300 // Reduced from 400 to save memory
+      }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeout);
+    
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(`OpenAI error: ${response.status} ${err.error?.message || ''}`);
+    }
+    
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      throw new Error('OpenAI request timed out after 25s');
+    }
+    throw err;
   }
-  
-  const data = await response.json();
-  return data.choices[0].message.content.trim();
 }
 
 function repairJSON(text) {
@@ -298,7 +320,23 @@ const server = app.listen(PORT, () => {
   console.log(`🎵 CueAI Server running on port ${PORT}`);
   console.log(`✓ Health: http://localhost:${PORT}/health`);
   console.log(`✓ Sounds: http://localhost:${PORT}/sounds`);
+  
+  // Log memory usage on startup
+  const memUsage = process.memoryUsage();
+  console.log(`📊 Memory: ${Math.round(memUsage.heapUsed / 1024 / 1024)}MB used / ${Math.round(memUsage.heapTotal / 1024 / 1024)}MB total`);
 });
+
+// Memory monitoring for Render free tier (512MB limit)
+if (process.env.NODE_ENV === 'production') {
+  setInterval(() => {
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    if (heapUsedMB > 400) {
+      console.warn(`⚠️ High memory usage: ${heapUsedMB}MB (limit: 512MB)`);
+      if (global.gc) global.gc(); // Force garbage collection if enabled
+    }
+  }, 60000); // Check every minute
+}
 
 // Initialize async resources after server starts
 loadSoundCatalog().catch(err => {
