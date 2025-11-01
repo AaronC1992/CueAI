@@ -289,8 +289,8 @@ class CueAI {
         this.savedSounds = { files: [] };
         this.userSavedSoundsPref = JSON.parse(localStorage.getItem('cueai_saved_sounds_enabled') ?? 'true');
     this.savedSoundsEnabled = false;            // Instant trigger keywords for immediate sound effects
-    // AI prediction (auto analysis + auto-playback); default OFF
-    this.predictionEnabled = JSON.parse(localStorage.getItem('cueai_prediction_enabled') ?? 'false');
+    // AI prediction (auto analysis + auto-playback); default ON
+    this.predictionEnabled = JSON.parse(localStorage.getItem('cueai_prediction_enabled') ?? 'true');
     // Story preferences
     this.autoStartStoryListening = JSON.parse(localStorage.getItem('cueai_auto_start_story_listening') ?? 'false');
             this.instantKeywords = {
@@ -1044,7 +1044,7 @@ class CueAI {
 
         // AI Predictions toggle
         if (togglePrediction) {
-            togglePrediction.checked = !!this.predictionEnabled; // default OFF unless previously enabled
+            togglePrediction.checked = !!this.predictionEnabled; // default ON unless previously disabled
             togglePrediction.addEventListener('change', (e) => {
                 this.predictionEnabled = e.target.checked;
                 localStorage.setItem('cueai_prediction_enabled', JSON.stringify(this.predictionEnabled));
