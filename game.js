@@ -287,7 +287,7 @@ class CueAI {
         this.sfxCooldowns = new Map(); // bucket -> nextAllowedTime
         // Saved sounds (local quick-access library)
         this.savedSounds = { files: [] };
-        this.userSavedSoundsPref = JSON.parse(localStorage.getItem('cueai_saved_sounds_enabled') ?? 'true');
+        this.userSavedSoundsPref = JSON.parse(localStorage.getItem('cueai_saved_sounds_enabled') ?? 'false');
     this.savedSoundsEnabled = false;            // Instant trigger keywords for immediate sound effects
     // AI prediction (auto analysis + auto-playback); default ON
     this.predictionEnabled = JSON.parse(localStorage.getItem('cueai_prediction_enabled') ?? 'true');
