@@ -1,19 +1,21 @@
 # Exclude oversized or unwanted local assets
 Saved sounds/waves-sea-shore.wav
 
-# Audio media files (too large for git - use CDN or external storage)
-server/media/music/*.mp3
-server/media/music/*.wav
-server/media/music/*.flac
-server/media/music/*.ogg
-server/media/sfx/*.mp3
-server/media/sfx/*.wav
-server/media/sfx/*.ogg
-server/media/sfx/*.m4a
-server/media/sfx/*.flac
-server/media/ambience/*.mp3
-server/media/ambience/*.wav
-server/media/ambience/*.flac
+# Audio media files - TEMPORARILY ENABLED FOR RENDER DEPLOYMENT
+# Comment out to deploy media files to Render for testing
+# Later: use CDN (Cloudflare R2, AWS S3, Backblaze B2) and set MEDIA_BASE_URL
+# server/media/music/*.mp3
+# server/media/music/*.wav
+# server/media/music/*.flac
+# server/media/music/*.ogg
+# server/media/sfx/*.mp3
+# server/media/sfx/*.wav
+# server/media/sfx/*.ogg
+# server/media/sfx/*.m4a
+# server/media/sfx/*.flac
+# server/media/ambience/*.mp3
+# server/media/ambience/*.wav
+# server/media/ambience/*.flac
 
 # Keep directory structure but not files
 !server/media/music/.gitkeep
