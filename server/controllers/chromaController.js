@@ -34,6 +34,16 @@ export const syncSoundsToChroma = async (req, res) => {
       });
     }
 
+    // Delete existing entries first to handle updates
+    try {
+      await collection.delete({ ids });
+      console.log('Cleared existing sound entries from Chroma');
+    } catch (err) {
+      // Ignore if IDs don't exist yet
+      console.log('No existing entries to clear (first sync)');
+    }
+
+    // Add new/updated entries
     await collection.add({
       ids,
       documents,

@@ -357,7 +357,25 @@
     </div>
 
     <!-- Howler.js Audio Library -->
+    <!-- TODO: Consider self-hosting this or using a local copy for better offline support -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+    <!-- Local backend override for full local testing -->
+    <script>
+        // Use local backend only when running locally; otherwise default to production backend in api.js
+        (function(){
+            try {
+                if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                    window.CUEAI_BACKEND_URL = 'http://localhost:3000';
+                }
+            } catch (_) {}
+        })();
+    </script>
+
+    <!-- API Service (centralized backend calls) -->
+    <script src="api.js"></script>
+    
+    <!-- Main Game Logic -->
     <script src="game.js"></script>
     <script>
         // Register service worker for PWA

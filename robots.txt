@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+
+# Sitemap (update when available)
+# Sitemap: https://yoursite.com/sitemap.xml

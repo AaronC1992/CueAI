@@ -1,10 +1,19 @@
 // CueAI Service Worker
-const CACHE_NAME = 'cueai-v5';
+const CACHE_NAME = 'cueai-v6'; // Bumped for refactor changes
+
+// Note: Backend media files (https://cueai-backend.onrender.com/media/*) are NOT cached here
+// because they are:
+// 1. Too large (~100MB total) for browser cache
+// 2. Cross-origin resources with CORS complexity
+// 3. Better served fresh from CDN/backend
+// Audio files are streamed on-demand with Howler.js html5 mode
+
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './game.js',
+  './api.js', // NEW: Centralized API service layer
   './manifest.json',
   './saved-sounds.json',
   './icon.svg',

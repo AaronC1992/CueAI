@@ -1,0 +1,4 @@
+Contact: https://github.com/AaronC1992/CueAI/issues
+Expires: 2026-11-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://cueai-backend.onrender.com/.well-known/security.txt

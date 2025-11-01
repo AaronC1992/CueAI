@@ -6,7 +6,7 @@ services:
     name: cueai-backend
     env: node
     region: oregon
-    plan: free
+    plan: standard  # Upgraded from free tier for 2GB memory
     buildCommand: cd server && npm install
     startCommand: cd server && npm start
     healthCheckPath: /health

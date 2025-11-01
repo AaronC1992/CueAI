@@ -7,7 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from 'ws';
-import { readFile } from 'fs/promises';
+import { readFile, access } from 'fs/promises';
 import { ChromaClient } from 'chromadb';
 import adminRouter from './routes/admin.js';
 import chromaCollectionPromise from './config/chroma.js';
@@ -17,10 +17,66 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Simple in-memory rate limiting (per IP)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 10; // 10 requests per minute
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip) || { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+  
+  if (now > record.resetTime) {
+    // Reset window
+    record.count = 1;
+    record.resetTime = now + RATE_LIMIT_WINDOW;
+    rateLimitMap.set(ip, record);
+    return true;
+  }
+  
+  if (record.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+  
+  record.count++;
+  rateLimitMap.set(ip, record);
+  return true;
+}
+
+// Clean up old rate limit entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  
+  // Remove expired entries
+  for (const [ip, record] of rateLimitMap.entries()) {
+    if (now > record.resetTime) {
+      rateLimitMap.delete(ip);
+    }
+  }
+  
+  // Prevent memory leak: if map grows too large, clear oldest entries
+  if (rateLimitMap.size > 10000) {
+    const entries = Array.from(rateLimitMap.entries());
+    // Sort by resetTime and keep only newest 5000
+    entries.sort((a, b) => b[1].resetTime - a[1].resetTime);
+    rateLimitMap.clear();
+    entries.slice(0, 5000).forEach(([ip, record]) => rateLimitMap.set(ip, record));
+    console.warn(`⚠️  Rate limit map grew to ${entries.length}, trimmed to 5000`);
+  }
+}, 300000);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // for hosting media files later
+
+// Serve media files with proper CORS headers for audio streaming
+app.use('/media', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Range');
+  res.header('Accept-Ranges', 'bytes');
+  next();
+}, express.static('media'));
 
 // Request timeout middleware (prevent long-running requests on free tier)
 app.use((req, res, next) => {
@@ -40,6 +96,28 @@ async function loadSoundCatalog() {
     const data = await readFile('./soundCatalog.json', 'utf-8');
     soundCatalog = JSON.parse(data);
     console.log(`✓ Loaded ${soundCatalog.length} sounds from catalog`);
+    
+    // Validate that media files exist
+    let missingFiles = 0;
+    for (const sound of soundCatalog) {
+      try {
+        // Only validate local files under /media/*; skip absolute/remote URLs
+        if (typeof sound.src === 'string' && sound.src.startsWith('/media/')) {
+          const filePath = `.${sound.src}`; // /media/... -> ./media/...
+          await access(filePath);
+        }
+      } catch (e) {
+        console.warn(`⚠️  Missing file: ${sound.src} (${sound.id})`);
+        missingFiles++;
+      }
+    }
+    
+    if (missingFiles > 0) {
+      console.warn(`⚠️  ${missingFiles}/${soundCatalog.length} sound files missing from media folder`);
+      console.warn(`   Upload missing files or update soundCatalog.json`);
+    } else {
+      console.log(`✓ All ${soundCatalog.length} media files verified`);
+    }
   } catch (err) {
     console.error('Failed to load sound catalog:', err.message);
   }
@@ -75,6 +153,14 @@ app.get('/test-chroma', async (req, res) => {
 
 // POST /analyze - semantic search + OpenAI analysis
 app.post('/analyze', async (req, res) => {
+  // Rate limiting check
+  const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({ 
+      error: 'Too many requests. Please try again in a minute.' 
+    });
+  }
+  
   const { transcript, mode, context } = req.body;
   
   if (!transcript) {
@@ -143,6 +229,9 @@ app.post('/analyze', async (req, res) => {
 // GET /health - healthcheck for Render
 app.get('/health', async (req, res) => {
   let chromaStatus = false;
+  let deepgramStatus = false;
+  
+  // Check Chroma
   try {
     const collection = await chromaCollectionPromise;
     chromaStatus = !!collection;
@@ -150,9 +239,27 @@ app.get('/health', async (req, res) => {
     console.warn('Chroma health check failed:', err.message);
   }
   
+  // Check Deepgram (simple API key validation)
+  if (process.env.DEEPGRAM_API_KEY && !process.env.DEEPGRAM_API_KEY.includes('your_')) {
+    try {
+      const dgResponse = await fetch('https://api.deepgram.com/v1/projects', {
+        method: 'GET',
+        headers: { 
+          'Authorization': `Token ${process.env.DEEPGRAM_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(3000)
+      });
+      deepgramStatus = dgResponse.ok;
+    } catch (err) {
+      console.warn('Deepgram health check failed:', err.message);
+    }
+  }
+  
   res.json({ 
     status: 'ok', 
     chroma: chromaStatus,
+    deepgram: deepgramStatus,
     sounds: soundCatalog.length 
   });
 });
@@ -267,6 +374,10 @@ function repairJSON(text) {
 }
 
 // ===== WEBSOCKET FOR DEEPGRAM STREAMING =====
+// NOTE: This WebSocket implementation is complete but NOT YET INTEGRATED with frontend
+// TODO: Frontend needs to connect to ws://backend/ws/transcribe and stream audio
+// Currently, frontend uses browser's Web Speech API for speech recognition
+// This would be an upgrade path for better accuracy and control
 const wss = new WebSocketServer({ noServer: true });
 
 wss.on('connection', (ws) => {
@@ -337,8 +448,8 @@ wss.on('connection', (ws) => {
 });
 
 // ===== START SERVER =====
-const server = app.listen(PORT, () => {
-  console.log(`🎵 CueAI Server running on port ${PORT}`);
+const server = app.listen(PORT, '127.0.0.1', () => {
+  console.log(`🎵 CueAI Server running on http://127.0.0.1:${PORT}`);
   console.log(`✓ Health: http://localhost:${PORT}/health`);
   console.log(`✓ Sounds: http://localhost:${PORT}/sounds`);
   

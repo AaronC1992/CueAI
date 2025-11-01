@@ -1,0 +1,2 @@
+# This file ensures the ambience directory is tracked by git
+# Audio files are ignored via .gitignore due to size

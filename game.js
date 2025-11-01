@@ -2,21 +2,191 @@
 // Author: Expert AI Team
 // Version: 2.0 - Backend Integration
 
+// ===== HELPER FUNCTIONS =====
+// Centralized API key management
+function getOpenAIKey() {
+    return localStorage.getItem('cueai_api_key') || null;
+}
+
+function setOpenAIKey(key) {
+    if (key) {
+        localStorage.setItem('cueai_api_key', key);
+    } else {
+        localStorage.removeItem('cueai_api_key');
+    }
+}
+
+function getFreesoundKey() {
+    return localStorage.getItem('freesound_api_key') || null;
+}
+
+function setFreesoundKey(key) {
+    if (key) {
+        localStorage.setItem('freesound_api_key', key);
+    } else {
+        localStorage.removeItem('freesound_api_key');
+    }
+}
+
+function getPixabayKey() {
+    return localStorage.getItem('pixabay_api_key') || null;
+}
+
+function setPixabayKey(key) {
+    if (key) {
+        localStorage.setItem('pixabay_api_key', key);
+    } else {
+        localStorage.removeItem('pixabay_api_key');
+    }
+}
+
+// Speech recognition feature detection
+function isSpeechRecognitionAvailable() {
+    return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+}
+
+// ===== AUDIO SERVICE (Howler.js wrapper) =====
+const cueAudio = {
+    music: null, // Current music Howl instance
+    sfx: {}, // Map of active SFX Howl instances by ID
+    
+    /**
+     * Play background music (stops previous music)
+     * @param {string} id - Unique identifier for this music track
+     * @param {string} src - URL to audio file
+     * @param {number} volume - Volume level (0.0 to 1.0)
+     * @param {boolean} loop - Whether to loop the music
+     * @param {Function} onError - Optional error callback
+     */
+    playMusic(id, src, volume = 0.5, loop = true, onError = null) {
+        // Stop previous music if playing
+        if (this.music) {
+            this.music.stop();
+            this.music.unload();
+        }
+        
+        // Create new music Howl
+        this.music = new Howl({
+            src: [src],
+            volume: volume,
+            loop: loop,
+            html5: true, // Better for streaming long music files
+            onload: () => console.log(`✓ Music loaded: ${id}`),
+            onloaderror: (soundId, err) => {
+                console.error(`✗ Music load error: ${id}`, err);
+                if (onError) onError(id, err);
+            },
+            onplay: () => console.log(`♫ Playing music: ${id}`),
+            onend: () => {
+                if (!loop) {
+                    this.music = null;
+                }
+            }
+        });
+        
+        this.music.play();
+        return this.music;
+    },
+    
+    /**
+     * Play a sound effect (can play multiple simultaneously)
+     * @param {string} id - Unique identifier for this SFX
+     * @param {string} src - URL to audio file
+     * @param {number} volume - Volume level (0.0 to 1.0)
+     * @param {number} pan - Stereo pan (-1.0 left to 1.0 right)
+     * @param {Function} onError - Optional error callback
+     */
+    playSfx(id, src, volume = 0.7, pan = 0, onError = null) {
+        // Create new SFX Howl (allows overlapping sounds)
+        const sfxHowl = new Howl({
+            src: [src],
+            volume: volume,
+            stereo: pan,
+            onload: () => console.log(`✓ SFX loaded: ${id}`),
+            onloaderror: (soundId, err) => {
+                console.error(`✗ SFX load error: ${id}`, err);
+                if (onError) onError(id, err);
+            },
+            onplay: () => console.log(`🔊 Playing SFX: ${id}`),
+            onend: () => {
+                // Clean up after playback
+                delete this.sfx[id + '_' + Date.now()];
+            }
+        });
+        
+        // Store with timestamp to allow duplicates
+        const key = id + '_' + Date.now();
+        this.sfx[key] = sfxHowl;
+        sfxHowl.play();
+        
+        return sfxHowl;
+    },
+    
+    /**
+     * Stop currently playing music
+     */
+    stopMusic() {
+        if (this.music) {
+            this.music.stop();
+            this.music.unload();
+            this.music = null;
+        }
+    },
+    
+    /**
+     * Stop all sound effects
+     */
+    stopAllSfx() {
+        Object.values(this.sfx).forEach(howl => {
+            howl.stop();
+            howl.unload();
+        });
+        this.sfx = {};
+    },
+    
+    /**
+     * Stop all audio (music + SFX)
+     */
+    stopAll() {
+        this.stopMusic();
+        this.stopAllSfx();
+    },
+    
+    /**
+     * Fade music volume
+     * @param {number} targetVolume - Target volume (0.0 to 1.0)
+     * @param {number} duration - Fade duration in milliseconds
+     */
+    fadeMusic(targetVolume, duration = 500) {
+        if (this.music) {
+            this.music.fade(this.music.volume(), targetVolume, duration);
+        }
+    }
+};
+
 class CueAI {
     constructor() {
         // Backend Configuration
         this.backendUrl = this.getBackendUrl();
         this.soundCatalog = []; // Loaded from backend /sounds endpoint
         
-        // Core Configuration
-    this.apiKey = localStorage.getItem('cueai_api_key') || null;
-        this.freesoundApiKey = localStorage.getItem('freesound_api_key') || null;
-        this.pixabayApiKey = localStorage.getItem('pixabay_api_key') || null;
+        // Core Configuration - Use centralized getters
+        this.apiKey = getOpenAIKey();
+        this.freesoundApiKey = getFreesoundKey();
+        this.pixabayApiKey = getPixabayKey();
+        
+        // Refresh API key on visibility change (in case user updated in another tab)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.apiKey = getOpenAIKey();
+                this.freesoundApiKey = getFreesoundKey();
+            }
+        });
         this.currentMode = 'dnd';
         this.isListening = false;
         this.minVolume = 0.2;
         this.maxVolume = 0.7;
-    this.analysisVersion = 0; // increment on mode changes to ignore stale AI results
+        this.analysisVersion = 0; // increment on mode changes to ignore stale AI results
     // Playback preferences
     this.musicEnabled = JSON.parse(localStorage.getItem('cueai_music_enabled') ?? 'true');
     this.sfxEnabled = JSON.parse(localStorage.getItem('cueai_sfx_enabled') ?? 'true');
@@ -33,7 +203,8 @@ class CueAI {
         this.recognition = null;
         this.transcriptBuffer = [];
     this.lastAnalysisTime = 0;
-        this.analysisInterval = 2000; // Analyze every 2 seconds for faster response
+    // Analyze less frequently to respect backend rate limit (10/min)
+    this.analysisInterval = 7000; // ~8-9 requests/min
     this.analysisTimer = null;
     this.analysisInProgress = false;
     this.currentInterim = '';
@@ -129,6 +300,13 @@ class CueAI {
                 'thunder': { query: 'thunder storm', volume: 0.8 },
                 'scream': { query: 'scream horror', volume: 0.7 },
                 'roar': { query: 'monster roar', volume: 0.8 },
+                'growl': { query: 'monster growl', volume: 0.8 },
+                'snarl': { query: 'monster growl', volume: 0.8 },
+                'ogre': { query: 'monster growl', volume: 0.8 },
+                'troll': { query: 'monster growl', volume: 0.8 },
+                'orc': { query: 'monster growl', volume: 0.8 },
+                'goblin': { query: 'monster growl', volume: 0.8 },
+                'beast': { query: 'monster growl', volume: 0.8 },
                 'slam': { query: 'door slam', volume: 0.7 },
                 'splash': { query: 'water splash', volume: 0.6 },
                 'whoosh': { query: 'wind whoosh', volume: 0.6 },
@@ -178,33 +356,22 @@ class CueAI {
     }
     
     getBackendUrl() {
-        // Force production backend (comment out for local dev)
-        // return 'https://cueai-backend.onrender.com';
-        
-        // Auto-detect backend URL based on environment
-        const host = location.hostname || '';
-        if (location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1') {
-            // Use production backend even in local dev if local server not running
-            return 'https://cueai-backend.onrender.com';
-        }
-        // Production: already using Render URL
-        return 'https://cueai-backend.onrender.com';
+        // Use centralized backend URL from api.js
+        return getBackendUrl();
     }
     
     async loadSoundCatalog() {
         try {
-            const resp = await fetch(`${this.backendUrl}/sounds`, { 
-                cache: 'no-cache',
-                signal: AbortSignal.timeout(5000)
-            });
-            if (!resp.ok) throw new Error(`Backend /sounds: ${resp.status}`);
-            const data = await resp.json();
-            if (Array.isArray(data?.sounds)) {
-                this.soundCatalog = data.sounds;
-                console.log(`✓ Loaded ${this.soundCatalog.length} sounds from backend`);
+            // Use centralized API service (from api.js)
+            this.soundCatalog = await fetchSounds();
+            if (this.soundCatalog.length > 0) {
+                console.log(`✓ Loaded ${this.soundCatalog.length} sounds`);
+            } else {
+                console.warn('No sounds loaded from catalog');
             }
         } catch (err) {
-            console.warn('Failed to load backend catalog:', err.message);
+            console.error('Failed to load sound catalog:', err.message);
+            this.soundCatalog = [];
         }
     }
 
@@ -494,37 +661,53 @@ class CueAI {
             this.playSoundEffect({ query: q, priority: 6, volume: 0.7 }).catch(()=>{});
         }
     }
-    checkApiKey() {
+    async checkApiKey() {
         const modal = document.getElementById('apiKeyModal');
         const appContainer = document.getElementById('appContainer');
-        
-        if (this.apiKey) {
+        // If user supplied an API key, proceed
+        if (this.apiKey && this.apiKey.length > 10) {
             modal.classList.add('hidden');
             appContainer.classList.remove('hidden');
-        } else {
-            modal.classList.remove('hidden');
-            appContainer.classList.add('hidden');
+            return;
         }
+
+        // Otherwise, allow usage if backend is reachable (no key needed for testers)
+        try {
+            const backendUrl = this.getBackendUrl();
+            const resp = await fetch(`${backendUrl}/health`, { cache: 'no-cache', signal: AbortSignal.timeout(3000) });
+            if (resp.ok) {
+                modal.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                this.updateStatus('Using server AI — no OpenAI key needed');
+                return;
+            }
+        } catch (_) {}
+
+        // Fallback: require user key when backend not available
+        modal.classList.remove('hidden');
+        appContainer.classList.add('hidden');
     }
     
     saveApiKey() {
         const input = document.getElementById('apiKeyInput');
+        if (!input) return;
+        
         const key = input.value.trim();
         
         if (key.length > 10) {
             this.apiKey = key;
-            localStorage.setItem('cueai_api_key', key);
+            setOpenAIKey(key); // Use centralized setter
             this.checkApiKey();
             this.updateStatus(`OpenAI API Key saved!`);
             this.updateApiStatusIndicators();
         } else {
-            alert('Invalid API key. Please check and try again.');
+            this.updateStatus('⚠️ Invalid API key. Please check and try again.', 'error');
         }
     }
     
     resetApiKey() {
         if (confirm('Are you sure you want to reset your API key?')) {
-            localStorage.removeItem('cueai_api_key');
+            setOpenAIKey(null); // Use centralized setter
             this.apiKey = null;
             this.stopListening();
             this.checkApiKey();
@@ -655,13 +838,13 @@ class CueAI {
         
         if (freesoundKey.length > 10) {
             this.freesoundApiKey = freesoundKey;
-            localStorage.setItem('freesound_api_key', freesoundKey);
+            setFreesoundKey(freesoundKey); // Use centralized setter
             saved = true;
         }
         
         if (pixabayKey.length > 10) {
             this.pixabayApiKey = pixabayKey;
-            localStorage.setItem('pixabay_api_key', pixabayKey);
+            setPixabayKey(pixabayKey);
             saved = true;
         }
         
@@ -1061,52 +1244,59 @@ class CueAI {
     
     // ===== SPEECH RECOGNITION =====
     initializeSpeechRecognition() {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            alert('Speech recognition not supported in this browser. Please use Chrome or Edge.');
+        // Feature detection with UI feedback
+        if (!isSpeechRecognitionAvailable()) {
+            this.updateStatus('⚠️ Speech recognition not supported in this browser. Please use Chrome/Edge or connect to backend STT.', 'error');
+            console.warn('Speech recognition not available');
             return;
         }
         
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        this.recognition = new SpeechRecognition();
-        this.recognition.continuous = true;
-        this.recognition.interimResults = true;
-        this.recognition.lang = 'en-US';
-        this.recognition.maxAlternatives = 1;
-        
-        this.recognition.onresult = (event) => this.handleSpeechResult(event);
-        this.recognition.onerror = (event) => this.handleSpeechError(event);
-        this.recognition.onend = () => {
-            if (this.isListening) {
-                // Add small delay before restart to avoid rapid cycling
-                setTimeout(() => {
-                    if (this.isListening) {
-                        try {
-                            this.recognition.start();
-                        } catch (e) {
-                            console.log('Recognition restart skipped:', e.message);
+        try {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            this.recognition = new SpeechRecognition();
+            this.recognition.continuous = true;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'en-US';
+            this.recognition.maxAlternatives = 1;
+            
+            this.recognition.onresult = (event) => this.handleSpeechResult(event);
+            this.recognition.onerror = (event) => this.handleSpeechError(event);
+            this.recognition.onend = () => {
+                if (this.isListening) {
+                    // Add small delay before restart to avoid rapid cycling
+                    setTimeout(() => {
+                        if (this.isListening) {
+                            try {
+                                this.recognition.start();
+                            } catch (e) {
+                                console.log('Recognition restart skipped:', e.message);
+                            }
                         }
-                    }
-                }, 100);
-            }
-        };
-        
-        this.recognition.onstart = () => {
-            console.log('Speech recognition started');
-            this.updateStatus('Listening... Speak clearly!');
-        };
-        
-        this.recognition.onaudiostart = () => {
-            console.log('Audio input detected');
-        };
-        
-        this.recognition.onsoundstart = () => {
-            console.log('Sound detected');
-        };
-        
-        this.recognition.onspeechstart = () => {
-            console.log('Speech detected');
-            this.updateStatus('I hear you. Keep talking...');
-        };
+                    }, 100);
+                }
+            };
+            
+            this.recognition.onstart = () => {
+                console.log('Speech recognition started');
+                this.updateStatus('Listening... Speak clearly!');
+            };
+            
+            this.recognition.onaudiostart = () => {
+                console.log('Audio input detected');
+            };
+            
+            this.recognition.onsoundstart = () => {
+                console.log('Sound detected');
+            };
+            
+            this.recognition.onspeechstart = () => {
+                console.log('Speech detected');
+                this.updateStatus('I hear you. Keep talking...');
+            };
+        } catch (error) {
+            console.error('Failed to initialize speech recognition:', error);
+            this.updateStatus('⚠️ Failed to initialize speech recognition. Check console for details.', 'error');
+        }
     }
     
     handleSpeechResult(event) {
@@ -1220,7 +1410,7 @@ class CueAI {
             // Capture analysis version to avoid applying stale results after mode change
             const versionAtStart = this.analysisVersion;
             
-            // Call backend /analyze endpoint
+            // Call centralized API service (from api.js)
             const response = await this.callBackendAnalyze(recentTranscript);
             
             // If mode changed during the async call, ignore this result
@@ -1234,7 +1424,7 @@ class CueAI {
             }
         } catch (error) {
             console.error('AI Analysis error:', error);
-            this.updateStatus('Analysis error. Retrying...');
+            this.updateStatus('⚠️ Analysis error. Check console for details.');
         }
     }
     
@@ -1249,24 +1439,26 @@ class CueAI {
             recentMusic: this.currentMusic?.dataset?.id || null
         };
         
-        const resp = await fetch(`${this.backendUrl}/analyze`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transcript, mode: this.currentMode, context }),
-            signal: AbortSignal.timeout(10000)
+        // Use centralized API service (from api.js)
+        // This will try backend first, then fallback to client-side OpenAI if needed
+        return await analyzeTranscript({
+            transcript,
+            mode: this.currentMode,
+            context
         });
-        
-        if (!resp.ok) {
-            throw new Error(`Backend /analyze: ${resp.status}`);
-        }
-        
-        return await resp.json();
     }
 
     // Stop all audio immediately and clear tracking
     stopAllAudio() {
         // Cancel stingers
         if (this.stingerTimer) { clearTimeout(this.stingerTimer); this.stingerTimer = null; }
+
+        // Hard stop via Howler global (stops any stray sounds not tracked)
+        try {
+            if (typeof Howler !== 'undefined') {
+                Howler.stop();
+            }
+        } catch (_) {}
 
         // Stop and release music (Howler or legacy)
         if (this.currentMusic) {
@@ -1309,6 +1501,16 @@ class CueAI {
             } catch (_) {}
         });
         this.activeSounds.clear();
+
+        // Also stop any audio started via the cueAudio wrapper (safety net)
+        try { cueAudio.stopAll && cueAudio.stopAll(); } catch(_) {}
+
+        // Extra safety: unload all Howler instances to prevent loops
+        try {
+            if (typeof Howler !== 'undefined' && Array.isArray(Howler._howls)) {
+                Howler._howls.forEach(h => { try { h.stop(); h.unload(); } catch(_) {} });
+            }
+        } catch (_) {}
 
         // Clear any queued sounds if used
         if (Array.isArray(this.soundQueue)) this.soundQueue.length = 0;
@@ -1456,6 +1658,27 @@ ${modeSpecificRules[this.currentMode]}`;
         console.log('Sound Decisions:', decisions);
         // Respect AI prediction toggle: do not auto-play when disabled
         if (!this.predictionEnabled) { return; }
+        
+        // Stop long-running SFX from previous context (scene change)
+        // Keep only very short SFX (< 2s) or looping ambient effects
+        const now = Date.now();
+        this.activeSounds.forEach((soundObj, id) => {
+            if (soundObj.type === 'sfx') {
+                const age = now - (soundObj.startTime || now);
+                // If SFX has been playing for more than 2 seconds, fade it out
+                if (age > 2000) {
+                    try {
+                        if (soundObj._howl) {
+                            soundObj._howl.fade(soundObj._howl.volume(), 0, 300);
+                            setTimeout(() => {
+                                try { soundObj._howl.stop(); soundObj._howl.unload(); } catch(_) {}
+                                this.activeSounds.delete(id);
+                            }, 350);
+                        }
+                    } catch(_) {}
+                }
+            }
+        });
         
         // Handle Music (backend returns { id, action, volume })
         if (this.musicEnabled && decisions.music && decisions.music.id) {
@@ -1734,7 +1957,7 @@ ${modeSpecificRules[this.currentMode]}`;
                 if (t.startsWith('footstep')) expand.add('footsteps');
                 if (t === 'bark' || t === 'woof') { expand.add('dog'); expand.add('bark'); }
                 if (t === 'howl') { expand.add('wolf'); expand.add('dog'); }
-                if (t === 'creak' || t === 'squeak') { expand.add('door'); expand.add('wood'); }
+                if (t === 'creak' || t === 'squeak') { expand.add('door'); expand.add('wood'); expand.add('creak'); }
                 if (t === 'door') expand.add('creak');
                 if (t === 'whoosh' || t === 'swish') expand.add('wind');
                 if (t === 'lightning') expand.add('thunder');
@@ -1742,6 +1965,15 @@ ${modeSpecificRules[this.currentMode]}`;
                 if (t === 'explosion' || t === 'boom') { expand.add('blast'); expand.add('bang'); }
                 if (t === 'scream' || t === 'yell') { expand.add('woman'); expand.add('horror'); }
                 if (t === 'monster' || t === 'zombie') { expand.add('growl'); expand.add('undead'); }
+                // New creature synonyms
+                if (t === 'ogre' || t === 'troll' || t === 'orc' || t === 'goblin' || t === 'beast') { expand.add('monster'); expand.add('creature'); }
+                // Vocalization synonyms
+                if (t === 'roar' || t === 'snarl' || t === 'growl') { expand.add('growl'); expand.add('roar'); }
+                // Weapon synonyms
+                if (t === 'blade' || t === 'steel') { expand.add('sword'); expand.add('metal'); }
+                // Movement synonyms
+                if (t === 'steps' || t === 'walking') { expand.add('footsteps'); }
+                if (t === 'gallop' || t === 'galloping' || t === 'trot' || t === 'trotting') { expand.add('horse'); expand.add('galloping'); }
             });
             const exTokens = Array.from(expand);
             
@@ -2047,8 +2279,14 @@ ${modeSpecificRules[this.currentMode]}`;
             volume: effective,
             stereo: az, // -1 (left) to 1 (right)
             onload: () => console.log(`SFX loaded: ${options.name}`),
-            onloaderror: (id, err) => console.log('SFX load error:', err),
-            onplayerror: (id, err) => console.log('SFX play error:', err),
+            onloaderror: (id, err) => {
+                console.error('SFX load error:', options.name, err);
+                this.updateStatus(`Failed to load sound: ${options.name}`, 'error');
+            },
+            onplayerror: (id, err) => {
+                console.error('SFX play error:', options.name, err);
+                this.updateStatus(`Failed to play sound: ${options.name}`, 'error');
+            },
             onend: () => {
                 this.activeSounds.delete(id);
                 this.updateSoundsList();
@@ -2058,7 +2296,14 @@ ${modeSpecificRules[this.currentMode]}`;
         
         const soundId = howl.play();
         const id = Date.now() + Math.random();
-        this.activeSounds.set(id, { _howl: howl, soundId, name: options.name, originalVolume: original, type: 'sfx' });
+        this.activeSounds.set(id, { 
+            _howl: howl, 
+            soundId, 
+            name: options.name, 
+            originalVolume: original, 
+            type: 'sfx',
+            startTime: Date.now() // Track when SFX started for age-based cleanup
+        });
         
         console.log(`Playing SFX: ${options.name} at ${Math.round(effective * 100)}%`);
         this.updateSoundsList();
@@ -2114,8 +2359,14 @@ ${modeSpecificRules[this.currentMode]}`;
             loop: !!options.loop,
             volume: 0,
             onload: () => console.log(`Music loaded: ${options.name}`),
-            onloaderror: (id, err) => console.error('Music load error:', err),
-            onplayerror: (id, err) => console.error('Music play error:', err)
+            onloaderror: (id, err) => {
+                console.error('Music load error:', options.name, err);
+                this.updateStatus(`Failed to load music: ${options.name}`, 'error');
+            },
+            onplayerror: (id, err) => {
+                console.error('Music play error:', options.name, err);
+                this.updateStatus(`Failed to play music: ${options.name}`, 'error');
+            }
         });
 
         newHowl.play();
@@ -2329,22 +2580,38 @@ ${modeSpecificRules[this.currentMode]}`;
     }
     
     async startListening() {
-        if (!this.apiKey) {
-            alert('Please set your API key first');
+        // Check for API key
+        const apiKey = getOpenAIKey();
+        if (!apiKey) {
+            this.updateStatus('⚠️ Please set your OpenAI API key first', 'error');
+            return;
+        }
+        
+        // Check if speech recognition is available
+        if (!this.recognition) {
+            this.updateStatus('⚠️ Speech recognition not initialized. Please use a supported browser.', 'error');
             return;
         }
         
         this.isListening = true;
         
         // Resume audio context if suspended (browser requirement)
-        if (this.audioContext.state === 'suspended') {
-            await this.audioContext.resume();
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            try {
+                await this.audioContext.resume();
+            } catch (error) {
+                console.error('Failed to resume audio context:', error);
+            }
         }
         
         // Update UI first
-        document.getElementById('startBtn').classList.add('hidden');
-        document.getElementById('stopBtn').classList.remove('hidden');
-        document.querySelector('.visualizer-section').classList.add('listening');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const visualizerSection = document.querySelector('.visualizer-section');
+        
+        if (startBtn) startBtn.classList.add('hidden');
+        if (stopBtn) stopBtn.classList.remove('hidden');
+        if (visualizerSection) visualizerSection.classList.add('listening');
         
         // Start visualizer
         this.startVisualizer();
@@ -2375,7 +2642,7 @@ ${modeSpecificRules[this.currentMode]}`;
                 // Recognition already running, that's fine
                 this.updateStatus('Listening... Speak clearly!');
             } else {
-                alert('Failed to start speech recognition. Please:\n1. Check microphone permissions\n2. Ensure you\'re using Chrome or Edge\n3. Make sure no other app is using the mic');
+                this.updateStatus('⚠️ Failed to start speech recognition. Check microphone permissions and browser compatibility.', 'error');
                 this.isListening = false;
                 this.stopListening();
             }
@@ -2396,14 +2663,22 @@ ${modeSpecificRules[this.currentMode]}`;
         
         // Stop speech recognition
         if (this.recognition) {
-            this.recognition.stop();
+            try {
+                this.recognition.stop();
+            } catch (error) {
+                console.log('Error stopping recognition:', error);
+            }
         }
         
         // Stop all audio completely
         if (this.currentMusic) {
             try {
-                this.currentMusic.pause();
-                this.currentMusic.currentTime = 0;
+                if (this.currentMusic.pause) {
+                    this.currentMusic.pause();
+                }
+                if (this.currentMusic.currentTime !== undefined) {
+                    this.currentMusic.currentTime = 0;
+                }
             } catch (e) {
                 console.log('Error stopping music:', e);
             }
@@ -2449,9 +2724,41 @@ ${modeSpecificRules[this.currentMode]}`;
         this.updateSoundsList();
     }
     
-    updateStatus(message) {
-        document.getElementById('statusText').textContent = message;
-        console.log('Status:', message);
+    /**
+     * Update status message with optional level for visual feedback
+     * @param {string} message - Status message to display
+     * @param {string} level - Level: 'info' (default), 'error', 'warning', 'success'
+     */
+    updateStatus(message, level = 'info') {
+        const statusEl = document.getElementById('statusText');
+        if (!statusEl) {
+            console.warn('statusText element not found');
+            console.log('Status:', message);
+            return;
+        }
+        
+        statusEl.textContent = message;
+        
+        // Remove previous level classes
+        statusEl.classList.remove('status-info', 'status-error', 'status-warning', 'status-success');
+        
+        // Add appropriate class based on level
+        statusEl.classList.add(`status-${level}`);
+        
+        // Log with appropriate console method
+        switch (level) {
+            case 'error':
+                console.error('Status:', message);
+                break;
+            case 'warning':
+                console.warn('Status:', message);
+                break;
+            case 'success':
+                console.log('✓ Status:', message);
+                break;
+            default:
+                console.log('Status:', message);
+        }
     }
 
     // ===== VOICE COMMANDS =====

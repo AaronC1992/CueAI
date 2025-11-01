@@ -522,6 +522,26 @@ input[type="range"]::-moz-range-thumb {
     font-size: 1.1em;
     text-align: center;
     font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+/* Status level variations */
+.status-text.status-info {
+    color: #03dac6; /* Teal - default info color */
+}
+
+.status-text.status-error {
+    color: #cf6679; /* Red/pink - error color */
+    font-weight: 600;
+}
+
+.status-text.status-warning {
+    color: #ffb74d; /* Orange - warning color */
+    font-weight: 600;
+}
+
+.status-text.status-success {
+    color: #81c784; /* Green - success color */
 }
 
 /* ===== CONTROL BUTTONS ===== */
