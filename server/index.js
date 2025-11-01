@@ -448,8 +448,8 @@ wss.on('connection', (ws) => {
 });
 
 // ===== START SERVER =====
-const server = app.listen(PORT, '127.0.0.1', () => {
-  console.log(`🎵 CueAI Server running on http://127.0.0.1:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🎵 CueAI Server running on http://0.0.0.0:${PORT}`);
   console.log(`✓ Health: http://localhost:${PORT}/health`);
   console.log(`✓ Sounds: http://localhost:${PORT}/sounds`);
   
