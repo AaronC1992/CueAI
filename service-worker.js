@@ -1,5 +1,5 @@
 // CueAI Service Worker
-const CACHE_NAME = 'cueai-v7'; // Bumped for R2 CDN migration and array response handling
+const CACHE_NAME = 'cueai-v8'; // Bumped for backend-first authentication flow
 
 // Note: Backend media files (https://pub-b8fe695f5b4b490ebe0dc151042193e2.r2.dev/cueai-media/*) are NOT cached here
 // because they are:

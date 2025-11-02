@@ -664,26 +664,31 @@ class CueAI {
     async checkApiKey() {
         const modal = document.getElementById('apiKeyModal');
         const appContainer = document.getElementById('appContainer');
-        // If user supplied an API key, proceed
+        
+        // PRIORITY 1: Check if backend is available (testers use your backend, no key needed)
+        try {
+            const backendUrl = this.getBackendUrl();
+            const resp = await fetch(`${backendUrl}/health`, { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
+            if (resp.ok) {
+                // Backend is live - testers can use app immediately
+                modal.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                this.updateStatus('✓ Connected to backend — ready to use');
+                return;
+            }
+        } catch (err) {
+            console.warn('Backend not available, checking for local API key:', err.message);
+        }
+        
+        // PRIORITY 2: Check if user has their own API key (advanced users)
         if (this.apiKey && this.apiKey.length > 10) {
             modal.classList.add('hidden');
             appContainer.classList.remove('hidden');
+            this.updateStatus('Using your OpenAI API key');
             return;
         }
 
-        // Otherwise, allow usage if backend is reachable (no key needed for testers)
-        try {
-            const backendUrl = this.getBackendUrl();
-            const resp = await fetch(`${backendUrl}/health`, { cache: 'no-cache', signal: AbortSignal.timeout(3000) });
-            if (resp.ok) {
-                modal.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                this.updateStatus('Using server AI — no OpenAI key needed');
-                return;
-            }
-        } catch (_) {}
-
-        // Fallback: require user key when backend not available
+        // PRIORITY 3: Show API key modal only if backend is down AND no local key
         modal.classList.remove('hidden');
         appContainer.classList.add('hidden');
     }
