@@ -2979,19 +2979,30 @@ ${modeSpecificRules[this.currentMode]}`;
         const pixabayStatus = document.getElementById('pixabayStatus');
         
         if (openaiStatus) {
+            // Consider backend availability: if backend is reachable and handling AI,
+            // show a green check so testers know the server-side key is present.
             if (this.apiKey && this.apiKey.length > 10) {
                 openaiStatus.className = 'api-status active';
-                openaiStatus.setAttribute('aria-label', 'OpenAI API key is configured');
+                openaiStatus.setAttribute('aria-label', 'OpenAI API key is configured (local)');
+            } else if (this.backendAvailable) {
+                // Backend has OpenAI configured — mark as active for testers
+                openaiStatus.className = 'api-status active';
+                openaiStatus.setAttribute('aria-label', 'OpenAI available via backend');
             } else {
                 openaiStatus.className = 'api-status inactive';
-                openaiStatus.setAttribute('aria-label', 'OpenAI API key is missing');
+                openaiStatus.setAttribute('aria-label', 'OpenAI API key is missing (no backend)');
             }
         }
         
         if (freesoundStatus) {
+            // If local Freesound key is present mark active; otherwise if backend
+            // has loaded sounds (server-side audio sources), show active for testers
             if (this.freesoundApiKey && this.freesoundApiKey.length > 10) {
                 freesoundStatus.className = 'api-status active';
-                freesoundStatus.setAttribute('aria-label', 'Freesound API key is configured');
+                freesoundStatus.setAttribute('aria-label', 'Freesound API key is configured (local)');
+            } else if (this.backendAvailable && (Array.isArray(this.soundCatalog) && this.soundCatalog.length > 0)) {
+                freesoundStatus.className = 'api-status active';
+                freesoundStatus.setAttribute('aria-label', 'Audio sources available via backend');
             } else {
                 freesoundStatus.className = 'api-status inactive';
                 freesoundStatus.setAttribute('aria-label', 'Freesound API key is missing');
