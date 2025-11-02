@@ -392,6 +392,32 @@
         </div>
     </div>
 
+    <!-- Story Context Modal (shown before starting to listen) -->
+    <div id="storyContextModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>📖 Set the Scene</h2>
+            <p class="info-text">Give the AI some context about your story to help it choose better sounds and music!</p>
+            
+            <div style="margin-top: 20px;">
+                <label for="storyContextInput" style="display: block; margin-bottom: 8px; font-weight: bold; color: #bb86fc;">Story Context (Optional)</label>
+                <textarea 
+                    id="storyContextInput" 
+                    rows="5" 
+                    placeholder="Example: 'A dark medieval fantasy adventure in a haunted castle' or 'A cheerful children's story in a magical forest'"
+                    style="width: 100%; padding: 12px; background: #1e1e1e; border: 1px solid #bb86fc; border-radius: 8px; color: #e0e0e0; font-size: 14px; resize: vertical; font-family: inherit;"
+                ></textarea>
+                <p class="info-text" style="margin-top: 8px; font-size: 0.9em;">
+                    💡 Tip: Mention the setting, genre, mood, or time period. The AI will use this to better understand your story and choose appropriate sounds.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center;">
+                <button id="startWithContext" class="btn-primary">Start Listening</button>
+                <button id="skipContext" class="btn-secondary">Skip & Start</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Story Reading Overlay -->
     <div id="storyOverlay" class="story-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="storyTitle">
         <div class="story-header">

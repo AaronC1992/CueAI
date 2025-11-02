@@ -238,6 +238,7 @@ class CueAI {
         this.minVolume = 0.2;
         this.maxVolume = 0.7;
         this.analysisVersion = 0; // increment on mode changes to ignore stale AI results
+        this.storyContext = ''; // User-provided story context for better AI understanding
     // Playback preferences
     this.musicEnabled = JSON.parse(localStorage.getItem('cueai_music_enabled') ?? 'true');
     this.sfxEnabled = JSON.parse(localStorage.getItem('cueai_sfx_enabled') ?? 'true');
@@ -1097,6 +1098,25 @@ class CueAI {
         if (stopAudioBtn) {
             stopAudioBtn.addEventListener('click', () => this.stopAllAudio());
         }
+
+        // Story Context Modal Buttons
+        const startWithContextBtn = document.getElementById('startWithContext');
+        const skipContextBtn = document.getElementById('skipContext');
+        if (startWithContextBtn) {
+            startWithContextBtn.addEventListener('click', () => {
+                const contextInput = document.getElementById('storyContextInput');
+                this.storyContext = contextInput ? contextInput.value.trim() : '';
+                this.hideStoryContextModal();
+                this.startListeningWithContext();
+            });
+        }
+        if (skipContextBtn) {
+            skipContextBtn.addEventListener('click', () => {
+                this.storyContext = '';
+                this.hideStoryContextModal();
+                this.startListeningWithContext();
+            });
+        }
         
         // Playback toggles
     const toggleMusic = document.getElementById('toggleMusic');
@@ -1683,7 +1703,15 @@ class CueAI {
 
         const moodPct = Math.round(this.moodBias * 100);
         
-    return `You are an intelligent audio companion for ${modeContext[this.currentMode]}.
+        // Build the context header
+        let contextHeader = `You are an intelligent audio companion for ${modeContext[this.currentMode]}.`;
+        
+        // Add story context if provided
+        if (this.storyContext && this.storyContext.length > 0) {
+            contextHeader += `\n\nUser has provided this scene/setting context: "${this.storyContext}"\nUse this context to guide your music and sound effect selections to match the described setting and atmosphere.`;
+        }
+    
+    return `${contextHeader}
 
 User playback preferences:
 - music_enabled: ${this.musicEnabled}
@@ -2716,7 +2744,26 @@ ${modeSpecificRules[this.currentMode]}`;
             this.updateStatus('⚠️ Speech recognition not initialized. Please use a supported browser.', 'error');
             return;
         }
-        
+
+        // Show context modal before starting
+        this.showStoryContextModal();
+    }
+
+    showStoryContextModal() {
+        const modal = document.getElementById('storyContextModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+
+    hideStoryContextModal() {
+        const modal = document.getElementById('storyContextModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    async startListeningWithContext() {
         this.isListening = true;
         
         // Resume audio context if suspended (browser requirement)
