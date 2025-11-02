@@ -5,10 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#8a2be2">
     <title>CueAI - Intelligent Audio Companion</title>
+    <meta name="description" content="AI-powered ambient sound designer that listens to conversations and automatically plays contextually-appropriate music and sound effects">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://aaronic1992.github.io/CueAI/">
+    <meta property="og:title" content="CueAI - Intelligent Audio Companion">
+    <meta property="og:description" content="AI-powered ambient sound designer that listens to conversations and automatically plays contextually-appropriate music and sound effects">
+    <meta property="og:image" content="https://aaronic1992.github.io/CueAI/icon.svg">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://aaronic1992.github.io/CueAI/">
+    <meta property="twitter:title" content="CueAI - Intelligent Audio Companion">
+    <meta property="twitter:description" content="AI-powered ambient sound designer that listens to conversations and automatically plays contextually-appropriate music and sound effects">
+    <meta property="twitter:image" content="https://aaronic1992.github.io/CueAI/icon.svg">
+    
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <meta name="description" content="AI-powered ambient sound designer for storytelling">
 </head>
 <body>
     <!-- API Key Setup Modal (OpenAI only) -->
@@ -414,10 +429,10 @@
                 try {
                     const swUrl = new URL('service-worker.js', window.location.href);
                     navigator.serviceWorker.register(swUrl.href)
-                        .then(registration => console.log('SW registered:', registration.scope))
-                        .catch(err => console.log('SW registration failed:', err));
+                        .then(registration => { try { if (window.debugLog) debugLog('SW registered:', registration.scope); } catch(_) {} })
+                        .catch(err => { try { if (window.debugLog) debugLog('SW registration failed:', err); else console.warn('SW registration failed:', err); } catch(_) {} });
                 } catch (e) {
-                    console.log('SW registration error:', e);
+                    try { if (window.debugLog) debugLog('SW registration error:', e); else console.warn('SW registration error:', e); } catch(_) {}
                 }
             });
         }

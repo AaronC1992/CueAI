@@ -1,11 +1,47 @@
 // ===== CUEAI API SERVICE =====
 // Centralized API calls to backend or fallback to client-side logic
 
+// Lightweight debug logger: attach to window to avoid duplicate top-level declarations
+(function(){
+    try {
+        if (typeof window !== 'undefined' && typeof window.debugLog !== 'function') {
+            window.debugLog = function(...args) {
+                try {
+                    const enabled = !!(window.CONFIG && window.CONFIG.DEBUG_MODE);
+                    if (enabled) console.log(...args);
+                } catch (_) {}
+            };
+        }
+    } catch (_) {}
+})();
+
 // Simple in-memory caches and backoff helpers (per page load)
 let __soundsCache = null; // { sounds: [...] }
 let __soundsCacheTime = 0;
 const __SOUNDS_TTL = 60_000; // 60s
 let __backendCooldownUntil = 0; // timestamp ms
+
+// Small helper: fetch JSON with timeout and consistent error handling
+async function apiFetchJson(path, init = {}, timeoutMs = 15000) {
+    const base = getBackendUrl();
+    const url = `${base}${path.startsWith('/') ? path : '/' + path}`;
+    const resp = await fetch(url, {
+        cache: 'no-cache',
+        ...init,
+        signal: AbortSignal.timeout(timeoutMs)
+    });
+    if (!resp.ok) {
+        // Attempt to read error payload but ignore failures
+        let detail = '';
+        try { detail = (await resp.json()).error || ''; } catch (_) {}
+        throw new Error(`HTTP ${resp.status}${detail ? ` - ${detail}` : ''}`);
+    }
+    const ct = resp.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+        throw new Error('Invalid JSON response');
+    }
+    return resp.json();
+}
 
 /**
  * Get the backend URL based on environment
@@ -41,34 +77,23 @@ async function fetchSounds() {
         return __soundsCache;
     }
 
-    const backendUrl = getBackendUrl();
-    
     try {
         // Try backend first
-        const resp = await fetch(`${backendUrl}/sounds`, { 
-            cache: 'no-cache',
-            signal: AbortSignal.timeout(5000)
-        });
-        
-        if (resp.ok) {
-            const data = await resp.json();
-            
-            if (Array.isArray(data)) {
-                // Backend returned an array of sounds directly
-                console.log(`[CueAI] Loaded ${data.length} sounds from backend`);
-                __soundsCache = data;
-                __soundsCacheTime = Date.now();
-                return __soundsCache;
-            } else if (Array.isArray(data?.sounds)) {
-                // Legacy shape: { sounds: [...] }
-                console.log(`[CueAI] Loaded ${data.sounds.length} sounds from backend (wrapped)`);
-                __soundsCache = data.sounds;
-                __soundsCacheTime = Date.now();
-                return __soundsCache;
-            }
+        const data = await apiFetchJson('/sounds', {}, 5000);
+        if (Array.isArray(data)) {
+            // Backend returned an array of sounds directly
+            window.debugLog(`[CueAI] Loaded ${data.length} sounds from backend`);
+            __soundsCache = data;
+            __soundsCacheTime = Date.now();
+            return __soundsCache;
+        } else if (Array.isArray(data?.sounds)) {
+            // Legacy shape: { sounds: [...] }
+            window.debugLog(`[CueAI] Loaded ${data.sounds.length} sounds from backend (wrapped)`);
+            __soundsCache = data.sounds;
+            __soundsCacheTime = Date.now();
+            return __soundsCache;
         }
-        
-        throw new Error(`Backend returned ${resp.status}`);
+        throw new Error('Unexpected /sounds response shape');
     } catch (err) {
         console.warn('Backend /sounds unavailable, falling back to local saved-sounds.json:', err.message);
         
@@ -78,7 +103,7 @@ async function fetchSounds() {
             if (resp.ok) {
                 const data = await resp.json();
                 if (Array.isArray(data?.files)) {
-                    console.log(`✓ Loaded ${data.files.length} sounds from local saved-sounds.json`);
+                    debugLog(`✓ Loaded ${data.files.length} sounds from local saved-sounds.json`);
                     // Map to backend format
                     __soundsCache = data.files.map(f => ({
                         id: f.file || f.name,
@@ -108,7 +133,6 @@ async function fetchSounds() {
  */
 async function analyzeTranscript(payload) {
     const { transcript, mode, context } = payload;
-    const backendUrl = getBackendUrl();
     
     if (!transcript || !transcript.trim()) {
         throw new Error('Transcript is required');
@@ -120,25 +144,21 @@ async function analyzeTranscript(payload) {
             throw new Error('backend_cooldown');
         }
         // Try backend first
-        const resp = await fetch(`${backendUrl}/analyze`, {
+        const decision = await apiFetchJson('/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transcript, mode, context }),
-            signal: AbortSignal.timeout(28000) // 28 second timeout
-        });
+            body: JSON.stringify({ transcript, mode, context })
+        }, 28000);
+        window.debugLog('✓ Got AI decision from backend:', decision);
+        return decision;
         
-        if (resp.ok) {
-            const decision = await resp.json();
-            console.log('✓ Got AI decision from backend:', decision);
-            return decision;
-        }
-        
-        if (resp.status === 429) {
+        // Note: if apiFetchJson throws, we'll handle below
+    } catch (err) {
+        // If backend rate limited, back off for 60s to avoid hammering backend
+        if (String(err.message || '').includes('429') || err.message === 'backend_cooldown') {
             // Back off for 60s to avoid hammering backend
             __backendCooldownUntil = Date.now() + 60_000;
         }
-        throw new Error(`Backend /analyze returned ${resp.status}`);
-    } catch (err) {
         console.warn('Backend /analyze unavailable, falling back to client-side OpenAI:', err.message);
         
         // Fallback to direct OpenAI call from client

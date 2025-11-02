@@ -2,41 +2,91 @@
 // Author: Expert AI Team
 // Version: 2.0 - Backend Integration
 
+// ===== CONFIGURATION CONSTANTS =====
+const CONFIG = {
+    DEBUG_MODE: false, // Set to true for development logging
+    API_KEY_MIN_LENGTH: 20,
+    OPENAI_KEY_PREFIX: 'sk-',
+    DEBOUNCE_DELAY: 400,
+    ANALYSIS_INTERVAL: 1000,
+    STINGER_MIN_DELAY: 20000,
+    STINGER_MAX_DELAY: 45000,
+    FETCH_TIMEOUT: 5000,
+    BACKEND_COOLDOWN: 60000,
+    SOUNDS_CACHE_TTL: 60000,
+    PRELOAD_DELAY: 300,
+    MODE_CHANGE_VERSION_DELAY: 100
+};
+
+// Expose CONFIG globally for modules that read window.CONFIG (e.g., api.js debugLog)
+try { window.CONFIG = CONFIG; } catch (_) {}
+
+// Debug logger - only logs when DEBUG_MODE is true
+const debugLog = (...args) => {
+    if (CONFIG.DEBUG_MODE) {
+        console.log(...args);
+    }
+};
+const storage = {
+    get(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (e) {
+            console.warn('localStorage unavailable:', e.message);
+            return null;
+        }
+    },
+    set(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch (e) {
+            console.warn('localStorage write failed:', e.message);
+        }
+    },
+    remove(key) {
+        try {
+            localStorage.removeItem(key);
+        } catch (e) {
+            console.warn('localStorage remove failed:', e.message);
+        }
+    }
+};
+
 // ===== HELPER FUNCTIONS =====
 // Centralized API key management
 function getOpenAIKey() {
-    return localStorage.getItem('cueai_api_key') || null;
+    return storage.get('cueai_api_key') || null;
 }
 
 function setOpenAIKey(key) {
     if (key) {
-        localStorage.setItem('cueai_api_key', key);
+        storage.set('cueai_api_key', key);
     } else {
-        localStorage.removeItem('cueai_api_key');
+        storage.remove('cueai_api_key');
     }
 }
 
 function getFreesoundKey() {
-    return localStorage.getItem('freesound_api_key') || null;
+    return storage.get('freesound_api_key') || null;
 }
 
 function setFreesoundKey(key) {
     if (key) {
-        localStorage.setItem('freesound_api_key', key);
+        storage.set('freesound_api_key', key);
     } else {
-        localStorage.removeItem('freesound_api_key');
+        storage.remove('freesound_api_key');
     }
 }
 
 function getPixabayKey() {
-    return localStorage.getItem('pixabay_api_key') || null;
+    return storage.get('pixabay_api_key') || null;
 }
 
 function setPixabayKey(key) {
     if (key) {
-        localStorage.setItem('pixabay_api_key', key);
+        storage.set('pixabay_api_key', key);
     } else {
-        localStorage.removeItem('pixabay_api_key');
+        storage.remove('pixabay_api_key');
     }
 }
 
@@ -71,12 +121,12 @@ const cueAudio = {
             volume: volume,
             loop: loop,
             html5: true, // Better for streaming long music files
-            onload: () => console.log(`✓ Music loaded: ${id}`),
+            onload: () => debugLog(`✓ Music loaded: ${id}`),
             onloaderror: (soundId, err) => {
                 console.error(`✗ Music load error: ${id}`, err);
                 if (onError) onError(id, err);
             },
-            onplay: () => console.log(`♫ Playing music: ${id}`),
+            onplay: () => debugLog(`♫ Playing music: ${id}`),
             onend: () => {
                 if (!loop) {
                     this.music = null;
@@ -102,12 +152,12 @@ const cueAudio = {
             src: [src],
             volume: volume,
             stereo: pan,
-            onload: () => console.log(`✓ SFX loaded: ${id}`),
+            onload: () => debugLog(`✓ SFX loaded: ${id}`),
             onloaderror: (soundId, err) => {
                 console.error(`✗ SFX load error: ${id}`, err);
                 if (onError) onError(id, err);
             },
-            onplay: () => console.log(`🔊 Playing SFX: ${id}`),
+            onplay: () => debugLog(`🔊 Playing SFX: ${id}`),
             onend: () => {
                 // Clean up after playback
                 delete this.sfx[id + '_' + Date.now()];
@@ -349,11 +399,11 @@ class CueAI {
         this.setupVisualizer();
         this.updateApiStatusIndicators();
         // Load sound catalog from backend
-        this.loadSoundCatalog().catch(() => console.warn('Backend catalog unavailable'));
+        this.loadSoundCatalog().catch(e => console.warn('Backend catalog unavailable:', e.message));
         // Load local saved sounds (legacy/fallback)
-        this.loadSavedSounds().catch(()=>{});
+        this.loadSavedSounds().catch(e => console.warn('Saved sounds load failed:', e.message));
         // Load built-in stories
-        this.loadStories().catch(()=>{});
+        this.loadStories().catch(e => console.warn('Stories load failed:', e.message));
     }
     
     getBackendUrl() {
@@ -366,7 +416,7 @@ class CueAI {
             // Use centralized API service (from api.js)
             this.soundCatalog = await fetchSounds();
             if (this.soundCatalog.length > 0) {
-                console.log(`✓ Loaded ${this.soundCatalog.length} sounds`);
+                debugLog(`✓ Loaded ${this.soundCatalog.length} sounds`);
                 // Update indicators now that audio sources are available
                 this.updateApiStatusIndicators();
             } else {
@@ -394,7 +444,7 @@ class CueAI {
                 const isLocal = location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1';
                 const isPages = /github\.io$/i.test(host);
                 this.savedSoundsEnabled = this.savedSounds.files.length > 0 && !!this.userSavedSoundsPref;
-                console.log(`Loaded saved sounds: ${this.savedSounds.files.length}; enabled=${this.savedSoundsEnabled}`);
+                debugLog(`Loaded saved sounds: ${this.savedSounds.files.length}; enabled=${this.savedSoundsEnabled}`);
                 // Reflect toggle if present
                 const toggleSaved = document.getElementById('toggleSaved');
                 if (toggleSaved) {
@@ -504,7 +554,7 @@ class CueAI {
         if (progressed === 0 && spoken.length >= 3) {
             const recovered = this.attemptStoryRecovery(spoken);
             if (recovered > this.storyIndex) {
-                console.log(`Story recovery: jumped from ${this.storyIndex} to ${recovered}`);
+                debugLog(`Story recovery: jumped from ${this.storyIndex} to ${recovered}`);
                 i = recovered;
                 progressed = recovered - this.storyIndex;
             }
@@ -661,7 +711,7 @@ class CueAI {
         const cueMap = this.getStoryCueMap();
         const q = cueMap[word];
         if (q) {
-            this.playSoundEffect({ query: q, priority: 6, volume: 0.7 }).catch(()=>{});
+            this.playSoundEffect({ query: q, priority: 6, volume: 0.7 }).catch(e => debugLog('Story SFX trigger failed:', e.message));
         }
     }
     async checkApiKey() {
@@ -716,15 +766,22 @@ class CueAI {
         
         const key = input.value.trim();
         
-        if (key.length > 10) {
-            this.apiKey = key;
-            setOpenAIKey(key); // Use centralized setter
-            this.checkApiKey();
-            this.updateStatus(`OpenAI API Key saved!`);
-            this.updateApiStatusIndicators();
-        } else {
-            this.updateStatus('⚠️ Invalid API key. Please check and try again.', 'error');
+        // Validate OpenAI API key format
+        if (!key || key.length < CONFIG.API_KEY_MIN_LENGTH) {
+            this.updateStatus(`⚠️ API key must be at least ${CONFIG.API_KEY_MIN_LENGTH} characters`, 'error');
+            return;
         }
+        
+        if (!key.startsWith(CONFIG.OPENAI_KEY_PREFIX)) {
+            this.updateStatus(`⚠️ OpenAI API keys should start with "${CONFIG.OPENAI_KEY_PREFIX}"`, 'error');
+            return;
+        }
+        
+        this.apiKey = key;
+        setOpenAIKey(key); // Use centralized setter
+        this.checkApiKey();
+        this.updateStatus(`OpenAI API Key saved!`);
+        this.updateApiStatusIndicators();
     }
     
     resetApiKey() {
@@ -869,14 +926,14 @@ class CueAI {
                 for (const registration of registrations) {
                     await registration.unregister();
                 }
-                console.log('Service workers unregistered');
+                debugLog('Service workers unregistered');
             }
             
             // Clear all caches
             if ('caches' in window) {
                 const cacheNames = await caches.keys();
                 await Promise.all(cacheNames.map(name => caches.delete(name)));
-                console.log('Caches cleared');
+                debugLog('Caches cleared');
             }
             
             // Force reload from server (bypass cache)
@@ -1087,11 +1144,11 @@ class CueAI {
             toggleSaved.checked = !!this.userSavedSoundsPref;
             toggleSaved.addEventListener('change', (e) => {
                 this.userSavedSoundsPref = e.target.checked;
-                localStorage.setItem('cueai_saved_sounds_enabled', JSON.stringify(this.userSavedSoundsPref));
+                storage.set('cueai_saved_sounds_enabled', JSON.stringify(this.userSavedSoundsPref));
                 const wasEnabled = this.savedSoundsEnabled;
                 // If enabling, re-load manifest to pick up any new files
                 if (this.userSavedSoundsPref) {
-                    this.loadSavedSounds().catch(()=>{});
+                    this.loadSavedSounds().catch(e => console.warn('Reload saved sounds failed:', e.message));
                 } else {
                     this.savedSoundsEnabled = false;
                 }
@@ -1190,7 +1247,7 @@ class CueAI {
 
     startStoryFlow(id) {
         // Auto-switch to Bedtime mode for stories and wait for preload to complete
-        this.startStoryFlowAsync(id).catch(()=>{});
+        this.startStoryFlowAsync(id).catch(e => console.warn('Story flow failed:', e.message));
     }
 
     async startStoryFlowAsync(id) {
@@ -1267,7 +1324,7 @@ class CueAI {
         this.showLoadingOverlay(`Preparing sounds for ${mode.toUpperCase()}...`);
         setTimeout(() => {
             this.preloadSfxForCurrentMode(version)
-                .catch(e => console.log('Preload error:', e?.message || e))
+                .catch(e => debugLog('Preload error:', e?.message || e))
                 .finally(() => {
                     // Only hide if the same preload version is current
                     if (this.preloadVersion === version) {
@@ -1334,7 +1391,7 @@ class CueAI {
                             try {
                                 this.recognition.start();
                             } catch (e) {
-                                console.log('Recognition restart skipped:', e.message);
+                                debugLog('Recognition restart skipped:', e.message);
                             }
                         }
                     }, 100);
@@ -1342,20 +1399,20 @@ class CueAI {
             };
             
             this.recognition.onstart = () => {
-                console.log('Speech recognition started');
+                debugLog('Speech recognition started');
                 this.updateStatus('Listening... Speak clearly!');
             };
             
             this.recognition.onaudiostart = () => {
-                console.log('Audio input detected');
+                debugLog('Audio input detected');
             };
             
             this.recognition.onsoundstart = () => {
-                console.log('Sound detected');
+                debugLog('Sound detected');
             };
             
             this.recognition.onspeechstart = () => {
-                console.log('Speech detected');
+                debugLog('Speech detected');
                 this.updateStatus('I hear you. Keep talking...');
             };
         } catch (error) {
@@ -1451,7 +1508,7 @@ class CueAI {
                 // Use word boundaries to avoid partial matches
                 const regex = new RegExp(`\\b${keyword}\\b`, 'i');
                 if (regex.test(lowerText)) {
-                    console.log(`Instant trigger detected: "${keyword}"`);
+                    debugLog(`Instant trigger detected: "${keyword}"`);
                     // Play sound immediately without waiting for AI analysis
                     this.playInstantSound(config);
                     // Only trigger one sound per check to avoid chaos
@@ -1480,7 +1537,7 @@ class CueAI {
             
             // If mode changed during the async call, ignore this result
             if (this.analysisVersion !== versionAtStart) {
-                console.log('Discarding stale analysis result after mode change');
+                debugLog('Discarding stale analysis result after mode change');
                 return;
             }
 
@@ -1720,7 +1777,7 @@ ${modeSpecificRules[this.currentMode]}`;
     
     // ===== SOUND DECISION ENGINE =====
     async processSoundDecisions(decisions) {
-        console.log('Sound Decisions:', decisions);
+        debugLog('Sound Decisions:', decisions);
         // Respect AI prediction toggle: do not auto-play when disabled
         if (!this.predictionEnabled) { return; }
         
@@ -1777,7 +1834,7 @@ ${modeSpecificRules[this.currentMode]}`;
         if (musicData.action === 'play_or_continue' && 
             this.currentMusic && 
             this.currentMusic.dataset?.id === musicData.id) {
-            console.log('Music already playing, continuing:', musicData.id);
+            debugLog('Music already playing, continuing:', musicData.id);
             return;
         }
         
@@ -1816,7 +1873,7 @@ ${modeSpecificRules[this.currentMode]}`;
         }
         // Only change music if AI explicitly says to (change: true) or if no music playing
         if (!musicData.change && this.currentMusic && !this.currentMusic.paused) {
-            console.log('Music stable, not changing (change: false)');
+            debugLog('Music stable, not changing (change: false)');
             return;
         }
         
@@ -1959,7 +2016,7 @@ ${modeSpecificRules[this.currentMode]}`;
             // This would be the endpoint if/when audio becomes available:
             // https://pixabay.com/api/sounds/
             
-            console.log('Pixabay audio API not available in free tier; using Freesound');
+            debugLog('Pixabay audio API not available in free tier; using Freesound');
             return null;
             
         } catch (error) {
@@ -1986,7 +2043,7 @@ ${modeSpecificRules[this.currentMode]}`;
         if (this.pixabayApiKey) {
             url = await this.searchPixabay(query, type);
             if (url) {
-                console.log(`✓ Found via Pixabay: ${query}`);
+                debugLog(`✓ Found via Pixabay: ${query}`);
                 return url;
             }
         }
@@ -1995,13 +2052,13 @@ ${modeSpecificRules[this.currentMode]}`;
         if (this.freesoundApiKey) {
             url = await this.searchFreesound(query, type);
             if (url) {
-                console.log(`✓ Found via Freesound: ${query}`);
+                debugLog(`✓ Found via Freesound: ${query}`);
                 return url;
             }
         }
         
         if (!this.pixabayApiKey && !this.freesoundApiKey) {
-            console.log('No audio API keys configured. Click "Setup Audio Sources" to enable sounds.');
+            debugLog('No audio API keys configured. Click "Setup Audio Sources" to enable sounds.');
         }
         
         return url;
@@ -2072,7 +2129,7 @@ ${modeSpecificRules[this.currentMode]}`;
             
             if (best && bestScore >= 1) {
                 const url = encodeURI(best.file);
-                console.log(`✓ Found via Saved sounds: ${query} -> ${best.name} (score: ${bestScore})`);
+                debugLog(`✓ Found via Saved sounds: ${query} -> ${best.name} (score: ${bestScore})`);
                 return url;
             }
             return null;
@@ -2083,7 +2140,7 @@ ${modeSpecificRules[this.currentMode]}`;
     async searchFreesound(query, type) {
         // Check if Freesound API key is set
         if (!this.freesoundApiKey) {
-            console.log(`Freesound not configured. Would search for: ${query} (${type})`);
+            debugLog(`Freesound not configured. Would search for: ${query} (${type})`);
             this.updateStatus('Click "Setup Freesound API" to enable real sounds');
             return null;
         }
@@ -2136,7 +2193,7 @@ ${modeSpecificRules[this.currentMode]}`;
                 searchQuery = 'ambient music';
                 fallbackQueries = [];
             }
-            console.log(`Simplified music query: "${query}" → "${searchQuery}"${fallbackQueries.length ? ` (fallbacks: ${fallbackQueries.join(', ')})` : ''}`);
+            debugLog(`Simplified music query: "${query}" → "${searchQuery}"${fallbackQueries.length ? ` (fallbacks: ${fallbackQueries.join(', ')})` : ''}`);
         } else if (type === 'sfx') {
             // Simplify common SFX queries that often fail
             const keywords = query.toLowerCase();
@@ -2147,14 +2204,14 @@ ${modeSpecificRules[this.currentMode]}`;
             else searchQuery = query; // keep original for SFX
             
             if (searchQuery !== query) {
-                console.log(`Simplified SFX query: "${query}" → "${searchQuery}"`);
+                debugLog(`Simplified SFX query: "${query}" → "${searchQuery}"`);
             }
         }
         
             // Check cache first for faster response
         const cacheKey = `${type}:${searchQuery}`;
             if (this.soundCache.has(cacheKey)) {
-            console.log(`Found in cache: ${searchQuery}`);
+            debugLog(`Found in cache: ${searchQuery}`);
             return this.soundCache.get(cacheKey);
         }
         
@@ -2207,7 +2264,7 @@ ${modeSpecificRules[this.currentMode]}`;
                     chosen = { name: r.name, duration: r.duration, url };
                 }
 
-                console.log(`Found sound: "${chosen.name}" (${chosen.duration}s)`);
+                debugLog(`Found sound: "${chosen.name}" (${chosen.duration}s)`);
 
                     // Cache all sounds for instant playback on repeat
                     this.soundCache.set(cacheKey, chosen.url);
@@ -2224,14 +2281,14 @@ ${modeSpecificRules[this.currentMode]}`;
 
                 return chosen.url;
             } else {
-                console.log(`No CC0 sounds found for: ${searchQuery}`);
+                debugLog(`No CC0 sounds found for: ${searchQuery}`);
                 
                 // For music, try fallback with broader license (CC-BY) and progressive fallback queries
                 if (type === 'music') {
                     const queriesToTry = [searchQuery, ...fallbackQueries];
                     
                     for (const tryQuery of queriesToTry) {
-                        console.log(`Retrying music search with CC-BY for: "${tryQuery}"...`);
+                        debugLog(`Retrying music search with CC-BY for: "${tryQuery}"...`);
                         const fallbackParams = new URLSearchParams({
                             query: tryQuery,
                             filter: `duration:[30 TO *] tag:music`,
@@ -2252,7 +2309,7 @@ ${modeSpecificRules[this.currentMode]}`;
                                 const r = fallbackData.results[0];
                                 const url = r.previews['preview-hq-mp3'] || r.previews['preview-lq-mp3'];
                                 if (url) {
-                                    console.log(`✓ Found music (${r.license}): "${r.name}" (${r.duration}s)`);
+                                 debugLog(`✓ Found music (${r.license}): "${r.name}" (${r.duration}s)`);
                                     this.soundCache.set(cacheKey, url);
                                     this.recentlyPlayed.add(url);
                                     return url;
@@ -2343,7 +2400,7 @@ ${modeSpecificRules[this.currentMode]}`;
             src: [url],
             volume: effective,
             stereo: az, // -1 (left) to 1 (right)
-            onload: () => console.log(`SFX loaded: ${options.name}`),
+            onload: () => debugLog(`SFX loaded: ${options.name}`),
             onloaderror: (id, err) => {
                 console.error('SFX load error:', options.name, err);
                 this.updateStatus(`Failed to load sound: ${options.name}`, 'error');
@@ -2370,11 +2427,11 @@ ${modeSpecificRules[this.currentMode]}`;
             startTime: Date.now() // Track when SFX started for age-based cleanup
         });
         
-        console.log(`Playing SFX: ${options.name} at ${Math.round(effective * 100)}%`);
+            debugLog(`Playing SFX: ${options.name} at ${Math.round(effective * 100)}%`);
         this.updateSoundsList();
         
         // Prefetch alternates to diversify repeats
-        this.prefetchAlternates(options.name).catch(()=>{});
+        this.prefetchAlternates(options.name).catch(e => debugLog('Prefetch alternates failed:', e.message));
         
         return { _howl: howl, soundId, name: options.name };
     }
@@ -2392,7 +2449,7 @@ ${modeSpecificRules[this.currentMode]}`;
         audio.crossOrigin = "anonymous";
         
         await audio.play();
-        console.log(`Playing SFX element: ${options.name} at ${Math.round(options.volume * 100)}%`);
+        debugLog(`Playing SFX element: ${options.name} at ${Math.round(options.volume * 100)}%`);
         
         const id = Date.now() + Math.random();
         this.activeSounds.set(id, audio);
@@ -2423,7 +2480,7 @@ ${modeSpecificRules[this.currentMode]}`;
             html5: true, // stream for long music files
             loop: !!options.loop,
             volume: 0,
-            onload: () => console.log(`Music loaded: ${options.name}`),
+            onload: () => debugLog(`Music loaded: ${options.name}`),
             onloaderror: (id, err) => {
                 console.error('Music load error:', options.name, err);
                 this.updateStatus(`Failed to load music: ${options.name}`, 'error');
@@ -2733,7 +2790,7 @@ ${modeSpecificRules[this.currentMode]}`;
             try {
                 this.recognition.stop();
             } catch (error) {
-                console.log('Error stopping recognition:', error);
+                    console.warn('Error stopping recognition:', error);
             }
         }
         
@@ -2747,7 +2804,7 @@ ${modeSpecificRules[this.currentMode]}`;
                     this.currentMusic.currentTime = 0;
                 }
             } catch (e) {
-                console.log('Error stopping music:', e);
+                    console.warn('Error stopping music:', e);
             }
             this.currentMusic = null;
         }
@@ -2770,7 +2827,7 @@ ${modeSpecificRules[this.currentMode]}`;
                     soundObj.currentTime = 0;
                 }
             } catch (e) {
-                console.log('Error stopping sound:', e);
+                    console.warn('Error stopping sound:', e);
             }
         });
         this.activeSounds.clear();
@@ -2800,7 +2857,7 @@ ${modeSpecificRules[this.currentMode]}`;
         const statusEl = document.getElementById('statusText');
         if (!statusEl) {
             console.warn('statusText element not found');
-            console.log('Status:', message);
+                debugLog('Status:', message);
             return;
         }
         
@@ -2821,10 +2878,10 @@ ${modeSpecificRules[this.currentMode]}`;
                 console.warn('Status:', message);
                 break;
             case 'success':
-                console.log('✓ Status:', message);
+                 debugLog('✓ Status:', message);
                 break;
             default:
-                console.log('Status:', message);
+                 debugLog('Status:', message);
         }
     }
 

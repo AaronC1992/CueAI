@@ -16,6 +16,7 @@ const urlsToCache = [
   './api.js', // NEW: Centralized API service layer
   './manifest.json',
   './saved-sounds.json',
+  './stories.json',
   './icon.svg',
   './favicon.svg'
 ];
@@ -25,7 +26,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
+        // Info-level log to reduce noise in production consoles
+        console.info('SW: Opened cache');
         return cache.addAll(urlsToCache);
       })
   );
@@ -45,6 +47,32 @@ self.addEventListener('fetch', (event) => {
     const tinyPng =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO8W8z8AAAAASUVORK5CYII=';
     event.respondWith(fetch(tinyPng));
+    return;
+  }
+
+  // Use stale-while-revalidate for app shell files (HTML, JS, CSS)
+  // This serves cached content immediately while fetching fresh content in background
+  const isAppShell = url.origin === self.location.origin && 
+    (url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || 
+     url.pathname.endsWith('.css') || url.pathname === '/' || url.pathname.endsWith('/'));
+  
+  if (isAppShell) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((cachedResponse) => {
+          const fetchPromise = fetch(event.request).then((networkResponse) => {
+            // Update cache with fresh content
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          }).catch(() => cachedResponse); // Fallback to cache on network error
+          
+          // Return cached version immediately, or wait for network if no cache
+          return cachedResponse || fetchPromise;
+        });
+      })
+    );
     return;
   }
 
