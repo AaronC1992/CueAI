@@ -850,6 +850,43 @@ class CueAI {
         document.getElementById('tutorialModal').classList.add('hidden');
     }
     
+    async refreshApp() {
+        try {
+            // Stop all audio and listening first
+            this.stopListening();
+            this.stopAllAudio();
+            
+            // Show confirmation
+            if (!confirm('This will refresh the app and clear the cache to get the latest version. Continue?')) {
+                return;
+            }
+            
+            this.updateStatus('🔄 Refreshing app and clearing cache...');
+            
+            // Unregister service workers
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                }
+                console.log('Service workers unregistered');
+            }
+            
+            // Clear all caches
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+                console.log('Caches cleared');
+            }
+            
+            // Force reload from server (bypass cache)
+            window.location.reload(true);
+        } catch (err) {
+            console.error('Refresh error:', err);
+            this.updateStatus('⚠️ Refresh failed. Try closing and reopening the app.', 'error');
+        }
+    }
+    
     saveAudioKeys() {
         const freesoundInput = document.getElementById('freesoundKeyInput');
         const pixabayInput = document.getElementById('pixabayKeyInput');
@@ -1091,6 +1128,12 @@ class CueAI {
         document.getElementById('setupFreesound').addEventListener('click', () => this.showFreesoundSetup());
         document.getElementById('saveAudioKeys').addEventListener('click', () => this.saveAudioKeys());
         document.getElementById('cancelFreesound').addEventListener('click', () => this.hideFreesoundSetup());
+
+        // App Refresh Button
+        const refreshAppBtn = document.getElementById('refreshAppBtn');
+        if (refreshAppBtn) {
+            refreshAppBtn.addEventListener('click', () => this.refreshApp());
+        }
 
     // Tutorial
         document.getElementById('tutorialBtn').addEventListener('click', () => this.showTutorial());
