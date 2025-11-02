@@ -7,7 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from 'ws';
-import { readFile, access } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import { ChromaClient } from 'chromadb';
 import adminRouter from './routes/admin.js';
 import chromaCollectionPromise from './config/chroma.js';
@@ -69,14 +69,8 @@ setInterval(() => {
 app.use(cors());
 app.use(express.json());
 
-// Serve media files with proper CORS headers for audio streaming
-app.use('/media', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET');
-  res.header('Access-Control-Allow-Headers', 'Range');
-  res.header('Accept-Ranges', 'bytes');
-  next();
-}, express.static('media'));
+// NOTE: Media files now served from Cloudflare R2 CDN
+// No need to serve /media locally - all audio URLs point to R2
 
 // Request timeout middleware (prevent long-running requests on free tier)
 app.use((req, res, next) => {
@@ -97,27 +91,9 @@ async function loadSoundCatalog() {
     soundCatalog = JSON.parse(data);
     console.log(`✓ Loaded ${soundCatalog.length} sounds from catalog`);
     
-    // Validate that media files exist
-    let missingFiles = 0;
-    for (const sound of soundCatalog) {
-      try {
-        // Only validate local files under /media/*; skip absolute/remote URLs
-        if (typeof sound.src === 'string' && sound.src.startsWith('/media/')) {
-          const filePath = `.${sound.src}`; // /media/... -> ./media/...
-          await access(filePath);
-        }
-      } catch (e) {
-        console.warn(`⚠️  Missing file: ${sound.src} (${sound.id})`);
-        missingFiles++;
-      }
-    }
-    
-    if (missingFiles > 0) {
-      console.warn(`⚠️  ${missingFiles}/${soundCatalog.length} sound files missing from media folder`);
-      console.warn(`   Upload missing files or update soundCatalog.json`);
-    } else {
-      console.log(`✓ All ${soundCatalog.length} media files verified`);
-    }
+    // NOTE: Media files now hosted on Cloudflare R2 CDN
+    // No local file validation needed - all URLs point to remote storage
+    console.log(`✓ All media files served from Cloudflare R2`);
   } catch (err) {
     console.error('Failed to load sound catalog:', err.message);
   }
