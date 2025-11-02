@@ -1,5 +1,5 @@
 // CueAI Service Worker
-const CACHE_NAME = 'cueai-v8'; // Bumped for backend-first authentication flow
+const CACHE_NAME = 'cueai-v9'; // Bumped for backend availability flag fix
 
 // Note: Backend media files (https://pub-b8fe695f5b4b490ebe0dc151042193e2.r2.dev/cueai-media/*) are NOT cached here
 // because they are:

@@ -169,6 +169,7 @@ class CueAI {
         // Backend Configuration
         this.backendUrl = this.getBackendUrl();
         this.soundCatalog = []; // Loaded from backend /sounds endpoint
+        this.backendAvailable = false; // Track if backend is reachable
         
         // Core Configuration - Use centralized getters
         this.apiKey = getOpenAIKey();
@@ -671,6 +672,7 @@ class CueAI {
             const resp = await fetch(`${backendUrl}/health`, { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
             if (resp.ok) {
                 // Backend is live - testers can use app immediately
+                this.backendAvailable = true;
                 modal.classList.add('hidden');
                 appContainer.classList.remove('hidden');
                 this.updateStatus('✓ Connected to backend — ready to use');
@@ -678,6 +680,7 @@ class CueAI {
             }
         } catch (err) {
             console.warn('Backend not available, checking for local API key:', err.message);
+            this.backendAvailable = false;
         }
         
         // PRIORITY 2: Check if user has their own API key (advanced users)
@@ -689,6 +692,7 @@ class CueAI {
         }
 
         // PRIORITY 3: Show API key modal only if backend is down AND no local key
+        this.backendAvailable = false;
         modal.classList.remove('hidden');
         appContainer.classList.add('hidden');
     }
@@ -2585,10 +2589,12 @@ ${modeSpecificRules[this.currentMode]}`;
     }
     
     async startListening() {
-        // Check for API key
+        // Check for API key OR backend availability
         const apiKey = getOpenAIKey();
-        if (!apiKey) {
-            this.updateStatus('⚠️ Please set your OpenAI API key first', 'error');
+        if (!apiKey && !this.backendAvailable) {
+            this.updateStatus('⚠️ Please set your OpenAI API key or wait for backend connection', 'error');
+            // Re-check backend in case it came back online
+            await this.checkApiKey();
             return;
         }
         
