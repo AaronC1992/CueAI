@@ -2402,12 +2402,12 @@ ${modeSpecificRules[this.currentMode]}`;
             stereo: az, // -1 (left) to 1 (right)
             onload: () => debugLog(`SFX loaded: ${options.name}`),
             onloaderror: (id, err) => {
-                console.error('SFX load error:', options.name, err);
-                this.updateStatus(`Failed to load sound: ${options.name}`, 'error');
+                // Only log errors in debug mode to avoid console spam
+                debugLog('SFX load error:', options.name, err);
+                // Don't show status errors for failed sounds - they're often recoverable
             },
             onplayerror: (id, err) => {
-                console.error('SFX play error:', options.name, err);
-                this.updateStatus(`Failed to play sound: ${options.name}`, 'error');
+                debugLog('SFX play error:', options.name, err);
             },
             onend: () => {
                 this.activeSounds.delete(id);
@@ -2482,12 +2482,12 @@ ${modeSpecificRules[this.currentMode]}`;
             volume: 0,
             onload: () => debugLog(`Music loaded: ${options.name}`),
             onloaderror: (id, err) => {
-                console.error('Music load error:', options.name, err);
-                this.updateStatus(`Failed to load music: ${options.name}`, 'error');
+                // Only log errors in debug mode to avoid console spam
+                debugLog('Music load error:', options.name, err);
+                // Silently skip failed music loads - backend will try alternatives
             },
             onplayerror: (id, err) => {
-                console.error('Music play error:', options.name, err);
-                this.updateStatus(`Failed to play music: ${options.name}`, 'error');
+                debugLog('Music play error:', options.name, err);
             }
         });
 
@@ -3169,5 +3169,5 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new CueAI();
     initializeMenuToggles();
-    console.log('🎵 CueAI initialized successfully!');
+    debugLog('🎵 CueAI initialized successfully!');
 });
