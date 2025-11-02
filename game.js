@@ -255,8 +255,9 @@ class CueAI {
         this.recognition = null;
         this.transcriptBuffer = [];
     this.lastAnalysisTime = 0;
-    // Analyze less frequently to respect backend rate limit (10/min)
-    this.analysisInterval = 7000; // ~8-9 requests/min
+    // Analyze interval with adaptive rate limiting
+    this.analysisInterval = this.lowLatencyMode ? 3000 : 5000; // Faster in low-latency mode
+    this.baseAnalysisInterval = this.analysisInterval; // Store base for reset after backoff
     this.analysisTimer = null;
     this.analysisInProgress = false;
     this.currentInterim = '';
@@ -271,7 +272,10 @@ class CueAI {
         this.sfxBusGain = null;
         this.sfxCompressor = null;
         this.activeSounds = new Map();
-        this.activeBuffers = new Map(); // Store decoded audio buffers
+        this.activeBuffers = new Map(); // Store decoded audio buffers (temporary preload cache)
+        this.bufferCache = new Map(); // Long-lived buffer cache with LRU eviction
+        this.maxBufferCacheSize = 100; // Keep 100 decoded buffers (~50-100MB RAM)
+        this.instantKeywordBuffers = new Map(); // Pre-decoded buffers for instant triggers
         this.sfxNormGains = new Map(); // url -> normalization gain
         this.soundQueue = [];
         this.maxSimultaneousSounds = 3;
@@ -414,6 +418,11 @@ class CueAI {
         this.loadSavedSounds().catch(e => console.warn('Saved sounds load failed:', e.message));
         // Load built-in stories
         this.loadStories().catch(e => console.warn('Stories load failed:', e.message));
+        
+        // Preload instant keyword buffers after a short delay (non-blocking)
+        setTimeout(() => this.preloadInstantKeywords(), 2000);
+        // Pre-warm CDN cache for common sounds
+        setTimeout(() => this.prewarmCDN(), 3000);
     }
     
     getBackendUrl() {
@@ -724,6 +733,117 @@ class CueAI {
             this.playSoundEffect({ query: q, priority: 6, volume: 0.7 }).catch(e => debugLog('Story SFX trigger failed:', e.message));
         }
     }
+
+    // ===== INSTANT KEYWORD PRELOADING =====
+    async preloadInstantKeywords() {
+        if ((!this.freesoundApiKey && !this.pixabayApiKey) || !this.audioContext) {
+            debugLog('Skipping instant keyword preload (no API key or audio context)');
+            return;
+        }
+
+        debugLog('Preloading instant keyword buffers...');
+        
+        // Priority instant keywords for immediate playback
+        const priorityKeywords = [
+            'bang', 'crash', 'boom', 'thunder', 'scream', 'roar', 
+            'growl', 'slam', 'bark', 'knock', 'explosion', 'whoosh',
+            'creak', 'whisper', 'heartbeat', 'footsteps'
+        ];
+        
+        let loaded = 0;
+        const tasks = priorityKeywords.map(keyword => async () => {
+            const config = this.instantKeywords[keyword];
+            if (!config) return;
+            
+            try {
+                // Search once during init
+                const url = await this.searchAudio(config.query, 'sfx');
+                if (!url) return;
+                
+                // Fetch and decode buffer
+                const resp = await fetch(url);
+                const ab = await resp.arrayBuffer();
+                const buffer = await this.audioContext.decodeAudioData(ab);
+                
+                // Store in instant keyword cache
+                this.instantKeywordBuffers.set(keyword, { 
+                    buffer, 
+                    url,
+                    volume: config.volume 
+                });
+                
+                // Also store in main buffer cache for reuse
+                this.addToBufferCache(url, buffer);
+                
+                loaded++;
+                debugLog(`✓ Preloaded instant keyword: ${keyword}`);
+            } catch (e) {
+                debugLog(`✗ Failed to preload ${keyword}:`, e.message);
+            }
+        });
+        
+        // Run with limited concurrency
+        await this.runWithConcurrency(tasks, 3);
+        
+        if (loaded > 0) {
+            debugLog(`✓ Preloaded ${loaded}/${priorityKeywords.length} instant keyword buffers`);
+            this.updateStatus(`Ready! ${loaded} instant sounds preloaded`);
+        }
+    }
+
+    // ===== CDN PRE-WARMING =====
+    async prewarmCDN() {
+        if (!this.soundCatalog || this.soundCatalog.length === 0) {
+            debugLog('Skipping CDN pre-warm (no catalog loaded yet)');
+            return;
+        }
+
+        debugLog('Pre-warming CDN cache...');
+        
+        // Top most common sounds across all modes
+        const topSoundIds = [
+            'sword_clash', 'door_creak', 'footsteps', 'thunder',
+            'wind_whoosh', 'fire_crackling', 'crowd_tavern', 'dog_bark',
+            'door_knock', 'owl_hoot', 'crickets', 'monster_roar',
+            'magic_whoosh', 'heartbeat'
+        ];
+        
+        topSoundIds.forEach(id => {
+            const sound = this.soundCatalog.find(s => s.id === id);
+            if (sound) {
+                const link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = this.getFullSoundUrl(sound.src);
+                link.as = 'audio';
+                link.crossOrigin = 'anonymous';
+                document.head.appendChild(link);
+            }
+        });
+        
+        debugLog(`✓ Pre-warming CDN for ${topSoundIds.length} common sounds`);
+    }
+
+    getFullSoundUrl(src) {
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+            return src; // Already absolute
+        }
+        return `${this.backendUrl}${src}`;
+    }
+
+    // ===== BUFFER CACHE WITH LRU EVICTION =====
+    addToBufferCache(url, buffer) {
+        if (this.bufferCache.size >= this.maxBufferCacheSize) {
+            // LRU eviction - remove oldest entry
+            const firstKey = this.bufferCache.keys().next().value;
+            this.bufferCache.delete(firstKey);
+        }
+        this.bufferCache.set(url, buffer);
+    }
+
+    getFromBufferCache(url) {
+        return this.bufferCache.get(url);
+    }
+
     async checkApiKey() {
         const modal = document.getElementById('apiKeyModal');
         const appContainer = document.getElementById('appContainer');
@@ -1084,7 +1204,12 @@ class CueAI {
                 this.lowLatencyMode = e.target.checked;
                 localStorage.setItem('cueai_low_latency', JSON.stringify(this.lowLatencyMode));
                 this.preloadConcurrency = this.getPreloadConcurrency();
-                this.updateStatus(`Low Latency Mode ${this.lowLatencyMode ? 'enabled' : 'disabled'}`);
+                
+                // Update analysis interval for low latency mode
+                this.baseAnalysisInterval = this.lowLatencyMode ? 3000 : 5000;
+                this.analysisInterval = this.baseAnalysisInterval;
+                
+                this.updateStatus(`Low Latency Mode ${this.lowLatencyMode ? 'enabled (3s analysis)' : 'disabled (5s analysis)'}`);
             });
         }
         // Low Latency tooltip interactions (hover via CSS; add touch/keyboard support)
@@ -1551,16 +1676,72 @@ class CueAI {
                 if (regex.test(lowerText)) {
                     debugLog(`Instant trigger detected: "${keyword}"`);
                     // Play sound immediately without waiting for AI analysis
-                    this.playInstantSound(config);
+                    this.playInstantSound(config, keyword);
                     // Only trigger one sound per check to avoid chaos
                     break;
                 }
             }
         }
     
-        async playInstantSound(config) {
-                // Reuse unified SFX path to benefit from cooldown logic
-                await this.playSoundEffect({ query: config.query, priority: 10, volume: config.volume });
+        async playInstantSound(config, keyword) {
+            // Check if we have a pre-cached buffer for this keyword
+            const cached = this.instantKeywordBuffers.get(keyword);
+            if (cached) {
+                debugLog(`⚡ Playing instant keyword from cache: ${keyword}`);
+                // Play from pre-decoded buffer - INSTANT (50-100ms)
+                this.playBufferDirect(cached.url, cached.buffer, cached.volume || config.volume);
+                return;
+            }
+            
+            // Fallback to normal search path (slower but still works)
+            debugLog(`Playing instant keyword via search: ${keyword}`);
+            await this.playSoundEffect({ query: config.query, priority: 10, volume: config.volume });
+        }
+        
+        // Play audio buffer directly without decoding
+        playBufferDirect(url, buffer, volume = 0.7) {
+            if (!this.audioContext || !buffer) return;
+            
+            try {
+                // Duck music
+                this.duckMusic(0.6);
+                
+                // Create buffer source
+                const source = this.audioContext.createBufferSource();
+                source.buffer = buffer;
+                
+                // Create gain node for volume control
+                const gainNode = this.audioContext.createGain();
+                const effective = Math.max(0, Math.min(1, volume * this.sfxLevel));
+                gainNode.gain.value = effective;
+                
+                // Connect: source → gain → destination
+                source.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                // Track as active sound
+                const id = 'instant_' + Date.now();
+                this.activeSounds.set(id, {
+                    type: 'sfx',
+                    source,
+                    gainNode,
+                    startTime: Date.now()
+                });
+                
+                // Clean up on end
+                source.onended = () => {
+                    this.activeSounds.delete(id);
+                    source.disconnect();
+                    gainNode.disconnect();
+                };
+                
+                // Start playback
+                source.start(0);
+                
+                debugLog(`✓ Playing instant buffer: ${url}`);
+            } catch (e) {
+                console.error('Buffer playback error:', e);
+            }
         }
     
     // ===== AI CONTEXT ANALYSIS =====
@@ -1576,6 +1757,9 @@ class CueAI {
             // Call centralized API service (from api.js)
             const response = await this.callBackendAnalyze(recentTranscript);
             
+            // Success - reset interval to fast (after any previous backoff)
+            this.analysisInterval = this.baseAnalysisInterval;
+            
             // If mode changed during the async call, ignore this result
             if (this.analysisVersion !== versionAtStart) {
                 debugLog('Discarding stale analysis result after mode change');
@@ -1586,6 +1770,12 @@ class CueAI {
                 await this.processSoundDecisions(response);
             }
         } catch (error) {
+            // Check for rate limiting
+            if (error && String(error.message || '').includes('429')) {
+                // Exponential backoff on rate limits
+                this.analysisInterval = Math.min(this.analysisInterval * 1.5, 15000);
+                console.warn(`Rate limited, backing off to ${this.analysisInterval}ms`);
+            }
             console.error('AI Analysis error:', error);
             this.updateStatus('⚠️ Analysis error. Check console for details.');
         }
@@ -2419,6 +2609,14 @@ ${modeSpecificRules[this.currentMode]}`;
     async playAudio(url, options) {
         if (!url) return null;
         
+        // Check long-lived buffer cache FIRST for instant playback
+        const cachedBuffer = this.getFromBufferCache(url);
+        if (cachedBuffer && options.type === 'sfx') {
+            debugLog(`⚡ Playing from buffer cache: ${options.name || url}`);
+            this.playBufferDirect(url, cachedBuffer, options.volume);
+            return { cached: true }; // Signal success
+        }
+        
         try {
             // For SFX, try to use Web Audio API with decoded buffers for better performance
             if (options.type === 'sfx') {
@@ -2449,7 +2647,16 @@ ${modeSpecificRules[this.currentMode]}`;
             src: [url],
             volume: effective,
             stereo: az, // -1 (left) to 1 (right)
-            onload: () => debugLog(`SFX loaded: ${options.name}`),
+            onload: () => {
+                debugLog(`SFX loaded: ${options.name}`);
+                // Cache decoded buffer for next time (if using Web Audio backend)
+                if (howl._sounds && howl._sounds.length > 0) {
+                    const sound = howl._sounds[0];
+                    if (sound._node && sound._node.bufferSource && sound._node.bufferSource.buffer) {
+                        this.addToBufferCache(url, sound._node.bufferSource.buffer);
+                    }
+                }
+            },
             onloaderror: (id, err) => {
                 // Only log errors in debug mode to avoid console spam
                 debugLog('SFX load error:', options.name, err);
@@ -3020,16 +3227,75 @@ ${modeSpecificRules[this.currentMode]}`;
             { k: /\bcreak\b/, q: 'door creak' },
             { k: /\bwind|whoosh\b/, q: 'wind whoosh' },
         ];
-        const toWarm = cues.filter(c => c.k.test(t)).map(c => c.q).slice(0,2);
+        
+        // Context-aware predictions (narrative cues)
+        const contextPredictions = [];
+        
+        // Movement & location cues
+        if (/approach|walk|move|enter|step/.test(t)) {
+            contextPredictions.push('footsteps', 'door creak', 'door open');
+        }
+        if (/dark|night|shadow|midnight/.test(t)) {
+            contextPredictions.push('crickets', 'owl hoot', 'wind whoosh');
+        }
+        if (/fight|battle|combat|attack/.test(t)) {
+            contextPredictions.push('sword clash', 'armor clang', 'grunt');
+        }
+        if (/forest|woods|trees/.test(t)) {
+            contextPredictions.push('bird chirp', 'leaves rustle', 'wind forest');
+        }
+        if (/tavern|inn|bar/.test(t)) {
+            contextPredictions.push('crowd tavern', 'mug clink', 'door open');
+        }
+        if (/rain|wet|storm/.test(t)) {
+            contextPredictions.push('rain', 'thunder', 'wind');
+        }
+        if (/fire|flame|torch/.test(t)) {
+            contextPredictions.push('fire crackling', 'torch crackle');
+        }
+        
+        // Mode-specific predictions
+        if (this.currentMode === 'horror') {
+            if (/door|room|house|hall/.test(t)) {
+                contextPredictions.push('door creak', 'floorboard creak', 'heartbeat');
+            }
+            if (/breath|gasp|pant/.test(t)) {
+                contextPredictions.push('breath heavy', 'heartbeat');
+            }
+        } else if (this.currentMode === 'dnd') {
+            if (/magic|spell|cast/.test(t)) {
+                contextPredictions.push('magic whoosh', 'spell cast');
+            }
+            if (/dragon|beast|monster/.test(t)) {
+                contextPredictions.push('monster roar', 'dragon roar');
+            }
+        }
+        
+        // Combine keyword cues with context predictions
+        const toWarm = [...new Set([
+            ...cues.filter(c => c.k.test(t)).map(c => c.q),
+            ...contextPredictions
+        ])].slice(0, 3); // Top 3 predictions
+        
         toWarm.forEach(async (q) => {
             const cacheKey = `sfx:${q}`;
             if (this.soundCache.has(cacheKey)) return; // already cached URL
             const url = await this.searchAudio(q, 'sfx');
             if (!url) return;
+            
+            // Cache in buffer cache for instant playback
+            const cached = this.getFromBufferCache(url);
+            if (cached) return; // Already in long-term cache
+            
             if (!this.activeBuffers.has(url)) {
                 try {
-                    const resp = await fetch(url); const ab = await resp.arrayBuffer();
-                    const buf = await this.audioContext.decodeAudioData(ab); this.activeBuffers.set(url, buf);
+                    const resp = await fetch(url); 
+                    const ab = await resp.arrayBuffer();
+                    const buf = await this.audioContext.decodeAudioData(ab);
+                    this.activeBuffers.set(url, buf);
+                    // Also add to long-term cache
+                    this.addToBufferCache(url, buf);
+                    debugLog(`✓ Predictively cached: ${q}`);
                 } catch(_){}
             }
         });
