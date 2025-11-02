@@ -30,6 +30,34 @@
 .story-word.active { background: rgba(187,134,252,0.45); }
 .stories-selector { margin-top: 18px; }
 .stories-row { display: flex; align-items: center; gap: 10px; }
+/* ===== THEME VARIABLES ===== */
+:root {
+    --bg: #0a0a0a;
+    --bg-alt: #0b0b10;
+    --surface: #151522;
+    --surface-2: #1e1e2e;
+    --border: #24243a;
+    --text: #e0e0e0;
+    --muted: #aaa;
+    --muted-2: #888;
+    --primary: #8a2be2;
+    --primary-2: #bb86fc;
+    --teal: #03dac6;
+    --success: #00c853;
+    --danger: #cf6679;
+    --warning: #ffb74d;
+    --radius: 12px;
+    --radius-lg: 16px;
+    --shadow: 0 10px 40px rgba(0,0,0,0.35);
+    --container: 980px;
+    --space-1: 6px;
+    --space-2: 10px;
+    --space-3: 14px;
+    --space-4: 18px;
+    --space-5: 24px;
+    --space-6: 30px;
+}
+
 /* ===== GLOBAL STYLES ===== */
 * {
     margin: 0;
@@ -39,8 +67,8 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-    color: #e0e0e0;
+    background: linear-gradient(135deg, var(--bg) 0%, #1a1a2e 100%);
+    color: var(--text);
     min-height: 100vh;
     padding: 20px;
     overflow-x: hidden;
@@ -167,8 +195,9 @@ body {
 
 /* ===== MAIN APP ===== */
 #appContainer {
-    max-width: 900px;
+    max-width: var(--container);
     margin: 0 auto;
+    padding-bottom: var(--space-6);
 }
 
 .hidden {
@@ -177,38 +206,40 @@ body {
 
 /* ===== HEADER ===== */
 header {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
     margin-bottom: 40px;
-    padding: 20px;
-    background: rgba(138, 43, 226, 0.1);
-    border-radius: 15px;
-    border: 2px solid rgba(138, 43, 226, 0.3);
-    position: relative;
+    padding: 18px 20px;
+    background: rgba(138, 43, 226, 0.08);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(138, 43, 226, 0.25);
 }
 
-header h1 {
-    font-size: 3em;
-    background: linear-gradient(45deg, #bb86fc, #03dac6);
+.brand h1 {
+    font-size: 2.2rem;
+    line-height: 1.1;
+}
+
+.brand h1 {
+    background: linear-gradient(45deg, var(--primary-2), var(--teal));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
-.tagline {
-    color: #aaa;
-    font-size: 1.1em;
-}
+.tagline { color: var(--muted); font-size: 0.98rem; }
+
+.header-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 
 .btn-tutorial {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    padding: 10px 20px;
-    background: rgba(3, 218, 198, 0.15);
-    border: 2px solid #03dac6;
+    padding: 10px 16px;
+    background: rgba(3, 218, 198, 0.12);
+    border: 1px solid var(--teal);
     border-radius: 10px;
-    color: #03dac6;
+    color: var(--teal);
     font-size: 0.95em;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -297,7 +328,9 @@ header h1 {
     margin-bottom: 30px;
     padding: 20px;
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 12px;
+    border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: var(--shadow);
 }
 
 .playback-options h3 {
@@ -443,7 +476,9 @@ input:checked + .slider:before {
     margin-bottom: 30px;
     padding: 20px;
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 12px;
+    border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: var(--shadow);
 }
 
 .volume-controls h3 {
@@ -498,16 +533,17 @@ input[type="range"]::-moz-range-thumb {
 /* ===== VISUALIZER ===== */
 .visualizer-section {
     margin-bottom: 30px;
-    padding: 30px;
+    padding: 24px;
     background: #000;
-    border-radius: 15px;
-    border: 2px solid #333;
+    border-radius: var(--radius-lg);
+    border: 1px solid #333;
     position: relative;
     min-height: 250px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    box-shadow: var(--shadow);
 }
 
 #visualizer {
@@ -608,8 +644,8 @@ input[type="range"]::-moz-range-thumb {
 
 .transcript-box {
     background: rgba(0, 0, 0, 0.5);
-    border: 2px solid #333;
-    border-radius: 12px;
+    border: 1px solid #333;
+    border-radius: var(--radius);
     padding: 20px;
     min-height: 100px;
     max-height: 200px;
@@ -617,6 +653,7 @@ input[type="range"]::-moz-range-thumb {
     color: #e0e0e0;
     font-family: 'Courier New', monospace;
     line-height: 1.6;
+    box-shadow: var(--shadow);
 }
 
 /* ===== SOUNDS LIST ===== */
@@ -637,9 +674,9 @@ input[type="range"]::-moz-range-thumb {
 
 .sound-item {
     padding: 15px;
-    background: rgba(3, 218, 198, 0.1);
-    border: 2px solid #03dac6;
-    border-radius: 10px;
+    background: rgba(3, 218, 198, 0.08);
+    border: 1px solid #03dac6;
+    border-radius: var(--radius);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -716,7 +753,7 @@ footer {
 }
 
 .btn-primary, .btn-secondary {
-    padding: 12px 30px;
+    padding: 12px 20px;
     border: none;
     border-radius: 10px;
     cursor: pointer;
@@ -777,7 +814,7 @@ footer {
 .overlay-content {
     background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
     padding: 30px 40px;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     border: 2px solid #8a2be2;
     box-shadow: 0 10px 40px rgba(138, 43, 226, 0.3);
     display: flex;
@@ -917,9 +954,9 @@ footer {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-    header h1 {
-        font-size: 2em;
-    }
+    .brand h1 { font-size: 1.8rem; }
+    header { flex-direction: column; align-items: flex-start; }
+    .header-actions { width: 100%; justify-content: flex-start; }
     
     .mode-buttons {
         flex-direction: column;
@@ -936,4 +973,18 @@ footer {
     .btn-start, .btn-stop {
         width: 100%;
     }
+}
+
+@media (max-width: 480px) {
+    body { padding: 14px; }
+    .btn-start, .btn-stop, .btn-test { width: 100%; padding: 16px 18px; font-size: 1.05rem; }
+    .mode-dropdown { font-size: 1rem; padding: 12px 14px; }
+    .toggle-row { gap: 10px; }
+    .switch { width: 50px; height: 26px; }
+    .slider:before { width: 20px; height: 20px; }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
 }
