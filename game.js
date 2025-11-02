@@ -233,7 +233,7 @@ class CueAI {
                 this.freesoundApiKey = getFreesoundKey();
             }
         });
-        this.currentMode = 'dnd';
+        this.currentMode = null; // Force user to select a mode on startup
         this.isListening = false;
         this.minVolume = 0.2;
         this.maxVolume = 0.7;
@@ -399,6 +399,15 @@ class CueAI {
         this.initializeSpeechRecognition();
         this.setupVisualizer();
         this.updateApiStatusIndicators();
+        
+        // Disable start button until a mode is selected
+        const startBtn = document.getElementById('startBtn');
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.style.opacity = '0.5';
+            startBtn.style.cursor = 'not-allowed';
+        }
+        
         // Load sound catalog from backend
         this.loadSoundCatalog().catch(e => console.warn('Backend catalog unavailable:', e.message));
         // Load local saved sounds (legacy/fallback)
@@ -1310,10 +1319,22 @@ class CueAI {
     sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
     
     selectMode(mode) {
+        // Ignore empty/invalid mode selection
+        if (!mode) return;
+        
         this.currentMode = mode;
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.mode === mode);
         });
+        
+        // Enable start button now that a mode is selected
+        const startBtn = document.getElementById('startBtn');
+        if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.style.opacity = '1';
+            startBtn.style.cursor = 'pointer';
+        }
+        
         this.updateStatus(`Mode changed to: ${mode.toUpperCase()}`);
         // Update mode and UI state
         this.currentMode = mode;
@@ -2730,6 +2751,12 @@ ${modeSpecificRules[this.currentMode]}`;
     }
     
     async startListening() {
+        // Check if a mode has been selected
+        if (!this.currentMode) {
+            this.updateStatus('⚠️ Please select a mode before starting', 'error');
+            return;
+        }
+        
         // Check for API key OR backend availability
         const apiKey = getOpenAIKey();
         if (!apiKey && !this.backendAvailable) {
