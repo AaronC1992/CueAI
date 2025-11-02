@@ -338,6 +338,69 @@ header {
     margin-bottom: 16px;
 }
 
+/* ===== COLLAPSIBLE MENU SECTIONS ===== */
+.menu-section {
+    margin-bottom: 20px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.menu-toggle {
+    width: 100%;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.15), rgba(187, 134, 252, 0.1));
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: var(--text);
+    font-size: 1.1em;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+.menu-toggle:hover {
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.25), rgba(187, 134, 252, 0.15));
+}
+
+.menu-toggle .toggle-indicator {
+    font-size: 0.8em;
+    transition: transform 0.3s ease;
+    color: var(--primary-2);
+}
+
+.menu-toggle.active .toggle-indicator {
+    transform: rotate(-180deg);
+}
+
+.menu-content {
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    max-height: 1000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.menu-content.hidden {
+    max-height: 0;
+    padding: 0 20px;
+}
+
+.menu-content h3 {
+    color: #03dac6;
+    margin-bottom: 16px;
+    font-size: 1em;
+}
+
+.menu-content h3:not(:first-child) {
+    margin-top: 20px;
+}
+
 .toggle-row {
     display: flex;
     align-items: center;

@@ -3021,9 +3021,34 @@ ${modeSpecificRules[this.currentMode]}`;
     }
 }
 
+// ===== COLLAPSIBLE MENU FUNCTIONALITY =====
+function initializeMenuToggles() {
+    const volumeToggle = document.getElementById('volumeMenuToggle');
+    const volumeContent = document.getElementById('volumeMenuContent');
+    const settingsToggle = document.getElementById('settingsMenuToggle');
+    const settingsContent = document.getElementById('settingsMenuContent');
+
+    // Volume menu toggle
+    if (volumeToggle && volumeContent) {
+        volumeToggle.addEventListener('click', () => {
+            volumeToggle.classList.toggle('active');
+            volumeContent.classList.toggle('hidden');
+        });
+    }
+
+    // Settings menu toggle
+    if (settingsToggle && settingsContent) {
+        settingsToggle.addEventListener('click', () => {
+            settingsToggle.classList.toggle('active');
+            settingsContent.classList.toggle('hidden');
+        });
+    }
+}
+
 // ===== INITIALIZE APP =====
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new CueAI();
+    initializeMenuToggles();
     console.log('🎵 CueAI initialized successfully!');
 });

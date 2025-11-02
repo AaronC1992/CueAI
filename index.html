@@ -85,44 +85,36 @@
             <p class="info-text">Reading Mode opens a fullscreen screen with the story text and highlights words as you speak.</p>
         </section>
 
-        <!-- Volume Controls -->
-        <section class="volume-controls">
-            <h3>Volume Range</h3>
-            <div class="slider-container">
-                <label>Minimum: <span id="minVolumeValue">20</span>%</label>
-                <input type="range" id="minVolume" min="0" max="100" value="20">
-            </div>
-            <div class="slider-container">
-                <label>Maximum: <span id="maxVolumeValue">70</span>%</label>
-                <input type="range" id="maxVolume" min="0" max="100" value="70">
-            </div>
-            <h3 style="margin-top:20px">Mixer</h3>
-            <div class="slider-container">
-                <label>Music Level: <span id="musicLevelValue">50</span>%</label>
-                <input type="range" id="musicLevel" min="0" max="100" value="50">
-            </div>
-            <div class="slider-container">
-                <label>Sound Effects Level: <span id="sfxLevelValue">90</span>%</label>
-                <input type="range" id="sfxLevel" min="0" max="100" value="90">
-            </div>
-            <h3 style="margin-top:20px">Mood & Performance</h3>
-            <div class="slider-container">
-                <label>Mood/Intensity: <span id="moodBiasValue">50</span>%</label>
-                <input type="range" id="moodBias" min="0" max="100" value="50">
-            </div>
-            <div class="toggle-row" style="margin-top:8px">
-                <label for="lowLatencyMode" id="lowLatencyTooltip" class="tooltip" aria-describedby="lowLatencyTip">
-                    Low Latency Mode
-                    <button type="button" id="lowLatencyHelp" class="tooltip-icon" aria-label="What is Low Latency Mode?" aria-describedby="lowLatencyTip">?</button>
-                    <span id="lowLatencyTip" role="tooltip" class="tooltip-content">
-                        When enabled, CueAI preloads more sounds in parallel and prioritizes faster reactions.
-                        Best on strong networks and modern devices. May use more bandwidth and battery.
-                    </span>
-                </label>
-                <label class="switch">
-                    <input type="checkbox" id="lowLatencyMode">
-                    <span class="slider"></span>
-                </label>
+        <!-- Volume Control Menu -->
+        <section class="menu-section">
+            <button class="menu-toggle" id="volumeMenuToggle">
+                🔊 Volume Control
+                <span class="toggle-indicator">▼</span>
+            </button>
+            <div class="menu-content hidden" id="volumeMenuContent">
+                <h3>Volume Range</h3>
+                <div class="slider-container">
+                    <label>Minimum: <span id="minVolumeValue">20</span>%</label>
+                    <input type="range" id="minVolume" min="0" max="100" value="20">
+                </div>
+                <div class="slider-container">
+                    <label>Maximum: <span id="maxVolumeValue">70</span>%</label>
+                    <input type="range" id="maxVolume" min="0" max="100" value="70">
+                </div>
+                <h3 style="margin-top:20px">Mixer</h3>
+                <div class="slider-container">
+                    <label>Music Level: <span id="musicLevelValue">50</span>%</label>
+                    <input type="range" id="musicLevel" min="0" max="100" value="50">
+                </div>
+                <div class="slider-container">
+                    <label>Sound Effects Level: <span id="sfxLevelValue">90</span>%</label>
+                    <input type="range" id="sfxLevel" min="0" max="100" value="90">
+                </div>
+                <h3 style="margin-top:20px">Mood</h3>
+                <div class="slider-container">
+                    <label>Mood/Intensity: <span id="moodBiasValue">50</span>%</label>
+                    <input type="range" id="moodBias" min="0" max="100" value="50">
+                </div>
             </div>
         </section>
 
@@ -140,40 +132,63 @@
             <button id="stopAudioBtn" class="btn-stop-audio">Stop Audio</button>
         </section>
 
-        <!-- Playback Options -->
-        <section class="playback-options">
-            <h3>Playback Options</h3>
-            <div class="toggle-row">
-                <label for="toggleMusic">Music</label>
-                <label class="switch">
-                    <input type="checkbox" id="toggleMusic" checked>
-                    <span class="slider"></span>
-                </label>
+        <!-- Settings Menu -->
+        <section class="menu-section">
+            <button class="menu-toggle" id="settingsMenuToggle">
+                ⚙️ Settings
+                <span class="toggle-indicator">▼</span>
+            </button>
+            <div class="menu-content hidden" id="settingsMenuContent">
+                <h3>Playback Options</h3>
+                <div class="toggle-row">
+                    <label for="toggleMusic">Music</label>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleMusic" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <label for="toggleSfx">Sound Effects</label>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleSfx" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <label for="togglePrediction">Use AI Predictions (auto sounds)</label>
+                    <label class="switch">
+                        <input type="checkbox" id="togglePrediction" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <label for="toggleSaved">Use Saved Sounds (Local)</label>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleSaved">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <h3 style="margin-top:20px">Performance</h3>
+                <div class="toggle-row">
+                    <label for="lowLatencyMode" id="lowLatencyTooltip" class="tooltip" aria-describedby="lowLatencyTip">
+                        Low Latency Mode
+                        <button type="button" id="lowLatencyHelp" class="tooltip-icon" aria-label="What is Low Latency Mode?" aria-describedby="lowLatencyTip">?</button>
+                        <span id="lowLatencyTip" role="tooltip" class="tooltip-content">
+                            When enabled, CueAI preloads more sounds in parallel and prioritizes faster reactions.
+                            Best on strong networks and modern devices. May use more bandwidth and battery.
+                        </span>
+                    </label>
+                    <label class="switch">
+                        <input type="checkbox" id="lowLatencyMode">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <p class="info-text" style="margin-top:15px">Tip: Turn one off to have the AI play only music or only SFX.</p>
+                <p class="info-text">💡 Saved Sounds: Uses your "Saved sounds" folder (works locally and on GitHub Pages).</p>
+                <p class="info-text">🧠 AI Predictions: When enabled, CueAI analyzes what you say and auto-plays matching sounds. Default is off.</p>
             </div>
-            <div class="toggle-row">
-                <label for="toggleSfx">Sound Effects</label>
-                <label class="switch">
-                    <input type="checkbox" id="toggleSfx" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="toggle-row">
-                <label for="togglePrediction">Use AI Predictions (auto sounds)</label>
-                <label class="switch">
-                    <input type="checkbox" id="togglePrediction" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="toggle-row">
-                <label for="toggleSaved">Use Saved Sounds (Local)</label>
-                <label class="switch">
-                    <input type="checkbox" id="toggleSaved">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <p class="info-text">Tip: Turn one off to have the AI play only music or only SFX.</p>
-            <p class="info-text">💡 Saved Sounds: Uses your "Saved sounds" folder (works locally and on GitHub Pages).</p>
-            <p class="info-text">🧠 AI Predictions: When enabled, CueAI analyzes what you say and auto-plays matching sounds. Default is off.</p>
         </section>
 
         <!-- Live Transcript -->
