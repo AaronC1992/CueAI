@@ -52,8 +52,16 @@ async function fetchSounds() {
         
         if (resp.ok) {
             const data = await resp.json();
-            if (Array.isArray(data?.sounds)) {
-                console.log(`✓ Loaded ${data.sounds.length} sounds from backend`);
+            
+            if (Array.isArray(data)) {
+                // Backend returned an array of sounds directly
+                console.log(`[CueAI] Loaded ${data.length} sounds from backend`);
+                __soundsCache = data;
+                __soundsCacheTime = Date.now();
+                return __soundsCache;
+            } else if (Array.isArray(data?.sounds)) {
+                // Legacy shape: { sounds: [...] }
+                console.log(`[CueAI] Loaded ${data.sounds.length} sounds from backend (wrapped)`);
                 __soundsCache = data.sounds;
                 __soundsCacheTime = Date.now();
                 return __soundsCache;
@@ -145,9 +153,12 @@ async function analyzeTranscript(payload) {
  */
 async function analyzeTranscriptClientSide(payload) {
     const { transcript, mode, context } = payload;
-    const apiKey = getOpenAIKey();
+    
+    // Guard: getOpenAIKey may not be defined yet if game.js hasn't loaded
+    const apiKey = (typeof getOpenAIKey === "function") ? getOpenAIKey() : null;
     
     if (!apiKey) {
+        console.warn('[CueAI] No OpenAI key available in browser fallback.');
         throw new Error('OpenAI API key not found. Please set your API key or use backend.');
     }
     

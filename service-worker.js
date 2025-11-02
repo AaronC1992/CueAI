@@ -1,7 +1,7 @@
 // CueAI Service Worker
-const CACHE_NAME = 'cueai-v6'; // Bumped for refactor changes
+const CACHE_NAME = 'cueai-v7'; // Bumped for R2 CDN migration and array response handling
 
-// Note: Backend media files (https://cueai-backend.onrender.com/media/*) are NOT cached here
+// Note: Backend media files (https://pub-b8fe695f5b4b490ebe0dc151042193e2.r2.dev/cueai-media/*) are NOT cached here
 // because they are:
 // 1. Too large (~100MB total) for browser cache
 // 2. Cross-origin resources with CORS complexity
