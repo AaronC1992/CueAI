@@ -367,6 +367,8 @@ class CueAI {
             this.soundCatalog = await fetchSounds();
             if (this.soundCatalog.length > 0) {
                 console.log(`✓ Loaded ${this.soundCatalog.length} sounds`);
+                // Update indicators now that audio sources are available
+                this.updateApiStatusIndicators();
             } else {
                 console.warn('No sounds loaded from catalog');
             }
@@ -673,14 +675,22 @@ class CueAI {
             if (resp.ok) {
                 // Backend is live - testers can use app immediately
                 this.backendAvailable = true;
+                try {
+                    this.backendHealth = await resp.json();
+                } catch (_) {
+                    this.backendHealth = null;
+                }
                 modal.classList.add('hidden');
                 appContainer.classList.remove('hidden');
                 this.updateStatus('✓ Connected to backend — ready to use');
+                // Update indicators based on backend health
+                this.updateApiStatusIndicators();
                 return;
             }
         } catch (err) {
             console.warn('Backend not available, checking for local API key:', err.message);
             this.backendAvailable = false;
+            this.backendHealth = null;
         }
         
         // PRIORITY 2: Check if user has their own API key (advanced users)
@@ -688,13 +698,16 @@ class CueAI {
             modal.classList.add('hidden');
             appContainer.classList.remove('hidden');
             this.updateStatus('Using your OpenAI API key');
+            this.updateApiStatusIndicators();
             return;
         }
 
         // PRIORITY 3: Show API key modal only if backend is down AND no local key
         this.backendAvailable = false;
+        this.backendHealth = null;
         modal.classList.remove('hidden');
         appContainer.classList.add('hidden');
+        this.updateApiStatusIndicators();
     }
     
     saveApiKey() {
@@ -2979,13 +2992,13 @@ ${modeSpecificRules[this.currentMode]}`;
         const pixabayStatus = document.getElementById('pixabayStatus');
         
         if (openaiStatus) {
-            // Consider backend availability: if backend is reachable and handling AI,
-            // show a green check so testers know the server-side key is present.
+            // Prefer explicit backend health flag if available
+            const backendOpenAI = this.backendHealth?.openai === true;
+            const assumedBackend = this.backendAvailable && this.backendHealth == null; // older servers
             if (this.apiKey && this.apiKey.length > 10) {
                 openaiStatus.className = 'api-status active';
                 openaiStatus.setAttribute('aria-label', 'OpenAI API key is configured (local)');
-            } else if (this.backendAvailable) {
-                // Backend has OpenAI configured — mark as active for testers
+            } else if (backendOpenAI || assumedBackend) {
                 openaiStatus.className = 'api-status active';
                 openaiStatus.setAttribute('aria-label', 'OpenAI available via backend');
             } else {
@@ -2995,12 +3008,12 @@ ${modeSpecificRules[this.currentMode]}`;
         }
         
         if (freesoundStatus) {
-            // If local Freesound key is present mark active; otherwise if backend
-            // has loaded sounds (server-side audio sources), show active for testers
+            const backendFreesound = this.backendHealth?.freesound === true;
+            const catalogAvailable = Array.isArray(this.soundCatalog) && this.soundCatalog.length > 0;
             if (this.freesoundApiKey && this.freesoundApiKey.length > 10) {
                 freesoundStatus.className = 'api-status active';
                 freesoundStatus.setAttribute('aria-label', 'Freesound API key is configured (local)');
-            } else if (this.backendAvailable && (Array.isArray(this.soundCatalog) && this.soundCatalog.length > 0)) {
+            } else if (backendFreesound || (this.backendAvailable && catalogAvailable)) {
                 freesoundStatus.className = 'api-status active';
                 freesoundStatus.setAttribute('aria-label', 'Audio sources available via backend');
             } else {
@@ -3012,10 +3025,16 @@ ${modeSpecificRules[this.currentMode]}`;
         if (pixabayStatus) {
             if (this.pixabayApiKey && this.pixabayApiKey.length > 10) {
                 pixabayStatus.className = 'api-status active';
-                pixabayStatus.setAttribute('aria-label', 'Pixabay API key is configured');
+                pixabayStatus.setAttribute('aria-label', 'Pixabay API key is configured (local)');
             } else {
-                pixabayStatus.className = 'api-status inactive';
-                pixabayStatus.setAttribute('aria-label', 'Pixabay API key is missing');
+                const backendPixabay = this.backendHealth?.pixabay === true;
+                if (backendPixabay) {
+                    pixabayStatus.className = 'api-status active';
+                    pixabayStatus.setAttribute('aria-label', 'Pixabay available via backend');
+                } else {
+                    pixabayStatus.className = 'api-status inactive';
+                    pixabayStatus.setAttribute('aria-label', 'Pixabay (future support)');
+                }
             }
         }
     }

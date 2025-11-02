@@ -206,6 +206,13 @@ app.post('/analyze', async (req, res) => {
 app.get('/health', async (req, res) => {
   let chromaStatus = false;
   let deepgramStatus = false;
+
+  // Backend-configured provider flags (fast checks)
+  const openaiConfigured = !!process.env.OPENAI_API_KEY && !process.env.OPENAI_API_KEY.includes('your_');
+  const pixabayConfigured = !!process.env.PIXABAY_API_KEY && !process.env.PIXABAY_API_KEY.includes('your_');
+
+  // For Freesound, this app uses CDN audio sources; treat "available" if catalog has entries
+  const freesoundConfigured = soundCatalog.length > 0;
   
   // Check Chroma
   try {
@@ -236,7 +243,11 @@ app.get('/health', async (req, res) => {
     status: 'ok', 
     chroma: chromaStatus,
     deepgram: deepgramStatus,
-    sounds: soundCatalog.length 
+    sounds: soundCatalog.length,
+    // Explicit provider availability for frontend indicators
+    openai: openaiConfigured,
+    freesound: freesoundConfigured,
+    pixabay: pixabayConfigured
   });
 });
 
