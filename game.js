@@ -2102,10 +2102,10 @@ ${modeSpecificRules[this.currentMode]}`;
         let soundUrl;
         if (sound.src.startsWith('http://') || sound.src.startsWith('https://')) {
             // Absolute URL (CDN, external source)
-            soundUrl = sound.src;
+            soundUrl = encodeURI(sound.src);
         } else {
             // Relative URL (hosted on backend)
-            soundUrl = `${this.backendUrl}${sound.src}`;
+            soundUrl = encodeURI(`${this.backendUrl}${sound.src}`);
         }
         
         // Apply volume with mood bias
@@ -2315,10 +2315,10 @@ ${modeSpecificRules[this.currentMode]}`;
         let soundUrl;
         if (sound.src.startsWith('http://') || sound.src.startsWith('https://')) {
             // Absolute URL (CDN, external source)
-            soundUrl = sound.src;
+            soundUrl = encodeURI(sound.src);
         } else {
             // Relative URL (hosted on backend)
-            soundUrl = `${this.backendUrl}${sound.src}`;
+            soundUrl = encodeURI(`${this.backendUrl}${sound.src}`);
         }
         
         // Apply volume with SFX level
