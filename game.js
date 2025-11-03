@@ -2753,6 +2753,25 @@ ${modeSpecificRules[this.currentMode]}`;
     
     async playAudio(url, options) {
         if (!url) return null;
+
+        // Build candidate URL list (primary CDN, fallback to backend /media if applicable)
+        const buildSrcCandidates = (u) => {
+            const list = [];
+            const primary = encodeURI(u);
+            list.push(primary);
+            try {
+                if (/^https?:\/\//i.test(u)) {
+                    // Attempt to build a local fallback path: map .../(cueai-media/)?(music|sfx|ambience)/file -> /media/$2/file
+                    const m = u.match(/\/(?:cueai-media\/)?(music|sfx|ambience)\/(.+)$/i);
+                    if (m) {
+                        const localPath = `/media/${m[1]}/${m[2]}`;
+                        const backend = this.getBackendUrl().replace(/\/$/,'');
+                        list.push(encodeURI(`${backend}${localPath}`));
+                    }
+                }
+            } catch (_) {}
+            return list;
+        };
         
         // Check long-lived buffer cache FIRST for instant playback
         const cachedBuffer = this.getFromBufferCache(url);
@@ -2789,7 +2808,7 @@ ${modeSpecificRules[this.currentMode]}`;
         const az = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5);
         
         const howl = new Howl({
-            src: [url],
+            src: buildSrcCandidates(url),
             volume: effective,
             stereo: az, // -1 (left) to 1 (right)
             onload: () => {
@@ -2877,7 +2896,7 @@ ${modeSpecificRules[this.currentMode]}`;
 
         // Create new Howl instance for music
         const newHowl = new Howl({
-            src: [url],
+            src: buildSrcCandidates(url),
             html5: true, // stream for long music files
             loop: !!options.loop,
             volume: 0,

@@ -8,6 +8,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from 'ws';
 import { readFile } from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { ChromaClient } from 'chromadb';
 import adminRouter from './routes/admin.js';
 import chromaCollectionPromise from './config/chroma.js';
@@ -16,6 +18,8 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Simple in-memory rate limiting (per IP)
 const rateLimitMap = new Map();
@@ -69,8 +73,14 @@ setInterval(() => {
 app.use(cors());
 app.use(express.json());
 
-// NOTE: Media files now served from Cloudflare R2 CDN
-// No need to serve /media locally - all audio URLs point to R2
+// Serve /media locally as a transparent fallback if CDN fails
+// This enables the frontend to try /media URLs when R2 returns 404
+app.use('/media', express.static(path.join(__dirname, 'media'), {
+  fallthrough: true,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+}));
 
 // Request timeout middleware (prevent long-running requests on free tier)
 app.use((req, res, next) => {
