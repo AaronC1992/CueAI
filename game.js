@@ -221,6 +221,13 @@ class CueAI {
         this.soundCatalog = []; // Loaded from backend /sounds endpoint
         this.backendAvailable = false; // Track if backend is reachable
         
+        // Music Context Management
+        this.currentMusicContext = null; // Track current music mood/scene
+        this.musicRotationQueue = []; // Queue of related tracks for rotation
+        this.musicRotationIndex = 0; // Current position in rotation
+        this.lastMusicChange = 0; // Timestamp of last music change
+        this.musicChangeThreshold = 30000; // Minimum 30s between music changes
+        
         // Core Configuration - Use centralized getters
         this.apiKey = getOpenAIKey();
         this.freesoundApiKey = getFreesoundKey();
@@ -2062,18 +2069,32 @@ ${modeSpecificRules[this.currentMode]}`;
             return;
         }
         
+            // Check if music context has changed (major scene shift)
+            const contextChanged = this.hasMusicContextChanged(musicData);
+            const now = Date.now();
+        
+            // If music is already playing and context hasn't changed, keep it playing
+            if (!contextChanged && this.currentMusic && this.currentMusic.dataset?.id) {
+                // Check if current music is the same or in the same context group
+                if (musicData.action === 'play_or_continue' || 
+                    this.isSameMusicContext(this.currentMusic.dataset.id, musicData.id)) {
+                    debugLog('Music context stable, continuing:', this.currentMusic.dataset.id);
+                    return;
+                }
+            }
+        
+            // Respect minimum time between music changes (unless forced change)
+            if (!contextChanged && 
+                musicData.action === 'play_or_continue' &&
+                (now - this.lastMusicChange) < this.musicChangeThreshold) {
+                debugLog('Music change too soon, waiting...');
+                return;
+            }
+        
         // Find sound in catalog
         const sound = this.soundCatalog.find(s => s.id === musicData.id);
         if (!sound) {
             console.warn('Music ID not found in catalog:', musicData.id);
-            return;
-        }
-        
-        // Don't change if same music already playing and action is "play_or_continue"
-        if (musicData.action === 'play_or_continue' && 
-            this.currentMusic && 
-            this.currentMusic.dataset?.id === musicData.id) {
-            debugLog('Music already playing, continuing:', musicData.id);
             return;
         }
         
@@ -2091,6 +2112,13 @@ ${modeSpecificRules[this.currentMode]}`;
         const moodMul = 0.85 + this.moodBias * 0.3;
         const baseVol = musicData.volume || 0.5;
         const effectiveVol = Math.max(0, Math.min(1, baseVol * moodMul * this.musicLevel));
+        
+            // Build rotation queue for this music context
+            this.buildMusicRotationQueue(musicData.id);
+        
+            // Update music context
+            this.currentMusicContext = this.getMusicContext(musicData.id);
+            this.lastMusicChange = now;
         
         await this.playAudio(soundUrl, {
             type: 'music',
@@ -2139,6 +2167,123 @@ ${modeSpecificRules[this.currentMode]}`;
             this.scheduleNextStinger();
         }
     }
+    
+        // Check if music context has changed significantly (major scene shift)
+        hasMusicContextChanged(musicData) {
+            if (!this.currentMusicContext) return true; // No current context
+            if (!musicData.action) return true; // No action specified
+            if (musicData.action === 'change') return true; // Explicit change requested
+        
+            const newContext = this.getMusicContext(musicData.id);
+        
+            // Check for major mood/scene shifts
+            if (this.currentMusicContext.mood !== newContext.mood) {
+                // Allow some mood transitions without stopping music
+                const allowedTransitions = [
+                    ['calm', 'peaceful'],
+                    ['tense', 'epic'],
+                    ['mysterious', 'dark']
+                ];
+            
+                const isAllowedTransition = allowedTransitions.some(([a, b]) => 
+                    (this.currentMusicContext.mood === a && newContext.mood === b) ||
+                    (this.currentMusicContext.mood === b && newContext.mood === a)
+                );
+            
+                if (!isAllowedTransition) {
+                    debugLog('Major mood shift detected:', this.currentMusicContext.mood, '->', newContext.mood);
+                    return true;
+                }
+            }
+        
+            // Check for scene category changes
+            if (this.currentMusicContext.category !== newContext.category) {
+                debugLog('Scene category changed:', this.currentMusicContext.category, '->', newContext.category);
+                return true;
+            }
+        
+            return false;
+        }
+    
+        // Get music context from sound ID or tags
+        getMusicContext(soundId) {
+            const sound = this.soundCatalog.find(s => s.id === soundId);
+            if (!sound) return { mood: 'unknown', category: 'general' };
+        
+            const tags = sound.tags || [];
+            const id = sound.id.toLowerCase();
+        
+            // Determine mood
+            let mood = 'calm';
+            if (tags.some(t => ['horror', 'creepy', 'dark', 'eerie'].includes(t))) mood = 'dark';
+            else if (tags.some(t => ['epic', 'battle', 'war', 'intense'].includes(t))) mood = 'epic';
+            else if (tags.some(t => ['tense', 'suspense', 'mysterious'].includes(t))) mood = 'tense';
+            else if (tags.some(t => ['joyful', 'happy', 'festive', 'christmas'].includes(t))) mood = 'joyful';
+            else if (tags.some(t => ['peaceful', 'calm', 'gentle', 'ambient'].includes(t))) mood = 'peaceful';
+            else if (tags.some(t => ['mysterious', 'enigmatic'].includes(t))) mood = 'mysterious';
+        
+            // Determine category
+            let category = 'general';
+            if (tags.includes('christmas') || id.includes('christmas')) category = 'christmas';
+            else if (tags.includes('halloween') || id.includes('halloween')) category = 'halloween';
+            else if (tags.includes('medieval') || tags.includes('fantasy') || tags.includes('rpg')) category = 'fantasy';
+            else if (tags.includes('horror') || mood === 'dark') category = 'horror';
+            else if (tags.includes('tavern') || id.includes('tavern')) category = 'tavern';
+        
+            return { mood, category, tags };
+        }
+    
+        // Check if two music tracks belong to the same context
+        isSameMusicContext(currentId, newId) {
+            if (currentId === newId) return true;
+        
+            const currentContext = this.getMusicContext(currentId);
+            const newContext = this.getMusicContext(newId);
+        
+            // Same category and similar mood = same context
+            return currentContext.category === newContext.category &&
+                   currentContext.mood === newContext.mood;
+        }
+    
+        // Build rotation queue of related music tracks
+        buildMusicRotationQueue(primaryId) {
+            const context = this.getMusicContext(primaryId);
+        
+            // Find all music tracks matching this context
+            const relatedTracks = this.soundCatalog.filter(s => {
+                if (s.type !== 'music') return false;
+                const trackContext = this.getMusicContext(s.id);
+                return trackContext.category === context.category &&
+                       trackContext.mood === context.mood;
+            });
+        
+            // Shuffle for variety
+            this.musicRotationQueue = this.shuffleArray([...relatedTracks]);
+            this.musicRotationIndex = 0;
+        
+            debugLog(`Built music rotation queue: ${this.musicRotationQueue.length} tracks in ${context.category}/${context.mood}`);
+        }
+    
+        // Get next music track in rotation
+        getNextMusicInRotation() {
+            if (this.musicRotationQueue.length === 0) return null;
+        
+            this.musicRotationIndex = (this.musicRotationIndex + 1) % this.musicRotationQueue.length;
+            const nextTrack = this.musicRotationQueue[this.musicRotationIndex];
+        
+            debugLog(`Rotating to next music: ${nextTrack.id} (${this.musicRotationIndex + 1}/${this.musicRotationQueue.length})`);
+            return nextTrack;
+        }
+    
+        // Shuffle array utility
+        shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
     
     async playSoundEffectById(sfxData) {
         if (!this.sfxEnabled) {
