@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "fix:catalog": "node ./tools/encode-catalog.js"
   },
   "dependencies": {
     "@chroma-core/default-embed": "^0.1.8",

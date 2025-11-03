@@ -437,6 +437,28 @@ class CueAI {
         return getBackendUrl();
     }
     
+    // Build candidate URL list (primary CDN, fallback to backend /media if applicable)
+    buildSrcCandidates(u) {
+        const list = [];
+        const primary = encodeURI(u);
+        list.push(primary);
+        try {
+            if (/^https?:\/\//i.test(u)) {
+                // Attempt to build a local fallback path: map .../(cueai-media/)?(music|sfx|ambience)/file -> /media/$2/file
+                const m = u.match(/\/(?:cueai-media\/)?(music|sfx|ambience)\/(.+)$/i);
+                if (m) {
+                    const localPath = `/media/${m[1]}/${m[2]}`;
+                    const backend = this.getBackendUrl().replace(/\/$/,'');
+                    list.push(encodeURI(`${backend}${localPath}`));
+                }
+            } else {
+                const backend = this.getBackendUrl().replace(/\/$/,'');
+                list.push(encodeURI(`${backend}${u.startsWith('/') ? u : '/' + u}`));
+            }
+        } catch (_) {}
+        return list;
+    }
+    
     async loadSoundCatalog() {
         try {
             // Use centralized API service (from api.js)
@@ -445,12 +467,37 @@ class CueAI {
                 debugLog(`✓ Loaded ${this.soundCatalog.length} sounds`);
                 // Update indicators now that audio sources are available
                 this.updateApiStatusIndicators();
+                // Optional: verify first few catalog URLs in debug mode
+                try {
+                    if (window.CONFIG && window.CONFIG.DEBUG_MODE) {
+                        setTimeout(() => { this.verifyCatalog(10).catch(()=>{}); }, 500);
+                    }
+                } catch(_) {}
             } else {
                 console.warn('No sounds loaded from catalog');
             }
         } catch (err) {
             console.error('Failed to load sound catalog:', err.message);
             this.soundCatalog = [];
+        }
+    }
+
+    // Quick HEAD verifier for first N catalog URLs (debug only)
+    async verifyCatalog(headCount = 10) {
+        const list = Array.isArray(this.soundCatalog) ? this.soundCatalog.slice(0, headCount) : [];
+        for (const s of list) {
+            const url = s?.src;
+            if (!url) continue;
+            try {
+                const res = await fetch(url, { method: 'HEAD', cache: 'no-cache' });
+                if (res.ok) {
+                    console.log(`[CATALOG:OK] ${url}`);
+                } else {
+                    console.warn(`[CATALOG:${res.status}] ${url}`);
+                }
+            } catch (e) {
+                console.warn(`[CATALOG:ERR] ${url} -> ${e.message}`);
+            }
         }
     }
 
@@ -2753,25 +2800,7 @@ ${modeSpecificRules[this.currentMode]}`;
     
     async playAudio(url, options) {
         if (!url) return null;
-
-        // Build candidate URL list (primary CDN, fallback to backend /media if applicable)
-        const buildSrcCandidates = (u) => {
-            const list = [];
-            const primary = encodeURI(u);
-            list.push(primary);
-            try {
-                if (/^https?:\/\//i.test(u)) {
-                    // Attempt to build a local fallback path: map .../(cueai-media/)?(music|sfx|ambience)/file -> /media/$2/file
-                    const m = u.match(/\/(?:cueai-media\/)?(music|sfx|ambience)\/(.+)$/i);
-                    if (m) {
-                        const localPath = `/media/${m[1]}/${m[2]}`;
-                        const backend = this.getBackendUrl().replace(/\/$/,'');
-                        list.push(encodeURI(`${backend}${localPath}`));
-                    }
-                }
-            } catch (_) {}
-            return list;
-        };
+        
         
         // Check long-lived buffer cache FIRST for instant playback
         const cachedBuffer = this.getFromBufferCache(url);
@@ -2807,8 +2836,9 @@ ${modeSpecificRules[this.currentMode]}`;
         // Random stereo positioning for variety
         const az = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5);
         
+        const sfxSrcs = this.buildSrcCandidates(url);
         const howl = new Howl({
-            src: buildSrcCandidates(url),
+            src: sfxSrcs,
             volume: effective,
             stereo: az, // -1 (left) to 1 (right)
             onload: () => {
@@ -2823,11 +2853,11 @@ ${modeSpecificRules[this.currentMode]}`;
             },
             onloaderror: (id, err) => {
                 // Only log errors in debug mode to avoid console spam
-                debugLog('SFX load error:', options.name, err);
+                console.warn('SFX load error:', options.name, err, 'sources:', sfxSrcs);
                 // Don't show status errors for failed sounds - they're often recoverable
             },
             onplayerror: (id, err) => {
-                debugLog('SFX play error:', options.name, err);
+                console.warn('SFX play error:', options.name, err, 'sources:', sfxSrcs);
             },
             onend: () => {
                 this.activeSounds.delete(id);
@@ -2895,19 +2925,20 @@ ${modeSpecificRules[this.currentMode]}`;
         }
 
         // Create new Howl instance for music
+        const musicSrcs = this.buildSrcCandidates(url);
         const newHowl = new Howl({
-            src: buildSrcCandidates(url),
+            src: musicSrcs,
             html5: true, // stream for long music files
             loop: !!options.loop,
             volume: 0,
             onload: () => debugLog(`Music loaded: ${options.name}`),
             onloaderror: (id, err) => {
                 // Only log errors in debug mode to avoid console spam
-                debugLog('Music load error:', options.name, err);
+                console.warn('Music load error:', options.name, err, 'sources:', musicSrcs);
                 // Silently skip failed music loads - backend will try alternatives
             },
             onplayerror: (id, err) => {
-                debugLog('Music play error:', options.name, err);
+                console.warn('Music play error:', options.name, err, 'sources:', musicSrcs);
             }
         });
 
