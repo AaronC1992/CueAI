@@ -10,6 +10,7 @@ import PerformanceMonitor from '../lib/modules/performance-monitor.js';
 import { CircuitBreaker, RetryHandler, OfflineDetector, setupGlobalErrorHandlers } from '../lib/modules/error-handler.js';
 import { initAccessibility, announceToScreenReader } from '../lib/modules/accessibility.js';
 import { buildTriggerMap, ruleBasedDecision, tfidfMatch, shouldTriggerKeyword, rankInstantPreloadFiles } from '../lib/modules/trigger-system.js';
+import { WOLF_NOUNS } from '../lib/modules/creature-taxonomy.js';
 import { computeNormalizationGain as computeNormGain, calculateVolume as calcVolume, getSfxBucket as sfxBucket, getDuckParams as duckParamsCalc, shuffleArray as shuffle } from '../lib/modules/sound-engine.js';
 import { MODE_CONTEXTS, MODE_RULES, MODE_STINGERS, MODE_PRELOAD_SETS, GENERIC_PRELOAD_SET } from '../lib/modules/ai-director.js';
 import { applyGainToVolume as applyLoudnessGain, primeReplayGain } from '../lib/modules/loudness.js';
@@ -367,7 +368,7 @@ class SuiteRhythm {
             ['bow', 'longbow', 'shortbow', 'crossbow'],
             ['shield', 'buckler', 'barrier'],
             ['horse', 'steed', 'mount', 'stallion', 'mare', 'charger', 'pony', 'destrier'],
-            ['wolf', 'wolves', 'hound', 'hounds', 'warg'],
+            WOLF_NOUNS, // shared with trigger-system.js's context-required gates — see creature-taxonomy.js
             ['dragon', 'drake', 'wyrm', 'wyvern', 'serpent'],
             ['fire', 'blaze', 'inferno', 'flame', 'flames', 'pyre'],
             ['forest', 'woods', 'woodland', 'grove', 'thicket', 'glade'],
