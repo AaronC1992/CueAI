@@ -21,6 +21,18 @@ describe('local-classifier', () => {
         expect(ids).toContain('door knock');
     });
 
+    it('does not flag wolf howl for unrelated howling (e.g. wind)', () => {
+        const d = classifyLocal('The wind howled through the empty streets');
+        const ids = d.sfx.map(s => s.id);
+        expect(ids).not.toContain('wolf howl');
+    });
+
+    it('flags wolf howl when a wolf is actually mentioned', () => {
+        const d = classifyLocal('In the distance a wolf let out a howl');
+        const ids = d.sfx.map(s => s.id);
+        expect(ids).toContain('wolf howl');
+    });
+
     it('caps to max 2 SFX per decision', () => {
         const d = classifyLocal('They heard a knock, a slam, a creak, a scream and a crash all at once');
         expect(d.sfx.length).toBeLessThanOrEqual(2);
