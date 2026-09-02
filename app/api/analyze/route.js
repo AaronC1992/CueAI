@@ -85,6 +85,8 @@ RESPONSE FORMAT (strict JSON):
 CRITICAL RULES:
 - You MUST pick sounds from the AVAILABLE lists below. Use the EXACT name as the "id". Do NOT invent sound names.
 - "scene" drives ambient bed selection only when the transcript clearly establishes a setting. Use descriptive keywords only when evidenced: forest, cave, tavern, cottage, castle, ocean, rain, battle, etc.
+- "worldState.weather" MUST track the CURRENT weather only, not history. If the transcript says the rain/storm stopped, cleared, ended, or the character moved indoors and it's no longer mentioned as audible, set weather to "clear" immediately — do not keep reporting "storm"/"rain" just because it was mentioned earlier in the scene history.
+- Do not repeat past-tense/historical weather or setting words in "scene" once they're no longer current (e.g. don't keep writing "storm" in the scene description after the story says the storm cleared).
 - "mood.primary" + "mood.intensity" drive the emotional arc. Be consistent — don't flip moods every response.
 - "confidence" reflects how certain you are. Set 0.3-0.5 when transcript is ambiguous.
 - "music" — only change when scene/mood shifts significantly. Use null if current music should keep playing. Pick music that matches the mood and setting.

@@ -5781,7 +5781,12 @@ class SuiteRhythm {
             if (/cave|dungeon|underground|crypt|catacomb|tomb/i.test(sceneStr)) bedCats.push('dungeon');
             if (/ocean|sea|ship|harbor|nautical|sail|lighthouse|coast|cliff/i.test(sceneStr)) bedCats.push('nautical');
             if (/fire|volcano|inferno|forge|blacksmith|furnace/i.test(sceneStr)) bedCats.push('fire');
-            if (/rain|storm|tempest|blizzard|snow|sleet|hail/i.test(sceneStr)) bedCats.push('weather');
+            // Weather bed is driven by the structured worldState.weather field (kept in sync
+            // every analysis) rather than scanning "scene" text, so a story mentioning "storm"
+            // in passing/past tense (e.g. "after the storm passed") doesn't re-trigger it, and
+            // it clears promptly once the AI reports weather=clear or the scene moves indoors.
+            const weatherNow = allowAtmosphericAutomation ? (this._worldState?.weather || '') : '';
+            if (/rain|storm|snow|fog|wind/i.test(weatherNow)) bedCats.push('weather');
             if (/tavern|inn|celebration|feast|saloon|pub|bar/i.test(sceneStr)) bedCats.push('celebration');
             if (/river|lake|waterfall|stream|pond|creek|swamp|marsh|bog/i.test(sceneStr)) bedCats.push('water');
             if (/battle|combat|fight|war|siege|skirmish/i.test(sceneStr)) bedCats.push('combat');
@@ -6472,13 +6477,16 @@ class SuiteRhythm {
             newState = 'exploration';
         }
 
+        // Update persistent world state from this decision every analysis (not just on
+        // scene-state transitions) so weather/location clear out promptly when the AI
+        // reports them, instead of staying frozen (e.g. "storm" never clearing to "clear").
+        if (decisions && decisions.worldState) this._updateWorldState(decisions.worldState);
+
         if (newState !== this.sceneState) {
             const prev = this.sceneState;
             this.sceneState = newState;
             this._sceneStateConfidence = (this._sceneStateConfidence || 0) + 1;
             this._sceneStartedAt = Date.now(); // reset stability clock for the confidence gate
-            // Update persistent world state from this decision if the AI supplied one
-            if (decisions && decisions.worldState) this._updateWorldState(decisions.worldState);
             debugLog(`Scene state: ${prev} → ${newState} (intensity=${intensity.toFixed(2)})`);
             this.logActivity(`Scene state: ${newState}`, 'scene');
 
