@@ -9,7 +9,7 @@ import { LRUCache, MemoryMonitor, CacheManager } from '../lib/modules/memory-man
 import PerformanceMonitor from '../lib/modules/performance-monitor.js';
 import { CircuitBreaker, RetryHandler, OfflineDetector, setupGlobalErrorHandlers } from '../lib/modules/error-handler.js';
 import { initAccessibility, announceToScreenReader } from '../lib/modules/accessibility.js';
-import { buildTriggerMap, ruleBasedDecision, tfidfMatch, shouldTriggerKeyword } from '../lib/modules/trigger-system.js';
+import { buildTriggerMap, ruleBasedDecision, tfidfMatch, shouldTriggerKeyword, rankInstantPreloadFiles } from '../lib/modules/trigger-system.js';
 import { computeNormalizationGain as computeNormGain, calculateVolume as calcVolume, getSfxBucket as sfxBucket, getDuckParams as duckParamsCalc, shuffleArray as shuffle } from '../lib/modules/sound-engine.js';
 import { MODE_CONTEXTS, MODE_RULES, MODE_STINGERS, MODE_PRELOAD_SETS, GENERIC_PRELOAD_SET } from '../lib/modules/ai-director.js';
 import { applyGainToVolume as applyLoudnessGain, primeReplayGain } from '../lib/modules/loudness.js';
@@ -247,6 +247,9 @@ class SuiteRhythm {
     // Prevents the "sounds mysteriously playing from a previous session" bug where
     // a day-old snapshot would auto-play on page load.
     try { this.restoreAmbientOnStart = JSON.parse(localStorage.getItem('SuiteRhythm_restore_ambient_on_start') ?? 'false'); } catch { this.restoreAmbientOnStart = false; }
+    // Precision-first playback keeps atmosphere and accent cues disabled until
+    // the user explicitly opts in.
+    try { this.automaticAtmosphereEnabled = JSON.parse(localStorage.getItem('SuiteRhythm_automatic_atmosphere') ?? 'false'); } catch { this.automaticAtmosphereEnabled = false; }
     this._sessionRestoreMaxAgeMs = 2 * 60 * 1000; // 2 minutes
     // Scene presets — lazy-init from defaults if not yet saved
     try { this.scenePresets = JSON.parse(localStorage.getItem('SuiteRhythm_scene_presets') ?? 'null') || null; } catch { this.scenePresets = null; }
@@ -786,11 +789,8 @@ class SuiteRhythm {
                 for (let skip = 1; skip <= skipLimit; skip++) {
                     const ahead = i + skip;
                     if (ahead < this.storyNorm.length && this.storyNorm[ahead] !== '' && this.eqLoose(this.storyNorm[ahead], spoken[spokenIdx])) {
-                        // Jump forward — fire cue sounds for skipped words
-                        for (let s = i; s <= ahead; s++) {
-                            const w = this.storyNorm[s];
-                            if (w) this.maybeTriggerStorySfx(w, s);
-                        }
+                        // Recover the position without inventing cues for words the
+                        // recognizer skipped over.
                         i = ahead + 1; progressed += skip + 1; spokenIdx++;
                         found = true;
                         break;
@@ -815,10 +815,6 @@ class SuiteRhythm {
             const recovered = this.attemptStoryRecovery(spoken);
             if (recovered > this.storyIndex) {
                 debugLog(`Story recovery: jumped from ${this.storyIndex} to ${recovered}`);
-                for (let s = this.storyIndex; s < recovered; s++) {
-                    const w = this.storyNorm[s];
-                    if (w) this.maybeTriggerStorySfx(w, s);
-                }
                 i = recovered;
                 this._stuckCount = 0;
             }
@@ -1996,6 +1992,7 @@ class SuiteRhythm {
 
     _allowsAtmosphericAutomation(decisions = {}) {
         if (this._isStrictMatchingMode()) return false;
+        if (!this.automaticAtmosphereEnabled) return false;
         return !(typeof decisions.confidence === 'number' && decisions.confidence < 0.75);
     }
 
@@ -2239,7 +2236,7 @@ class SuiteRhythm {
             if (!this.isListening) return;
             const silence = Date.now() - this._lastSpeechTimestamp;
             // After 10s silence, restore ambient bed
-            if (silence >= this._pauseResumeThresholdMs && this._lastActiveSceneBedSnapshot && this._sceneBedLayers.size === 0) {
+            if (this.automaticAtmosphereEnabled && silence >= this._pauseResumeThresholdMs && this._lastActiveSceneBedSnapshot && this._sceneBedLayers.size === 0) {
                 debugLog('Long pause detected — restoring ambient scene bed');
                 this.logActivity('Pause detected — restoring ambient', 'info');
                 this._restoreSceneBedFromSnapshot(this._lastActiveSceneBedSnapshot);
@@ -2403,6 +2400,7 @@ class SuiteRhythm {
     // =====================================================================
     async _tryBeatSilence() {
         if (this._beatSilencePlaying) return;
+        if (!this.automaticAtmosphereEnabled) return;
         if (this._isStrictMatchingMode()) return;
         if (!this.sfxEnabled || !this.isListening) return;
 
@@ -2686,29 +2684,21 @@ class SuiteRhythm {
 
         debugLog('Preloading instant keyword buffers...');
         
-        // Get priority keywords from the trigger map (those with direct file paths)
-        // Group by unique file to avoid decoding the same file twice
-        const fileToKeywords = new Map();
-        for (const [keyword, config] of Object.entries(this.instantKeywords)) {
-            if (config.file && !fileToKeywords.has(config.file)) {
-                fileToKeywords.set(config.file, { keyword, config });
-            }
-        }
-        
-        // Prioritize combat, creature, and common trigger sounds
-        const priorityCategories = ['combat', 'creature', 'explosion', 'animal', 'weather', 'door'];
-        const sorted = [...fileToKeywords.entries()].sort((a, b) => {
-            const catA = priorityCategories.indexOf(a[1].config.category || '');
-            const catB = priorityCategories.indexOf(b[1].config.category || '');
-            return (catA === -1 ? 99 : catA) - (catB === -1 ? 99 : catB);
-        });
-        // Cap at 30 unique files to preload (keeps memory reasonable)
-        const toPreload = sorted.slice(0, 30);
+        // Rank by how many keywords a file can answer, so the bytes we spend buy
+        // the most trigger coverage.
+        const sorted = rankInstantPreloadFiles(this.instantKeywords);
+        // Budget by bytes, not file count: mean trigger file is ~0.7MB and the
+        // largest are multi-megabyte ambience beds that are never instant triggers.
+        const { maxFileBytes, byteBudget } = this.getInstantPreloadBudget();
+        const toPreload = sorted.slice(0, 120);
         
         let loaded = 0;
+        let bytesUsed = 0;
+        let skipped = 0;
         this.updatePreloadProgress(0, toPreload.length);
-        const tasks = toPreload.map(([file, { keyword, config }]) => async () => {
+        const tasks = toPreload.map(({ file, keyword }) => async () => {
             try {
+                if (bytesUsed >= byteBudget) { skipped++; return; }
                 const url = normalizeAudioUrl(file);
                 const srcs = this.buildSrcCandidates(url);
                 let resp = null;
@@ -2716,7 +2706,14 @@ class SuiteRhythm {
                     try { resp = await fetch(src); if (resp.ok) break; } catch(_) { resp = null; }
                 }
                 if (!resp || !resp.ok) { loaded++; this.updatePreloadProgress(loaded, toPreload.length); return; }
+                const declared = Number(resp.headers.get('content-length') || 0);
+                if (declared > maxFileBytes || bytesUsed + declared > byteBudget) {
+                    try { await resp.body?.cancel(); } catch (_) {}
+                    skipped++;
+                    return;
+                }
                 const ab = await resp.arrayBuffer();
+                bytesUsed += declared || ab.byteLength;
                 const buffer = await this.audioContext.decodeAudioData(ab);
                 
                 // Map all keywords that point to this file 
@@ -2738,7 +2735,7 @@ class SuiteRhythm {
         await this.runWithConcurrency(tasks, 3);
         
         if (loaded > 0) {
-            debugLog(`Preloaded ${loaded}/${toPreload.length} instant keyword buffers`);
+            debugLog(`Preloaded ${loaded} instant keyword buffers (${(bytesUsed / 1048576).toFixed(1)}MB, ${skipped} skipped)`);
             this.updateStatus(`Ready! ${loaded} instant sounds preloaded`);
         }
         } finally {
@@ -3402,6 +3399,24 @@ class SuiteRhythm {
                 // Immediately re-apply cooldowns so the change takes effect now
                 try { this.adaptCooldownsToMood(); } catch (_) {}
                 this.updateStatus(`Live Streamer Mode ${this.creatorMode ? 'enabled' : 'disabled'}`);
+            });
+        }
+
+        const automaticAtmosphereToggle = document.getElementById('automaticAtmosphereToggle');
+        if (automaticAtmosphereToggle) {
+            automaticAtmosphereToggle.checked = !!this.automaticAtmosphereEnabled;
+            automaticAtmosphereToggle.addEventListener('change', (e) => {
+                this.automaticAtmosphereEnabled = e.target.checked;
+                localStorage.setItem('SuiteRhythm_automatic_atmosphere', JSON.stringify(this.automaticAtmosphereEnabled));
+                if (!this.automaticAtmosphereEnabled) {
+                    if (this.stingerTimer) { clearTimeout(this.stingerTimer); this.stingerTimer = null; }
+                    this._cancelBeatSilence();
+                    this._fadeAllSceneBedLayers();
+                    this.stopProceduralAmbient();
+                } else if (this.isListening) {
+                    this.scheduleNextStinger();
+                }
+                this.updateStatus(`Automatic atmosphere ${this.automaticAtmosphereEnabled ? 'enabled' : 'disabled'}`);
             });
         }
 
@@ -4877,16 +4892,11 @@ class SuiteRhythm {
     handleSpeechResult(event) {
         let interimTranscript = '';
         let finalTranscript = '';
-        const finalAlts = []; // non-primary recognition alternatives for keyword checking
         
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
                 finalTranscript += transcript + ' ';
-                // Collect alternative transcripts (indices 1+) for keyword detection
-                for (let j = 1; j < event.results[i].length; j++) {
-                    finalAlts.push(event.results[i][j].transcript);
-                }
             } else {
                 interimTranscript += transcript;
             }
@@ -4926,8 +4936,8 @@ class SuiteRhythm {
             
                 // Voice commands & instant triggers (skip instant keywords in demo - story cue map handles it)
                 this.handleVoiceCommands(finalTranscript);
-                if (!this.demoRunning) this.checkInstantKeywords(finalTranscript, finalAlts);
-                if (!this.demoRunning) this.checkPhraseKeywords(finalTranscript, finalAlts);
+                if (!this.demoRunning) this.checkInstantKeywords(finalTranscript);
+                if (!this.demoRunning) this.checkPhraseKeywords(finalTranscript);
             
             // Dramatic beat detection: long pause + dramatic phrase = force immediate analysis
             const now = Date.now();
@@ -5048,11 +5058,10 @@ class SuiteRhythm {
     }
     
         // ===== INSTANT KEYWORD DETECTION =====
-        checkInstantKeywords(text, altTexts = []) {
+        checkInstantKeywords(text) {
             if (!text || !this.sfxEnabled) return;
         
             const lowerText = text.toLowerCase();
-            const lowerAlts = altTexts.map(t => t.toLowerCase());
             let triggered = 0;
             const maxTriggers = 2;
             const now = Date.now();
@@ -5084,9 +5093,9 @@ class SuiteRhythm {
                 if (this._isEventConsumed(keyword)) continue;
                 const escapedKw = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regex = new RegExp(`\\b${escapedKw}\\b`, 'i');
-                // Check primary transcript, alternative transcriptions, AND synonym expansions
-                if (regex.test(lowerText) || lowerAlts.some(alt => regex.test(alt)) || expandedHits.has(keyword)) {
-                    if (!shouldTriggerKeyword(keyword, [lowerText, ...lowerAlts].join(' '), config)) continue;
+                // Check only the primary finalized transcript and synonym expansions.
+                if (regex.test(lowerText) || expandedHits.has(keyword)) {
+                    if (!shouldTriggerKeyword(keyword, lowerText, config)) continue;
                     this.instantKeywordCooldowns.set(keyword, now);
                     try { recordKeywordFire(keyword); } catch (_) {}
                     debugLog(`Instant trigger detected: "${keyword}"`);
@@ -5110,10 +5119,9 @@ class SuiteRhythm {
     // ===== MULTI-WORD PHRASE TRIGGER MATCHING =====
     // Covers high-drama 2-3 word narrative phrases the single-keyword system misses.
     // Phrases are grouped into buckets so only one fires per sentence.
-    checkPhraseKeywords(text, altTexts = []) {
+    async checkPhraseKeywords(text) {
         if (!text || !this.sfxEnabled) return;
-        const lower = text.toLowerCase();
-        const lowerAlts = altTexts.map(t => t.toLowerCase());
+        const lower = ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
         const now = Date.now();
         const PHRASE_COOLDOWN = Math.max(this.keywordCooldownMs || 3000, 4000);
 
@@ -5161,14 +5169,29 @@ class SuiteRhythm {
             const bucketKey = 'phrase:' + entry.patterns[0];
             const lastFired = this.instantKeywordCooldowns.get(bucketKey) || 0;
             if (now - lastFired < PHRASE_COOLDOWN) continue;
-            const matched = entry.patterns.some(p => lower.includes(p) || lowerAlts.some(alt => alt.includes(p)));
+            const matched = entry.patterns.some((pattern) => {
+                const normalizedPattern = ` ${pattern.replace(/[^a-z0-9]+/g, ' ').trim()} `;
+                return lower.includes(normalizedPattern);
+            });
             if (matched) {
+                const query = String(entry.query || '').toLowerCase().trim();
+                const sound = this.soundCatalog.find((candidate) =>
+                    candidate.type === 'sfx' &&
+                    (String(candidate.id || '').toLowerCase() === query ||
+                     String(candidate.name || '').toLowerCase() === query)
+                );
+                if (!sound) {
+                    debugLog('Phrase trigger skipped because it has no exact catalog sound:', entry.query);
+                    continue;
+                }
+                if (this._isEventConsumed(sound.id) || this._getActiveSfxIds().includes(sound.id)) continue;
                 this.instantKeywordCooldowns.set(bucketKey, now);
                 debugLog('Phrase trigger:', entry.patterns[0], '->', entry.query);
                 this.bumpStat('keywords');
                 this.bumpStat('triggers');
                 this.logActivity(`Phrase: "${entry.query}"`, 'trigger');
-                this.playSoundEffect({ query: entry.query, volume: entry.volume });
+                await this.playSoundEffectById({ id: sound.id, volume: entry.volume, confidence: 1 });
+                this._markEventConsumed(sound.id);
                 fired++;
             }
         }
@@ -5669,9 +5692,6 @@ class SuiteRhythm {
             // caused sing mode to never play any backing music.
             this.bumpStat('transitions');
             await this.updateMusicById(decisions.music);
-        } else if (this.musicEnabled && this.moodHistory.length >= 3) {
-            // Mood-adaptive: if mood has shifted significantly but AI didn't suggest music, pick one
-            this.maybeAdaptMusicToMood();
         }
         
         // Handle Sound Effects (skip in demo mode — story cue map handles SFX)
@@ -5759,7 +5779,7 @@ class SuiteRhythm {
                 return;
             }
         
-        // Find sound in catalog (exact id → filename suffix → name → semantic fallback).
+        // Find sound in catalog by exact ID, filename suffix, or exact display name.
         // The AI prompt instructs the model to return catalog `name` values
         // (e.g. "sing ballad acoustic guitar"), but catalog entries store the
         // file path in `id` — so match on `name` too before falling through
@@ -5773,14 +5793,6 @@ class SuiteRhythm {
         if (!sound && wantedLc) {
             // Match on the human-readable `name` field (what the AI actually returns)
             sound = this.soundCatalog.find(s => s.name && String(s.name).toLowerCase() === wantedLc);
-        }
-        if (!sound) {
-            // Semantic fallback: search by ID as a descriptive query (same as SFX path)
-            const fallbacks = this.semanticSearchCatalog(musicData.id, 'music', 1);
-            if (fallbacks.length > 0) {
-                debugLog('Music semantic fallback for', musicData.id, '->', fallbacks[0].id);
-                sound = fallbacks[0];
-            }
         }
         if (!sound) {
             console.warn('Music ID not found in catalog:', musicData.id);
@@ -6086,13 +6098,6 @@ class SuiteRhythm {
             sound = this.soundCatalog.find(s => s.name && s.name.toLowerCase() === q && s.type === 'sfx');
         }
         if (!sound) {
-            // Semantic fallback: search by ID as a query
-            const fallbacks = this.semanticSearchCatalog(sfxData.id, 'sfx', 1);
-            if (fallbacks.length > 0) {
-                debugLog('Semantic fallback for', sfxData.id, '->', fallbacks[0].id);
-                sfxData = { ...sfxData, id: fallbacks[0].id };
-                return this.playSoundEffectById(sfxData, spatialHint);
-            }
             console.warn('SFX ID not found in catalog:', sfxData.id);
             return;
         }
@@ -6326,10 +6331,6 @@ class SuiteRhythm {
             if (newState === 'combat' || prev === 'combat') {
                 this.musicChangeThreshold = Math.min(this.musicChangeThreshold, 5000);
                 debugLog('Fast music transition triggered by scene state change');
-                // Force mood-adaptive music pick right now for this new state
-                if (this.musicEnabled) {
-                    setTimeout(() => this.maybeAdaptMusicToMood(), 300);
-                }
             }
             // Immediately refresh procedural ambient layers on any state change
             this.lastProceduralUpdate = 0;
@@ -8263,6 +8264,7 @@ class SuiteRhythm {
     // ===== STINGERS =====
     scheduleNextStinger() {
         if (this.stingerTimer) clearTimeout(this.stingerTimer);
+        if (!this.automaticAtmosphereEnabled) return;
         if (!this.sfxEnabled || !this.predictionEnabled) return;
         if (this._isStrictMatchingMode()) return;
         if (this.currentMode === 'auto' && !this.creatorMode && !this._ambientContextTags?.length) return;
@@ -8372,6 +8374,19 @@ class SuiteRhythm {
         if (effective.includes('2g')) return Math.max(2, base - 2);
         if (effective.includes('3g')) return Math.max(3, base - 1);
         return base;
+    }
+
+    // Byte budget for instant-keyword preloading. Files above maxFileBytes are
+    // ambience beds rather than one shots, so they are never worth warming.
+    getInstantPreloadBudget() {
+        const maxFileBytes = 512 * 1024;
+        const conn = typeof navigator !== 'undefined'
+            ? (navigator.connection || navigator.webkitConnection || navigator.mozConnection)
+            : null;
+        const effective = (conn?.effectiveType || '4g').toLowerCase();
+        if (conn?.saveData || effective.includes('2g')) return { maxFileBytes, byteBudget: 1024 * 1024 };
+        if (effective.includes('3g')) return { maxFileBytes, byteBudget: 2 * 1024 * 1024 };
+        return { maxFileBytes, byteBudget: 4 * 1024 * 1024 };
     }
 
     showLoadingOverlay(message = 'Preparing sounds...') {

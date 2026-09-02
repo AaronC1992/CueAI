@@ -37,6 +37,17 @@ describe('audio-url helpers', () => {
     expect(getR2AudioBase()).toBe('/r2-audio');
   });
 
+  it('prefers a runtime override over the configured base', () => {
+    const previous = globalThis.window;
+    globalThis.window = { __R2_PUBLIC_URL: 'https://cdn.example.com' };
+    try {
+      expect(getR2AudioBase()).toBe('https://cdn.example.com');
+    } finally {
+      if (previous === undefined) delete globalThis.window;
+      else globalThis.window = previous;
+    }
+  });
+
   it('does not duplicate the R2 proxy prefix when joining', () => {
     expect(joinAudioUrlBase('/r2-audio', '/r2-audio/Saved%20sounds/glass-shatter.mp3')).toBe(
       '/r2-audio/Saved%20sounds/glass-shatter.mp3',

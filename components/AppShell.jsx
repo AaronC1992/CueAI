@@ -21,8 +21,8 @@
  */
 
 import { useEffect } from 'react';
+import { getConfiguredAudioBase } from '../lib/modules/audio-url';
 import ErrorBoundary from './ErrorBoundary';
-import BetaTesterWarning from './BetaTesterWarning';
 import { EngineProvider } from '../lib/engine-bridge';
 import Sidebar from './Sidebar';
 import NowPlayingStrip from './NowPlayingStrip';
@@ -113,6 +113,8 @@ export default function AppShell({ user }) {
   useEffect(() => {
     let engineInstance = null;
     let initialized = false;
+    let cancelled = false;
+    let destroyEnhancements = null;
 
     async function initApp() {
       if (initialized) return;
@@ -124,14 +126,14 @@ export default function AppShell({ user }) {
         if (backendUrl) {
           window.SuiteRhythm_BACKEND_URL = backendUrl;
         }
-        // R2 audio proxy path (avoids CORS issues with pub-*.r2.dev)
-        window.__R2_PUBLIC_URL = '/r2-audio';
+        window.__R2_PUBLIC_URL = getConfiguredAudioBase();
       }
 
       try {
         // 1. Initialize enhancement modules (performance, memory, accessibility, offline detection)
         const { initEnhancements } = await import('../lib/integration');
-        initEnhancements();
+        if (cancelled) return;
+        destroyEnhancements = initEnhancements();
       } catch (e) {
         console.warn('[AppShell] Integration module init failed:', e);
       }
@@ -149,8 +151,13 @@ export default function AppShell({ user }) {
         //    out of the server bundle entirely (ssr:false on the dashboard page gives
         //    a second layer of protection, but being explicit here is safer).
         const { default: SuiteRhythm, initializeMenuToggles } = await import('../engine/SuiteRhythm');
-        engineInstance = new SuiteRhythm();
-        window.gameInstance = engineInstance;
+        const instance = new SuiteRhythm();
+        if (cancelled) {
+          instance.destroy?.();
+          return;
+        }
+        engineInstance = instance;
+        window.gameInstance = instance;
 
         // 4. Wire up settings accordion toggles (was a standalone function in game.js)
         initializeMenuToggles();
@@ -170,6 +177,8 @@ export default function AppShell({ user }) {
       }
 
       // 5. Safety net: if the app container ended up hidden for any reason, force it visible
+      if (cancelled) return;
+
       const app = document.getElementById('appContainer');
       if (app && app.classList.contains('hidden')) {
         console.warn('[AppShell] appContainer hidden after init — forcing visible');
@@ -182,8 +191,12 @@ export default function AppShell({ user }) {
 
     // Cleanup on unmount (navigating away from /dashboard)
     return () => {
+      cancelled = true;
       try {
         engineInstance?.destroy?.();
+      } catch (_) {}
+      try {
+        destroyEnhancements?.();
       } catch (_) {}
       window.gameInstance = undefined;
     };
@@ -220,7 +233,7 @@ export default function AppShell({ user }) {
             </button>
             <span className="mobile-brand">SuiteRhythm</span>
             <span id="mobileSectionName" className="mobile-section-name" aria-live="polite"></span>
-            <span id="noKeyBannerMobile" className="mobile-no-key hidden">Beta access</span>
+            <span id="noKeyBannerMobile" className="mobile-no-key hidden">Sound Studio</span>
           </header>
 
           {/* Mobile sidebar overlay */}
@@ -269,7 +282,7 @@ export default function AppShell({ user }) {
         </div>
       </div>
 
-      {/* Body-level modals and overlays */}
+      {/* Body level modals and overlays */}
       <SubscribeModal />
       <TutorialModal />
       <FeedbackModal />
@@ -277,7 +290,6 @@ export default function AppShell({ user }) {
       <StoryContextModal />
       <StoryOverlay />
       <DemoSelectorOverlay />
-      <BetaTesterWarning user={user} />
       </EngineProvider>
     </ErrorBoundary>
   );

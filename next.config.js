@@ -1,4 +1,27 @@
 /** @type {import('next').NextConfig} */
+
+// R2 origin the /r2-audio proxy forwards to. No hardcoded bucket fallback:
+// if this is unset the proxy rewrites are skipped rather than silently
+// pointing at someone else's bucket.
+const r2ProxyOrigin = String(process.env.R2_PUBLIC_URL || process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '')
+  .trim()
+  .replace(/\/+$/, '');
+
+// Optional custom CDN domain the browser hits directly (requires CORS on the bucket).
+const audioCdnOrigin = (() => {
+  const value = String(process.env.NEXT_PUBLIC_R2_CDN_URL || '').trim();
+  if (!/^https?:\/\//i.test(value)) return '';
+  try {
+    return new URL(value).origin;
+  } catch {
+    return '';
+  }
+})();
+
+if (!r2ProxyOrigin && !audioCdnOrigin) {
+  console.warn('[next.config] No R2_PUBLIC_URL or NEXT_PUBLIC_R2_CDN_URL set — catalog audio will not resolve.');
+}
+
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
@@ -27,7 +50,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob: https: data:",
-      "connect-src 'self' https://plausible.io https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.elevenlabs.io https://pixabay.com https://pixabay.com/api/ https://*.r2.cloudflarestorage.com https://*.r2.dev https://irc-ws.chat.twitch.tv wss://irc-ws.chat.twitch.tv wss://irc-ws.chat.twitch.tv:443",
+      "connect-src 'self' https://plausible.io https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.elevenlabs.io https://pixabay.com https://pixabay.com/api/ https://*.r2.cloudflarestorage.com https://*.r2.dev https://irc-ws.chat.twitch.tv wss://irc-ws.chat.twitch.tv wss://irc-ws.chat.twitch.tv:443"
+        + (audioCdnOrigin ? ` ${audioCdnOrigin}` : ''),
       "font-src 'self'",
       "worker-src 'self' blob:",
       "frame-src 'self'",
@@ -64,21 +88,22 @@ const nextConfig = {
     return config;
   },
 
-  // Proxy R2 audio through Next.js to avoid CORS issues with pub-*.r2.dev
+  // Proxy R2 audio through Next.js to avoid CORS issues with pub-*.r2.dev.
+  // Prefer NEXT_PUBLIC_R2_CDN_URL (custom domain + CORS) so audio bytes skip this hop.
   async rewrites() {
-    const r2Base = process.env.R2_PUBLIC_URL || 'https://pub-b8fe695f5b4b490ebe0dc151042193e2.r2.dev';
+    if (!r2ProxyOrigin) return [];
     return [
       {
         source: '/r2-audio/:path*',
-        destination: `${r2Base}/:path*`,
+        destination: `${r2ProxyOrigin}/:path*`,
       },
       {
         source: '/Saved%20sounds/:path*',
-        destination: `${r2Base}/Saved%20sounds/:path*`,
+        destination: `${r2ProxyOrigin}/Saved%20sounds/:path*`,
       },
       {
         source: '/Saved sounds/:path*',
-        destination: `${r2Base}/Saved%20sounds/:path*`,
+        destination: `${r2ProxyOrigin}/Saved%20sounds/:path*`,
       },
     ];
   },

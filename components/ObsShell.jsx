@@ -9,11 +9,14 @@
  */
 
 import { useEffect } from 'react';
+import { getConfiguredAudioBase } from '../lib/modules/audio-url';
 
 export default function ObsShell() {
   useEffect(() => {
     let engineInstance = null;
     let initialized = false;
+    let cancelled = false;
+    let destroyEnhancements = null;
 
     async function initObs() {
       if (initialized) return;
@@ -23,12 +26,13 @@ export default function ObsShell() {
         window.__OBS_MODE = true;
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
         if (backendUrl) window.SuiteRhythm_BACKEND_URL = backendUrl;
-        window.__R2_PUBLIC_URL = '/r2-audio';
+        window.__R2_PUBLIC_URL = getConfiguredAudioBase();
       }
 
       try {
         const { initEnhancements } = await import('../lib/integration');
-        initEnhancements();
+        if (cancelled) return;
+        destroyEnhancements = initEnhancements();
       } catch (_) {}
 
       try {
@@ -37,9 +41,14 @@ export default function ObsShell() {
 
       try {
         const { default: SuiteRhythm, initializeMenuToggles } = await import('../engine/SuiteRhythm');
-        engineInstance = new SuiteRhythm();
+        const instance = new SuiteRhythm();
+        if (cancelled) {
+          instance.destroy?.();
+          return;
+        }
+        engineInstance = instance;
         initializeMenuToggles();
-        window.gameInstance = engineInstance;
+        window.gameInstance = instance;
       } catch (e) {
         console.error('[ObsShell] Engine failed:', e);
       }
@@ -48,7 +57,9 @@ export default function ObsShell() {
     initObs();
 
     return () => {
+      cancelled = true;
       try { engineInstance?.destroy?.(); } catch (_) {}
+      try { destroyEnhancements?.(); } catch (_) {}
       window.gameInstance = undefined;
       window.__OBS_MODE = false;
     };
