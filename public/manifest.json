@@ -1,8 +1,8 @@
 {
   "name": "SuiteRhythm - Reactive Sound Design",
   "short_name": "SuiteRhythm",
-  "description": "Reactive ambient sound designer that listens to your voice and plays music, ambience, and SFX in real time.",
-  "start_url": "/dashboard",
+  "description": "Reactive sound studio that listens to voice, story cues, and creator input to play music, ambience, and SFX in real time.",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#8a2be2",

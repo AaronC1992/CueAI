@@ -2,177 +2,231 @@
 
 # SuiteRhythm
 
-### Reactive Sound Studio for Games, Stories, and Broadcasts
+### Reactive Sound Studio for Games, Stories, Streams, and Voice Driven Scenes
 
-An interactive sound application that listens to live narration and layers music, ambience, and sound effects in real time.
-
-<br>
-
-[![Play Now](https://img.shields.io/badge/Play%20Now-SuiteRhythm-8a2be2?style=for-the-badge&logoColor=white)](https://suiterhythm.vercel.app)
+SuiteRhythm listens to narration, live speech, and creator cues, then layers music, ambience, and sound effects in real time.
 
 <br>
+
+[![Open SuiteRhythm](https://img.shields.io/badge/Open-SuiteRhythm-8a2be2?style=for-the-badge&logoColor=white)](https://suiterhythm.vercel.app)
+[![CI](https://github.com/CommonQuestStudios/SuiteRhythm/actions/workflows/ci.yml/badge.svg)](https://github.com/CommonQuestStudios/SuiteRhythm/actions/workflows/ci.yml)
 
 </div>
 
----
+## Live App
 
-## What It Does
+* App: [suiterhythm.vercel.app](https://suiterhythm.vercel.app)
+* Repository: [CommonQuestStudios/SuiteRhythm](https://github.com/CommonQuestStudios/SuiteRhythm)
 
-SuiteRhythm provides live audio tools for tabletop games, narrated stories, streams, podcasts, and vocal performance.
+The app currently opens directly into the studio. The old public login and payment gate are disabled.
 
-## Core Experience
+## What SuiteRhythm Does
 
-Choose a studio mode, provide narration or microphone input, and let SuiteRhythm react with sounds that match the current action, setting, and mood.
+SuiteRhythm gives storytellers, game masters, streamers, podcasters, and creators a live audio workstation that reacts while they perform.
 
-- A player says *"I kick down the tavern door"*, tavern ambience fades in
-- A narrator describes a thunderstorm, rain and thunder start rolling
-- Combat breaks out, the music shifts to battle drums
+Example moments:
 
-The creator stays focused on the moment while the audio adapts around them.
+* A player says, "I kick down the tavern door", and the sound board can fire a door impact or tavern cue.
+* A narrator describes a thunderstorm, and storm sounds can layer under the scene.
+* Combat begins, and music can shift into a more intense cue.
+* A creator records a custom voice line, applies a voice effect, saves it as a sound, and uses it on the board.
 
-## How It Works
+## Current Features
 
-SuiteRhythm uses **speech recognition** to capture live conversation, sends it through an **AI analysis layer** (GPT 4.1), and maps the output to a curated library of **700+ sound effects, ambience beds, and music tracks** in real time.
+| Feature | Current Status |
+| --- | --- |
+| Auto Detect | Listens to live narration and maps words, mood, and scene context to sound cues |
+| Table Top RPG | Campaign focused controls for encounters, ambience, effects, and manual board playback |
+| Story Teller | Narrative playback support with reactive story cues |
+| Creator Studio | Live mode, studio media tools, transcript support, cue map preview, and render export |
+| Sing Backing | Vocal energy and tempo aware accompaniment tools |
+| Sound Library | 999 catalog entries with search, type filters, tag filters, discovery lanes, and review state |
+| Control Board | Manual sound board buttons for music, ambience, SFX, and custom recordings |
+| Voice Recorder | Local custom audio recording with gain, gate, monitor mode, and voice effects |
+| Sound Audit | `/admin/sounds` catalog audit page plus in app audit metrics |
+| OBS View | Browser source friendly route at `/obs` |
 
+## Sound Library
+
+The catalog currently contains:
+
+| Type | Count |
+| --- | ---: |
+| Music | 278 |
+| SFX | 664 |
+| Ambience | 57 |
+| Total | 999 |
+
+Audio metadata lives in Supabase and the static fallback catalog at [public/saved-sounds.json](public/saved-sounds.json). Audio files live in Cloudflare R2 under the `sounds/` prefix. Legacy `Saved sounds/` routes still resolve as a compatibility bridge, but new catalog entries and scripts use `sounds/`.
+
+Useful checks:
+
+```powershell
+npm run catalog:check
+npm run keywords:check
+npm run catalog:health
+npm run catalog:health:r2
+node scripts/measure-audio-coverage.mjs
 ```
-Voice Input -> Speech Recognition -> AI Context Analysis -> Sound Matching -> Playback
+
+## Voice Recorder
+
+Open the recorder from:
+
+```text
+Sound Library -> Custom Sounds -> Record Sound
 ```
 
-### Key Capabilities
+Recorder options:
 
-| Feature | Description |
-|---|---|
-| **Auto Detect Mode** | Listens to live speech and triggers sounds automatically via AI |
-| **Story Mode** | Written narrative scenes with timed audio cues |
-| **Sound Library** | 700+ categorized sounds for ambience, combat, weather, creatures, and music |
-| **Session Recording** | Browser mixed session export for review, editing, and show notes |
-| **Control Board** | Manual triggers for users who want direct control alongside auto detect |
-| **Smart Layering** | Multiple sounds play simultaneously with intelligent volume balancing |
-| **Instant Response** | Fast response from spoken word to audio playback |
+* Save as SFX, music, or ambience
+* Clean, warm, bright, radio, monster, and whisper effects
+* Input gain control
+* Noise gate control
+* Monitor button for hearing the processed signal
+* Tags and notes for later review
 
-### Studio Modes
-
-- **Auto Detect** listens to narration and reacts with contextual audio
-- **Table Top RPG** brings campaign sessions, encounters, and locations to life
-- **Story Teller** provides genre focused support for narrated stories
-- **Creator Studio** offers live tools and timeline based audio scoring
-- **Sing Backing** reacts to tempo and vocal energy with accompaniment
+Custom recordings are stored locally in the browser. They appear in Custom Sounds, can be previewed, can be searched by the local audio engine, and can be assigned to Control Board buttons. Clearing browser storage removes these local recordings.
 
 ## Tech Stack
 
 | Layer | Technology |
-|---|---|
-| **Frontend** | Next.js 15, React 19 |
-| **Audio Engine** | Howler.js — custom engine with layering, fading, preloading |
-| **AI Analysis** | OpenAI GPT-4.1 (server-side) |
-| **Speech Recognition** | Web Speech API (native browser) |
-| **Database** | Supabase (PostgreSQL) |
-| **Media Storage** | Cloudflare R2 (700+ audio files via CDN proxy) |
-| **Hosting** | Vercel (serverless, edge-optimized) |
+| --- | --- |
+| App | Next.js 15, React 19 |
+| Audio | Howler.js plus a custom Web Audio engine |
+| AI Analysis | OpenAI GPT 4.1 through server routes |
+| Speech | Web Speech API |
+| Database | Supabase PostgreSQL |
+| Sound Storage | Cloudflare R2 |
+| Hosting | Vercel |
+| Tests | Vitest, ESLint, Next build checks |
 
-## Public Access
+## Local Development
 
-The app is open for direct use without a sign in flow. Production deployments must configure `API_AUTH_SECRET` to protect internal API tokens, and should add a managed quota system before enabling cost bearing AI features for unrestricted public traffic.
+Install dependencies:
 
-## Architecture
-
-```
-┌──────────────────────────────────────────────────┐
-│                   Browser Client                  │
-│                                                    │
-│  ┌──────────┐  ┌──────────┐  ┌────────────────┐  │
-│  │  Speech   │→│    AI     │→│  Sound Engine   │  │
-│  │  Input    │  │ Director  │  │  (Howler.js)   │  │
-│  └──────────┘  └──────────┘  └────────────────┘  │
-│                      ↕                             │
-└──────────────────────┼─────────────────────────────┘
-                       │ API
-          ┌────────────┼────────────┐
-          │            │            │
-    ┌─────▼─────┐ ┌───▼────┐ ┌───▼────┐
-    │  OpenAI   │ │Supabase│ │  R2    │
-    │  GPT-4.1  │ │  (DB)  │ │ (CDN)  │
-    └───────────┘ └────────┘ └────────┘
+```powershell
+npm install
 ```
 
-## Traction & Status
+Create `.env.local` from [.env.example](.env.example), then fill in the services you need. Local catalog and UI work can run without provider keys, but AI generation, transcription, TTS, R2 uploads, and Supabase writes need their matching secrets.
 
-- **Fully functional product** — live and playable today
-- **700+ curated sound assets** hosted on CDN
-- **AI pipeline operational** — real-time analysis with sub-second response
-- **Zero-config user experience** — open the app and press play
+Run the app:
 
-## Business Model (Planned)
+```powershell
+npm run dev
+```
 
-| Tier | Price | Features |
-|---|---|---|
-| **Beta** | $0 | Core auto-detect, full current library, scene presets |
-| **Pro** | $15/mo planned | Story mode, custom sounds, priority AI, OBS overlay |
-| **Table License** | Contact | Multi-device sync, shared sessions, commercial use |
+Run validation:
 
-## Roadmap
+```powershell
+npm run lint
+npm test
+npm run build
+```
 
-- **Multi-device sync** — shared audio across a full table of players
-- **Custom sound uploads** — bring your own audio library
-- **VTT integrations** — Foundry VTT, Roll20, Owlbear Rodeo
-- **Mobile companion app** — control board from your phone
-- **Community marketplace** — user-created sound packs and story scenes
+## Environment Variables
 
-## External Controllers (`window.SuiteRhythm`)
+Common production variables:
 
-SuiteRhythm exposes a small, stable command surface for external controllers — Stream Deck plugins, OBS browser sources, bookmarklets, webhooks, and anonymous Twitch chat. Every channel funnels into the same rate-limited handler, so your integration never depends on engine internals.
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser safe Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server side Supabase admin operations |
+| `OPENAI_API_KEY` | AI scene and transcript analysis |
+| `API_AUTH_SECRET` | Signs internal API tokens |
+| `R2_ACCOUNT_ID` | Cloudflare account id |
+| `R2_ACCESS_KEY_ID` | R2 write and read credential id |
+| `R2_SECRET_ACCESS_KEY` | R2 write and read credential secret |
+| `R2_BUCKET_NAME` | R2 bucket, currently `cueai-media` |
+| `R2_PUBLIC_URL` | Public R2 origin used by the `/r2-audio` proxy |
+| `NEXT_PUBLIC_R2_CDN_URL` | Optional custom Cloudflare CDN domain |
+| `ELEVENLABS_API_KEY` | ElevenLabs key for sound generation and TTS |
+| `ELEVENLABS_VOICE_ID` | Voice used by the TTS route |
+| `PIXABAY_API_KEY` | Optional Pixabay audio search proxy |
 
-### Command channels
+## Audio Storage Notes
+
+Cloudflare R2 is the source of truth for audio files. The project recently migrated from:
+
+```text
+Saved sounds/
+```
+
+to:
+
+```text
+sounds/
+```
+
+The migration copied all referenced files, updated the local catalog, updated trigger mappings, and updated Supabase `sounds.file` rows.
+
+Next hosting improvement: bind a custom domain such as `cdn.suiterhythm.com` to the R2 bucket, set CORS for `https://suiterhythm.vercel.app`, then set:
+
+```text
+NEXT_PUBLIC_R2_CDN_URL=https://cdn.suiterhythm.com
+R2_PUBLIC_URL=https://cdn.suiterhythm.com
+```
+
+Until then, audio continues through the `/r2-audio` proxy fallback.
+
+## External Controller API
+
+SuiteRhythm exposes a browser command surface for Stream Deck style controls, OBS overlays, bookmarklets, and custom browser integrations.
 
 ```js
-// 1. Direct JS (same-page integrations / devtools)
-await window.SuiteRhythm.trigger('thunder');                 // by name or id
+await window.SuiteRhythm.trigger('thunder');
 await window.SuiteRhythm.trigger('rolling thunder', { volume: 0.8 });
 await window.SuiteRhythm.stopAll();
 await window.SuiteRhythm.scene('Combat');
-window.SuiteRhythm.status();                                 // { mode, mood, listening, music, activeSounds, twitch }
+window.SuiteRhythm.status();
+```
 
-// 2. CustomEvent (for modules that load before window.SuiteRhythm is attached)
+Custom events are also supported:
+
+```js
 window.dispatchEvent(new CustomEvent('suiterhythm:command', {
-    detail: { type: 'trigger', query: 'thunder' }
+  detail: { type: 'trigger', query: 'thunder' }
 }));
+```
 
-// 3. postMessage (OBS browser sources / iframes — origin-gated)
+OBS or iframe integrations can use `postMessage` with origin allowlisting:
+
+```js
 window.postMessage({ suiterhythm: 'trigger', query: 'thunder' }, '*');
 ```
 
-All `trigger` calls resolve to `{ ok, name, soundId, url, source }` so you can later stop a specific instance with the engine API.
+## Useful Scripts
 
-### Twitch chat bridge (no OAuth)
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Start local development |
+| `npm test` | Run Vitest tests |
+| `npm run lint` | Run ESLint |
+| `npm run build` | Build the Next app |
+| `npm run catalog:check` | Check deterministic catalog tags |
+| `npm run keywords:check` | Check deterministic keyword enrichment |
+| `npm run catalog:health` | Check local catalog shape, duplicates, and old prefixes |
+| `npm run catalog:health:r2` | Check every catalog object exists in R2 |
+| `npm run sounds:plan` | Dry run the curated ElevenLabs batch |
+| `npm run sounds:generate` | Generate the curated ElevenLabs batch |
+| `npm run sounds:migrate-prefix` | Run the R2 and catalog prefix migration |
 
-```js
-window.SuiteRhythm.twitch.connect('aaronc1992');
-// Viewers can now type in chat:
-//   !sfx thunder       → plays a thunder SFX
-//   !stop              → stops all audio
-//   !scene Combat      → applies the Combat scene preset
-window.SuiteRhythm.twitch.disconnect();
-```
+## Status
 
-SuiteRhythm joins as an anonymous `justinfan*` user over Twitch's WebSocket IRC gateway — **read-only, no tokens, no chat writes**. Unknown bang-commands are ignored. Commands are rate-limited (500ms per `type:query` pair by default) so a chat flood can't thrash the audio graph.
+SuiteRhythm is a working public beta. The main app, R2 backed sound library, static catalog fallback, trigger preloading, voice recorder, sound board, and catalog audit tools are operational.
 
-### Rate limiting & origin allowlist
+Known follow ups:
 
-- Default rate limit: 500ms per command key.
-- `postMessage` commands from cross-origin pages are rejected unless the origin is in `allowedOrigins` (set when constructing the bridge). Same-origin messages always pass.
-- Unknown command types return `{ ok: false, error: 'unknown command' }` rather than throwing, so older clients don't crash when a newer bridge adds commands.
+* Add a custom R2 CDN domain.
+* Move custom recordings from browser local storage to user owned R2 objects.
+* Add an in app review workflow for approving generated audio before publishing.
+* Finish the remaining ElevenLabs batch when credits reset.
 
-## Get in Touch
+## Contact
 
-Interested in SuiteRhythm? Reach out:
+Built by Aaron C. and Common Quest Studios.
 
-- **Live Demo:** [suiterhythm.vercel.app](https://suiterhythm.vercel.app)
-- **GitHub:** [AaronC1992/SuiteRhythm](https://github.com/AaronC1992/SuiteRhythm)
-
----
-
-<div align="center">
-
-Built by **Aaron C.** — solo developer, game master, and audio nerd.
-
-</div>
+* Live app: [suiterhythm.vercel.app](https://suiterhythm.vercel.app)
+* GitHub: [CommonQuestStudios/SuiteRhythm](https://github.com/CommonQuestStudios/SuiteRhythm)

@@ -2,6 +2,14 @@
   "name": "SuiteRhythm",
   "version": "3.6.4",
   "private": true,
+  "homepage": "https://suiterhythm.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CommonQuestStudios/SuiteRhythm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CommonQuestStudios/SuiteRhythm/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "next dev",
