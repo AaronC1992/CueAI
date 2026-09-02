@@ -32,6 +32,8 @@ function AiSoundStatusSection() {
     ['ElevenLabs', status.connected ? 'Connected' : 'Unavailable (no API key)'],
     ['AI Sound Generation', status.enabled ? 'Enabled' : 'Disabled'],
     ['Credit Status', status.credit.label],
+    ['Credit Check Detail', status.credit.reason || 'ok'],
+    ['Remaining Credits', status.credit.remainingCredits ?? 'unknown'],
     ['Last Credit Check', fmtTime(status.credit.checkedAt)],
     ['Next Scheduled Check', fmtTime(status.circuitBreaker.nextRecheckAt)],
     ['Circuit Breaker', status.circuitBreaker.open ? 'Open' : 'Closed'],
