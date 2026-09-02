@@ -1,10 +1,13 @@
 'use client';
 
+import SectionBackButton from '../SectionBackButton';
+
 /** Auto Detect section — microphone listening + live transcript + activity feed. */
 export default function AutoDetectSection() {
   return (
     <div id="dndAutoDetect" className="app-section hidden">
       <div className="section-header">
+        <SectionBackButton />
         <h2>Auto Detect</h2>
       </div>
       <div className="section-body">

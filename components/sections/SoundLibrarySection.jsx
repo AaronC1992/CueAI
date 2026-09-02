@@ -1,11 +1,14 @@
 'use client';
 
+import SectionBackButton from '../SectionBackButton';
+
 /** Sound Library section — browse, preview, disable sounds; record custom sounds. */
 export default function SoundLibrarySection() {
   return (
     <>
       <div id="soundLibrarySection" className="app-section hidden">
         <div className="section-header">
+          <SectionBackButton />
           <h2>Sound Library</h2>
         </div>
         <div className="section-body">

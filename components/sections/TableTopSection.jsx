@@ -1,10 +1,13 @@
 'use client';
 
+import SectionBackButton from '../SectionBackButton';
+
 /** Table Top Games section — dedicated screen for D&D / tabletop RPG mode. */
 export default function TableTopSection() {
   return (
     <div id="tableTopSection" className="app-section hidden">
       <div className="section-header">
+        <SectionBackButton />
         <h2>Table Top Games</h2>
       </div>
       <div className="section-body">

@@ -1,10 +1,13 @@
 'use client';
 
+import SectionBackButton from '../SectionBackButton';
+
 /** Story Teller section — dedicated screen for story-driven modes (Horror, Bedtime, Fairytale, Christmas, Halloween). */
 export default function StoryTellerSection() {
   return (
     <div id="storyTellerSection" className="app-section hidden">
       <div className="section-header">
+        <SectionBackButton />
         <h2>Story Teller</h2>
       </div>
       <div className="section-body">

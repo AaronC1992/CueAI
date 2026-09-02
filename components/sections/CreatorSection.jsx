@@ -4,6 +4,7 @@ import { useState } from 'react';
 import LiveMode from '../creator/LiveMode';
 import ModeSwitcher from '../creator/ModeSwitcher';
 import StudioMode from '../creator/StudioMode';
+import SectionBackButton from '../SectionBackButton';
 
 /** Creator section — dedicated screen for Creator mode listening. */
 export default function CreatorSection() {
@@ -12,6 +13,7 @@ export default function CreatorSection() {
   return (
     <div id="creatorSection" className="app-section hidden">
       <div className="section-header">
+        <SectionBackButton />
         <h2>Creator</h2>
       </div>
       <div className="section-body">

@@ -1,10 +1,13 @@
 'use client';
 
+import SectionBackButton from '../SectionBackButton';
+
 /** Story Editor section — write, save, and play stories with real-time sound cues. */
 export default function StoryEditorSection() {
   return (
     <div id="dndCreateCampaign" className="app-section hidden">
       <div className="section-header">
+        <SectionBackButton />
         <h2 id="createSectionTitle">Story Editor</h2>
       </div>
       <div className="section-body">
@@ -54,8 +57,17 @@ export default function StoryEditorSection() {
 
             <div className="wyo-actions">
               <button id="scPlayBtn" className="btn-start">Play Story</button>
+              <p className="info-text" style={{ marginTop: 4 }}>
+                Opens the story reader and listens on your mic, so sounds fire as you read aloud.
+              </p>
+              <button id="scAutoReadStoryBtn" className="btn-primary" style={{ marginTop: 8 }}>
+                Auto Read Story
+              </button>
+              <p className="info-text" style={{ marginTop: 4 }}>
+                Narrates the story for you with the words highlighted and your sound cues firing in time. No mic needed.
+              </p>
               <button id="scReadAloudBtn" className="btn-read-aloud" style={{ marginTop: 8 }}>
-                Read Aloud (Narrator Voice)
+                Read Aloud (AI Voice)
               </button>
               <button id="scSoundscapeBtn" className="btn-secondary" style={{ marginTop: 8 }}>
                 Generate Soundscape

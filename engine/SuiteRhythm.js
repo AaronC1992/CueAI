@@ -518,7 +518,7 @@ class SuiteRhythm {
         this.populateStoriesSection();
 
         // Show dashboard on startup so users don't see a blank screen
-        this.navigateToSection('dashboardPanel');
+        this.navigateToSection('dashboardPanel', { replaceHistory: true });
         
 
         
@@ -716,6 +716,11 @@ class SuiteRhythm {
         this.storyNorm = [];
         const overlay = document.getElementById('storyOverlay');
         if (overlay) overlay.classList.add('hidden');
+        // Playback controls belong to the overlay, so tear them down on every close.
+        this.stopAutoRead();
+        const controlsPanel = document.getElementById('demoControls');
+        if (controlsPanel) controlsPanel.classList.add('hidden');
+        if (this.isListening) this.stopListening();
         // Always clear per-story SFX timers on close (not just in demo mode)
         if (this._activeStorySfx) {
             for (const entry of this._activeStorySfx.values()) {
@@ -725,15 +730,11 @@ class SuiteRhythm {
         }
         // If demo was running, clean up demo state
         if (this.demoRunning) {
-            this.stopAutoRead();
             this.demoRunning = false;
             this.demoCueCache = {};
             this.demoTimeouts.forEach(t => clearTimeout(t));
             this.demoTimeouts = [];
             this.stopAllAudio();
-            const controlsPanel = document.getElementById('demoControls');
-            if (controlsPanel) controlsPanel.classList.add('hidden');
-            if (this.isListening) this.stopListening();
             const btn = document.getElementById('demoBtn');
             if (btn) { btn.textContent = 'Demo Mode'; btn.disabled = false; btn.classList.remove('demo-active'); }
         }
@@ -2576,6 +2577,16 @@ class SuiteRhythm {
         // Per-cue-word cooldown: each keyword only triggers once (reset on new story)
         if (!this._storyCueFired) this._storyCueFired = new Set();
         if (this._storyCueFired.has(word)) return;
+
+        // Story Editor cues win over the built in map, so a writer's own mapping fires
+        // during auto read as well as live mic detection.
+        const customCue = this.instantKeywords?.[word];
+        if (customCue?.custom) {
+            this._storyCueFired.add(word);
+            const mul = this._getPacingVolumeMultiplier() * this._getIntensityCurveMultiplier();
+            this.playInstantSound(customCue, word, mul);
+            return;
+        }
 
         const cueMap = this.getStoryCueMap();
         if (!(word in cueMap)) return;
@@ -8723,6 +8734,13 @@ class SuiteRhythm {
         const demoCta = document.querySelector('#dashboardPanel .hub-hero-cta');
         if (demoCta) demoCta.addEventListener('click', () => this.startDemo());
 
+        // Wire in-section back buttons
+        document.querySelectorAll('[data-nav-back]').forEach(btn => {
+            btn.addEventListener('click', () => this.navigateToHub());
+        });
+
+        this.setupHistoryNavigation();
+
         // Wire mobile sidebar toggle
         const toggleBtn = document.getElementById('sidebarToggle');
         const sidebar = document.getElementById('platformSidebar');
@@ -8766,7 +8784,30 @@ class SuiteRhythm {
         }
     }
 
-    navigateToSection(sectionId) {
+    /**
+     * Mirror section navigation into the browser history so hardware/browser Back
+     * exits a screen instead of exiting the app.
+     */
+    setupHistoryNavigation() {
+        if (this._historyNavBound || typeof window === 'undefined') return;
+        this._historyNavBound = true;
+        this._onSectionPopState = (e) => {
+            const overlay = document.getElementById('storyOverlay');
+            if (overlay && !overlay.classList.contains('hidden')) {
+                this.hideStoryOverlay();
+                // Swallow this Back press so the reader stays on the section behind the overlay.
+                try {
+                    history.pushState({ srSection: this._currentSectionId || 'dashboardPanel' }, '', window.location.href);
+                } catch (_) { /* history unavailable */ }
+                return;
+            }
+            const target = e.state?.srSection || 'dashboardPanel';
+            this.navigateToSection(target, { fromHistory: true });
+        };
+        window.addEventListener('popstate', this._onSectionPopState);
+    }
+
+    navigateToSection(sectionId, options = {}) {
         const target = document.getElementById(sectionId);
 
         // Hide all sections, show target
@@ -8813,11 +8854,27 @@ class SuiteRhythm {
         const main = document.getElementById('platformMain');
         if (main) main.scrollTop = 0;
         else window.scrollTo(0, 0);
+
+        const previousSectionId = this._currentSectionId;
+        this._currentSectionId = sectionId;
+
+        if (typeof window !== 'undefined' && !options.fromHistory) {
+            try {
+                const state = { srSection: sectionId };
+                if (options.replaceHistory || previousSectionId === sectionId) {
+                    history.replaceState(state, '', window.location.href);
+                } else {
+                    history.pushState(state, '', window.location.href);
+                }
+            } catch (_) { /* history unavailable */ }
+        }
     }
 
     navigateToHub() {
         if (this.isListening) this.stopListening();
         this.stopAllAudio();
+        const overlay = document.getElementById('storyOverlay');
+        if (overlay && !overlay.classList.contains('hidden')) this.hideStoryOverlay();
         this.navigateToSection('dashboardPanel');
     }
 
@@ -9309,8 +9366,12 @@ class SuiteRhythm {
             const list = document.getElementById('scSavedList');
             if (list) list.classList.add('hidden');
         });
-        if (playBtn) playBtn.addEventListener('click', () => this.scPlay());
+        if (playBtn) playBtn.addEventListener('click', () => this.scPlay('listen'));
         if (addCueBtn) addCueBtn.addEventListener('click', () => this.scAddCueRow());
+
+        // Auto Read Story — narrate the story in the reader with cues + highlighting
+        const autoReadStoryBtn = document.getElementById('scAutoReadStoryBtn');
+        if (autoReadStoryBtn) autoReadStoryBtn.addEventListener('click', () => this.scPlay('autoread'));
 
         // Read Aloud (standalone TTS)
         const readAloudBtn = document.getElementById('scReadAloudBtn');
@@ -9469,7 +9530,7 @@ class SuiteRhythm {
         listEl.classList.remove('hidden');
     }
 
-    scPlay() {
+    scPlay(startMode = 'listen') {
         const title = (document.getElementById('scTitleInput')?.value || '').trim() || 'My Story';
         const text = (document.getElementById('scTextArea')?.value || '').trim();
         if (!text) { alert('Please write your story first.'); return; }
@@ -9480,7 +9541,7 @@ class SuiteRhythm {
         const id = 'sc_' + Date.now();
         if (!this.stories) this.stories = {};
         this.stories[id] = { id, title, text, demo: false, theme: '', description: '' };
-        this._scPlayAsync(id, 'auto').catch(e => console.warn('SC play failed:', e.message));
+        this._scPlayAsync(id, 'auto', startMode).catch(e => console.warn('SC play failed:', e.message));
     }
 
     // ===== SCRIPT-TO-SOUNDSCAPE (BATCH MODE) =====
@@ -9569,7 +9630,7 @@ class SuiteRhythm {
         }
     }
 
-    async _scPlayAsync(id, mode) {
+    async _scPlayAsync(id, mode, startMode = 'listen') {
         let needWait = false;
         let waitToken = this.preloadVersion;
         if (this.currentMode !== mode) {
@@ -9584,7 +9645,8 @@ class SuiteRhythm {
             await this.waitForPreloadComplete(waitToken, 15000);
         }
         this.showStoryOverlay(id);
-        setTimeout(() => this.startListeningWithContext().catch(e => debugLog('Listen start failed:', e.message)), 300);
+        // Give the writer both paths: mic driven auto detect, or TTS auto read.
+        this.showStoryPlaybackControls({ autoStart: startMode });
     }
 
     // ===== SC SOUND CUE MANAGEMENT =====
@@ -9622,7 +9684,8 @@ class SuiteRhythm {
                 query: cue.keyword,
                 file: cue.soundFile,
                 volume: 0.7,
-                category: cue.type === 'music' ? 'music' : 'sfx'
+                category: cue.type === 'music' ? 'music' : 'sfx',
+                custom: true
             };
         }
         debugLog(`[SC] Applied ${cues.length} custom sound cues`);
@@ -10647,6 +10710,18 @@ class SuiteRhythm {
         this.showStoryOverlay(storyId);
 
         // Show demo controls panel
+        this.showStoryPlaybackControls();
+
+        if (btn) { btn.textContent = 'Stop Demo'; btn.disabled = false; btn.classList.add('demo-active'); }
+        this.logActivity('Demo ready - press Start Listening when ready', 'info');
+    }
+
+    /**
+     * Shows and wires the Start Listening / Auto Read / Stop controls inside the story
+     * overlay. Used by demo mode and by the Story Editor's Play Story flow so both get
+     * mic driven auto detect and TTS auto read.
+     */
+    showStoryPlaybackControls({ autoStart = null } = {}) {
         const controlsPanel = document.getElementById('demoControls');
         const demoStartBtn = document.getElementById('demoStartListening');
         const demoAutoBtn = document.getElementById('demoAutoReadBtn');
@@ -10656,6 +10731,7 @@ class SuiteRhythm {
         if (demoStartBtn) demoStartBtn.classList.remove('hidden');
         if (demoAutoBtn) demoAutoBtn.classList.remove('hidden');
         if (demoStopBtn) demoStopBtn.classList.add('hidden');
+        if (demoStatus) demoStatus.textContent = 'Read the story aloud, or press Auto Read to hear it.';
 
         if (demoStartBtn) {
             demoStartBtn.onclick = async () => {
@@ -10663,6 +10739,8 @@ class SuiteRhythm {
                 if (this.audioContext && this.audioContext.state === 'suspended') {
                     await this.audioContext.resume();
                 }
+                // Auto read and the mic cannot run at the same time.
+                this.stopAutoRead();
                 // Re-enable story tracking (may have been paused by Stop)
                 if (this.currentStory) this.storyActive = true;
                 if (demoStatus) demoStatus.textContent = 'Requesting microphone...';
@@ -10701,7 +10779,7 @@ class SuiteRhythm {
                 if (this.currentStory) this.storyActive = true;
                 // Hide Start/Auto buttons, show Stop
                 demoAutoBtn.classList.add('hidden');
-                demoStartBtn.classList.add('hidden');
+                if (demoStartBtn) demoStartBtn.classList.add('hidden');
                 if (demoStopBtn) demoStopBtn.classList.remove('hidden');
                 if (demoStatus) demoStatus.textContent = 'Auto reading...';
                 this.logActivity('Auto read started', 'info');
@@ -10728,12 +10806,15 @@ class SuiteRhythm {
                 if (demoStartBtn) demoStartBtn.classList.remove('hidden');
                 if (demoAutoBtn) demoAutoBtn.classList.remove('hidden');
                 if (demoStatus) demoStatus.textContent = 'Stopped. Press Start Listening or Auto Read to resume.';
-                this.logActivity('Demo stopped', 'info');
+                this.logActivity('Story playback stopped', 'info');
             };
         }
 
-        if (btn) { btn.textContent = 'Stop Demo'; btn.disabled = false; btn.classList.add('demo-active'); }
-        this.logActivity('Demo ready - press Start Listening when ready', 'info');
+        if (autoStart === 'listen' && demoStartBtn) {
+            setTimeout(() => demoStartBtn.click(), 300);
+        } else if (autoStart === 'autoread' && demoAutoBtn) {
+            setTimeout(() => demoAutoBtn.click(), 300);
+        }
     }
 
     async preloadDemoSounds() {
@@ -10951,6 +11032,12 @@ class SuiteRhythm {
             if (this.proceduralTimer) clearInterval(this.proceduralTimer);
             if (this._browserTTSSyncTimer) clearInterval(this._browserTTSSyncTimer);
             if (this._pauseResumeInterval) clearInterval(this._pauseResumeInterval);
+
+            if (this._onSectionPopState) {
+                window.removeEventListener('popstate', this._onSectionPopState);
+                this._onSectionPopState = null;
+                this._historyNavBound = false;
+            }
 
             // Cancel animation frames / shared ticker handles
             try {

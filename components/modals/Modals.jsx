@@ -115,7 +115,12 @@ export function StoryOverlay() {
   return (
     <div id="storyOverlay" className="story-overlay hidden">
       <div className="story-header">
-        <button id="closeStory" className="close-btn" aria-label="Close story">&times;</button>
+        <button id="closeStory" className="story-back-btn" aria-label="Back to editor">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          <span>Back</span>
+        </button>
         <h2 id="storyTitle" className="story-title" />
       </div>
       <div id="storyContent" className="story-content" tabIndex={0} />

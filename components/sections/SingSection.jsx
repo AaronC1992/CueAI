@@ -1,10 +1,13 @@
 'use client';
 
+import SectionBackButton from '../SectionBackButton';
+
 /** Sing section — dedicated screen for Sing mode with backing music. */
 export default function SingSection() {
   return (
     <div id="singSection" className="app-section hidden">
       <div className="section-header">
+        <SectionBackButton />
         <h2>Sing</h2>
       </div>
       <div className="section-body">

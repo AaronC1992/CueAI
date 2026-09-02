@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { CONFIG } from '../../lib/config.js';
+import SectionBackButton from '../SectionBackButton';
 
 const LOOK_PRESETS = [
   {
@@ -112,6 +113,7 @@ export default function SettingsSection() {
   return (
     <div id="settingsSection" className="app-section hidden">
       <div className="section-header">
+        <SectionBackButton />
         <h2>Settings</h2>
       </div>
       <div className="section-body">

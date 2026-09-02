@@ -1,10 +1,13 @@
 'use client';
 
+import SectionBackButton from '../SectionBackButton';
+
 /** Control Board section — drag-and-drop soundboard with scene tabs. */
 export default function ControlBoardSection() {
   return (
     <div id="dndControlBoard" className="app-section hidden">
       <div className="section-header">
+        <SectionBackButton />
         <h2>Control Board</h2>
         <div className="cb-header-actions">
           <button id="cbListenToggle" className="btn-secondary cb-btn-sm" title="Toggle live speech detection">
