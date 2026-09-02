@@ -22,6 +22,8 @@ jobs:
         run: npm run catalog:check
       - name: Check keyword enrichment drift
         run: npm run keywords:check
+      - name: Check catalog health
+        run: npm run catalog:health
       - name: Build
         run: npm run build
         env:

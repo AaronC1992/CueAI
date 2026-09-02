@@ -17,7 +17,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const API_KEY = process.env.ELEVENLABS_API_KEY;
 const BUCKET = process.env.R2_BUCKET_NAME || 'cueai-media';
-const PREFIX = 'Saved sounds/';
+const PREFIX = 'sounds/';
 
 const r2 = new S3Client({
   region: 'auto',

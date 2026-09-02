@@ -8,28 +8,28 @@ import {
 
 describe('audio-url helpers', () => {
   it('encodes raw saved-sound paths once', () => {
-    expect(normalizeAudioUrl('Saved sounds/car horn.mp3')).toBe('Saved%20sounds/car%20horn.mp3');
+    expect(normalizeAudioUrl('sounds/car horn.mp3')).toBe('sounds/car%20horn.mp3');
   });
 
   it('keeps already encoded saved-sound paths idempotent', () => {
-    expect(normalizeAudioUrl('Saved%20sounds/car%20horn.mp3')).toBe('Saved%20sounds/car%20horn.mp3');
+    expect(normalizeAudioUrl('sounds/car%20horn.mp3')).toBe('sounds/car%20horn.mp3');
   });
 
   it('repairs double-encoded saved-sound paths', () => {
     expect(normalizeAudioUrl('Saved%2520sounds/ES_Hardwood,%2520Boots.mp3')).toBe(
-      'Saved%20sounds/ES_Hardwood%2C%20Boots.mp3',
+      'sounds/ES_Hardwood%2C%20Boots.mp3',
     );
   });
 
   it('preserves query strings on absolute URLs', () => {
     expect(normalizeAudioUrl('https://cdn.example.com/Saved%2520sounds/a%2520b.mp3?sig=a%2Fb')).toBe(
-      'https://cdn.example.com/Saved%20sounds/a%20b.mp3?sig=a%2Fb',
+      'https://cdn.example.com/sounds/a%20b.mp3?sig=a%2Fb',
     );
   });
 
   it('joins the R2 proxy without double-encoding path segments', () => {
     expect(joinAudioUrlBase('/r2-audio', 'Saved%2520sounds/footsteps_daytime_hike.mp3')).toBe(
-      '/r2-audio/Saved%20sounds/footsteps_daytime_hike.mp3',
+      '/r2-audio/sounds/footsteps_daytime_hike.mp3',
     );
   });
 
@@ -49,13 +49,13 @@ describe('audio-url helpers', () => {
   });
 
   it('does not duplicate the R2 proxy prefix when joining', () => {
-    expect(joinAudioUrlBase('/r2-audio', '/r2-audio/Saved%20sounds/glass-shatter.mp3')).toBe(
-      '/r2-audio/Saved%20sounds/glass-shatter.mp3',
+    expect(joinAudioUrlBase('/r2-audio', '/r2-audio/sounds/glass-shatter.mp3')).toBe(
+      '/r2-audio/sounds/glass-shatter.mp3',
     );
   });
 
   it('recognizes saved sound paths with or without the R2 proxy prefix', () => {
-    expect(isSavedSoundsPath('Saved sounds/door-creak.mp3')).toBe(true);
-    expect(isSavedSoundsPath('/r2-audio/Saved%20sounds/door-creak.mp3')).toBe(true);
+    expect(isSavedSoundsPath('sounds/door-creak.mp3')).toBe(true);
+    expect(isSavedSoundsPath('/r2-audio/sounds/door-creak.mp3')).toBe(true);
   });
 });

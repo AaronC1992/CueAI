@@ -98,6 +98,10 @@ const nextConfig = {
         destination: `${r2ProxyOrigin}/:path*`,
       },
       {
+        source: '/sounds/:path*',
+        destination: `${r2ProxyOrigin}/sounds/:path*`,
+      },
+      {
         source: '/Saved%20sounds/:path*',
         destination: `${r2ProxyOrigin}/Saved%20sounds/:path*`,
       },

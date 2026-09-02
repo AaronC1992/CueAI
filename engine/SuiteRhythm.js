@@ -221,6 +221,9 @@ class SuiteRhythm {
             const raw = JSON.parse(localStorage.getItem('SuiteRhythm_custom_sounds') || '[]');
             this.customSounds = Array.isArray(raw) ? raw.filter(s => s && typeof s.name === 'string') : [];
         } catch { this.customSounds = []; }
+        try {
+            this.soundReviewState = JSON.parse(localStorage.getItem('SuiteRhythm_sound_review') || '{}') || {};
+        } catch { this.soundReviewState = {}; }
         // Sound history for playback feedback
         this.soundHistory = [];
         this.soundFeedback = [];
@@ -3759,25 +3762,43 @@ class SuiteRhythm {
     setupSoundLibrary() {
         const searchInput = document.getElementById('soundLibSearch');
         const filterBtns = document.querySelectorAll('.sound-lib-filter');
+        const sortSelect = document.getElementById('soundLibSort');
+        const tagSelect = document.getElementById('soundLibTagFilter');
+        const newOnly = document.getElementById('soundLibNewOnly');
         const listEl = document.getElementById('soundLibList');
-        const customListEl = document.getElementById('customSoundsList');
         if (!searchInput || !listEl) return;
 
         this._soundLibFilter = 'all';
         this._soundLibQuery = '';
+        this._soundLibSort = 'newest';
+        this._soundLibTag = '';
+        this._soundLibNewOnly = false;
+        this._soundLibRenderPending = false;
         this._previewHowl = null;
+
+        const scheduleRender = () => {
+            if (this._soundLibRenderPending) return;
+            this._soundLibRenderPending = true;
+            requestAnimationFrame(() => {
+                this._soundLibRenderPending = false;
+                this.renderSoundLibrary();
+            });
+        };
 
         searchInput.addEventListener('input', (e) => {
             this._soundLibQuery = e.target.value.toLowerCase().trim();
-            this.renderSoundLibrary();
+            scheduleRender();
         });
+        sortSelect?.addEventListener('change', () => { this._soundLibSort = sortSelect.value; scheduleRender(); });
+        tagSelect?.addEventListener('change', () => { this._soundLibTag = tagSelect.value; scheduleRender(); });
+        newOnly?.addEventListener('change', () => { this._soundLibNewOnly = !!newOnly.checked; scheduleRender(); });
 
         filterBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 filterBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this._soundLibFilter = btn.dataset.filter;
-                this.renderSoundLibrary();
+                scheduleRender();
             });
         });
 
@@ -3786,6 +3807,7 @@ class SuiteRhythm {
         this._soundLibObserver = new MutationObserver(() => {
             const section = document.getElementById('soundLibrarySection');
             if (section && !section.classList.contains('hidden')) {
+                this.populateSoundLibraryTagFilter();
                 this.renderSoundLibrary();
                 this.renderCustomSounds();
             }
@@ -3798,42 +3820,63 @@ class SuiteRhythm {
         const listEl = document.getElementById('soundLibList');
         const countEl = document.getElementById('soundLibCount');
         const disabledCountEl = document.getElementById('soundLibDisabledCount');
+        const reviewCountEl = document.getElementById('soundLibReviewCount');
         if (!listEl) return;
 
-        let items = [...this.soundCatalog];
-        // Filter by type
+        const catalogItems = this.getLibraryCatalogItems();
+        let items = catalogItems;
         if (this._soundLibFilter === 'disabled') {
             items = items.filter(s => this.disabledSounds.has(s.id));
+        } else if (['needs-review', 'approved', 'rejected'].includes(this._soundLibFilter)) {
+            items = items.filter(s => this.getSoundReviewStatus(s.id) === this._soundLibFilter);
+        } else if (this._soundLibFilter === 'custom') {
+            items = items.filter(s => s.custom);
         } else if (this._soundLibFilter !== 'all') {
             items = items.filter(s => s.type === this._soundLibFilter);
         }
-        // Search filter
+        if (this._soundLibNewOnly) items = items.filter(s => s.recent);
+        if (this._soundLibTag) items = items.filter(s => (s.tags || []).includes(this._soundLibTag));
         if (this._soundLibQuery) {
             items = items.filter(s => {
-                const haystack = [s.id, ...(s.tags || [])].join(' ').toLowerCase();
+                const haystack = [s.id, s.name, s.type, this.getSoundReviewStatus(s.id), ...(s.tags || [])].join(' ').toLowerCase();
                 return haystack.includes(this._soundLibQuery);
             });
         }
 
-        if (countEl) countEl.textContent = `${items.length} sounds`;
-        if (disabledCountEl) disabledCountEl.textContent = `${this.disabledSounds.size} disabled`;
+        items = this.sortSoundLibraryItems(items);
+        const totalItems = items.length;
+        const visibleItems = items.slice(0, 160);
 
-        listEl.innerHTML = items.map(s => {
+        if (countEl) countEl.textContent = `${totalItems} sounds${totalItems > visibleItems.length ? `, showing ${visibleItems.length}` : ''}`;
+        if (disabledCountEl) disabledCountEl.textContent = `${this.disabledSounds.size} disabled`;
+        if (reviewCountEl) reviewCountEl.textContent = `${Object.keys(this.soundReviewState || {}).length} reviewed`;
+        this.renderSoundDiscovery(catalogItems);
+        this.renderSoundAudit(catalogItems);
+        this.renderSoundReviewPanel(catalogItems);
+
+        listEl.innerHTML = visibleItems.map(s => {
             const isDisabled = this.disabledSounds.has(s.id);
             const typeClass = s.type === 'sfx' ? 'type-sfx' : s.type === 'ambience' ? 'type-ambience' : '';
             const dur = this.durationCache.get(s.id);
             const durStr = dur ? `${Math.floor(dur / 60)}:${String(Math.floor(dur % 60)).padStart(2, '0')}` : '';
             const safeId = escapeHtml(s.id);
-            const safeSrc = escapeHtml(s.src);
+            const safeSrc = escapeHtml(s.src || s.dataUrl || '');
             const safeType = escapeHtml(s.type);
+            const safeName = escapeHtml(s.name || s.id);
             const safeTags = (s.tags || []).map(t => escapeHtml(t)).join(', ');
+            const status = this.getSoundReviewStatus(s.id);
             return `<div class="sound-lib-item${isDisabled ? ' disabled' : ''}" data-id="${safeId}">
                 <button class="sound-lib-preview" data-src="${safeSrc}" data-id="${safeId}" title="Preview">&#9654;</button>
                 <div class="sound-lib-info">
-                    <div class="sound-lib-name">${safeId}${durStr ? ` <span class="sound-lib-duration">${durStr}</span>` : ''}</div>
+                    <div class="sound-lib-name">${safeName}${s.recent ? ' <span class="sound-lib-new">new</span>' : ''}${durStr ? ` <span class="sound-lib-duration">${durStr}</span>` : ''}</div>
                     <div class="sound-lib-tags">${safeTags}</div>
                 </div>
                 <span class="sound-lib-type ${typeClass}">${safeType}</span>
+                <div class="sound-review-actions" data-id="${safeId}">
+                    <button class="sound-review-btn${status === 'approved' ? ' active' : ''}" data-review="approved" title="Approve">A</button>
+                    <button class="sound-review-btn${status === 'needs-review' ? ' active' : ''}" data-review="needs-review" title="Needs review">R</button>
+                    <button class="sound-review-btn${status === 'rejected' ? ' active' : ''}" data-review="rejected" title="Reject">X</button>
+                </div>
                 <button class="sound-lib-toggle${isDisabled ? ' off' : ''}" data-id="${safeId}" title="${isDisabled ? 'Enable' : 'Disable'}"></button>
             </div>`;
         }).join('');
@@ -3852,6 +3895,120 @@ class SuiteRhythm {
                 this.toggleSoundDisabled(toggleBtn.dataset.id);
                 return;
             }
+            const reviewBtn = e.target.closest('.sound-review-btn');
+            if (reviewBtn) {
+                e.stopPropagation();
+                this.setSoundReviewStatus(reviewBtn.closest('.sound-review-actions')?.dataset.id, reviewBtn.dataset.review);
+            }
+        };
+    }
+
+    getLibraryCatalogItems() {
+        const base = (this.soundCatalog || []).map((sound, index, all) => ({
+            ...sound,
+            index,
+            recent: index >= Math.max(0, all.length - 120),
+        }));
+        const custom = (this.customSounds || []).map((sound, index) => this.customSoundToCatalogItem(sound, index));
+        return [...base, ...custom];
+    }
+
+    customSoundToCatalogItem(sound, index) {
+        const type = ['music', 'ambience', 'sfx'].includes(sound.type) ? sound.type : 'sfx';
+        return {
+            id: sound.id || `custom:${index}:${sound.name}`,
+            type,
+            name: sound.name || `Custom Sound ${index + 1}`,
+            src: sound.dataUrl,
+            dataUrl: sound.dataUrl,
+            tags: sound.tags || [],
+            custom: true,
+            recent: true,
+            index: Number.MAX_SAFE_INTEGER - index,
+            loop: type === 'music' || type === 'ambience' || !!sound.loop,
+        };
+    }
+
+    populateSoundLibraryTagFilter() {
+        const select = document.getElementById('soundLibTagFilter');
+        if (!select || select.dataset.populated === String((this.soundCatalog || []).length)) return;
+        const tags = new Map();
+        for (const sound of this.getLibraryCatalogItems()) {
+            for (const tag of sound.tags || []) tags.set(tag, (tags.get(tag) || 0) + 1);
+        }
+        const topTags = [...tags.entries()].sort((a, b) => b[1] - a[1]).slice(0, 80);
+        select.innerHTML = '<option value="">Any tag</option>' + topTags
+            .map(([tag, count]) => `<option value="${escapeHtml(tag)}">${escapeHtml(tag)} (${count})</option>`)
+            .join('');
+        select.dataset.populated = String((this.soundCatalog || []).length);
+    }
+
+    sortSoundLibraryItems(items) {
+        const mode = this._soundLibSort || 'newest';
+        return [...items].sort((a, b) => {
+            if (mode === 'name') return (a.name || a.id).localeCompare(b.name || b.id);
+            if (mode === 'type') return a.type.localeCompare(b.type) || (a.name || a.id).localeCompare(b.name || b.id);
+            if (mode === 'review') return this.getSoundReviewStatus(a.id).localeCompare(this.getSoundReviewStatus(b.id));
+            return (b.index || 0) - (a.index || 0);
+        });
+    }
+
+    getSoundReviewStatus(id) {
+        return this.soundReviewState?.[id]?.status || 'needs-review';
+    }
+
+    setSoundReviewStatus(id, status) {
+        if (!id || !['approved', 'needs-review', 'rejected'].includes(status)) return;
+        this.soundReviewState[id] = { status, updated: Date.now() };
+        localStorage.setItem('SuiteRhythm_sound_review', JSON.stringify(this.soundReviewState));
+        this.renderSoundLibrary();
+    }
+
+    renderSoundDiscovery(items) {
+        const panel = document.getElementById('soundDiscoveryPanel');
+        if (!panel) return;
+        const renderLane = (title, type) => {
+            const laneItems = items.filter(s => s.type === type && s.recent).slice(0, 6);
+            return `<section class="sound-discovery-lane"><h3>${title}</h3><div>${laneItems.map(s => `<button class="sound-chip-preview" data-src="${escapeHtml(s.src)}">${escapeHtml(s.name || s.id)}</button>`).join('')}</div></section>`;
+        };
+        panel.innerHTML = renderLane('New Music', 'music') + renderLane('New Ambience', 'ambience') + renderLane('New SFX', 'sfx');
+        panel.onclick = (e) => {
+            const btn = e.target.closest('.sound-chip-preview');
+            if (btn) this.previewSound(btn.dataset.src, btn);
+        };
+    }
+
+    renderSoundAudit(items) {
+        const panel = document.getElementById('soundAuditPanel');
+        if (!panel) return;
+        const byType = items.reduce((acc, s) => { acc[s.type] = (acc[s.type] || 0) + 1; return acc; }, {});
+        const shortTags = items.filter(s => (s.tags || []).length < 5).length;
+        const oldPrefix = items.filter(s => String(s.src || '').startsWith('Saved sounds/')).length;
+        const reviewed = Object.keys(this.soundReviewState || {}).length;
+        panel.innerHTML = [
+            ['Total', items.length],
+            ['Music', byType.music || 0],
+            ['SFX', byType.sfx || 0],
+            ['Ambience', byType.ambience || 0],
+            ['Short Tags', shortTags],
+            ['Old Prefix', oldPrefix],
+            ['Disabled', this.disabledSounds.size],
+            ['Reviewed', reviewed],
+        ].map(([label, value]) => `<div class="sound-audit-card"><span>${label}</span><strong>${value}</strong></div>`).join('');
+    }
+
+    renderSoundReviewPanel(items) {
+        const panel = document.getElementById('soundReviewPanel');
+        if (!panel) return;
+        const pending = items.filter(s => this.getSoundReviewStatus(s.id) === 'needs-review').slice(0, 5);
+        panel.innerHTML = pending.length ? pending.map(s => `<button class="sound-review-queue" data-id="${escapeHtml(s.id)}">${escapeHtml(s.name || s.id)}</button>`).join('') : '<p class="info-text">Review queue is clear.</p>';
+        panel.onclick = (e) => {
+            const btn = e.target.closest('.sound-review-queue');
+            if (!btn) return;
+            this._soundLibQuery = btn.dataset.id.toLowerCase();
+            const search = document.getElementById('soundLibSearch');
+            if (search) search.value = this._soundLibQuery;
+            this.renderSoundLibrary();
         };
     }
 
@@ -3968,6 +4125,66 @@ class SuiteRhythm {
         };
     }
 
+    createRecorderAudioChain(stream, effectName, gainValue, gateValue) {
+        const ctx = this.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        const source = ctx.createMediaStreamSource(stream);
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        const shaper = ctx.createWaveShaper();
+        const gate = ctx.createScriptProcessor?.(1024, 1, 1);
+        const analyser = ctx.createAnalyser();
+        const destination = ctx.createMediaStreamDestination();
+
+        gain.gain.value = Math.max(0.2, Math.min(2.5, Number(gainValue) || 1));
+        filter.type = 'allpass';
+        filter.frequency.value = 1000;
+        filter.Q.value = 0.7;
+        shaper.curve = null;
+        shaper.oversample = '2x';
+
+        const effect = String(effectName || 'clean');
+        if (effect === 'warm') { filter.type = 'lowpass'; filter.frequency.value = 3200; }
+        if (effect === 'bright') { filter.type = 'highshelf'; filter.frequency.value = 2200; filter.gain.value = 5; }
+        if (effect === 'radio') { filter.type = 'bandpass'; filter.frequency.value = 1200; filter.Q.value = 1.8; shaper.curve = this.makeDistortionCurve(18); }
+        if (effect === 'monster') { filter.type = 'lowshelf'; filter.frequency.value = 450; filter.gain.value = 9; shaper.curve = this.makeDistortionCurve(10); }
+        if (effect === 'whisper') { filter.type = 'highpass'; filter.frequency.value = 900; gain.gain.value *= 0.7; }
+
+        if (gate) {
+            const threshold = Math.max(0, Math.min(0.12, Number(gateValue) || 0));
+            gate.onaudioprocess = (event) => {
+                const input = event.inputBuffer.getChannelData(0);
+                const output = event.outputBuffer.getChannelData(0);
+                for (let i = 0; i < input.length; i += 1) {
+                    output[i] = Math.abs(input[i]) < threshold ? 0 : input[i];
+                }
+            };
+        }
+
+        source.connect(gain);
+        gain.connect(filter);
+        filter.connect(shaper);
+        if (gate) {
+            shaper.connect(gate);
+            gate.connect(analyser);
+        } else {
+            shaper.connect(analyser);
+        }
+        analyser.connect(destination);
+
+        return { ctx, source, gain, filter, shaper, gate, analyser, destination, monitorNode: analyser };
+    }
+
+    makeDistortionCurve(amount = 8) {
+        const samples = 44100;
+        const curve = new Float32Array(samples);
+        const k = Number(amount) || 8;
+        for (let i = 0; i < samples; i++) {
+            const x = (i * 2) / samples - 1;
+            curve[i] = ((3 + k) * x * 20 * Math.PI / 180) / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
+    }
+
     // ===== CUSTOM SOUND RECORDING =====
     setupRecordSound() {
         const recordBtn = document.getElementById('recordSoundBtn');
@@ -3978,6 +4195,12 @@ class SuiteRhythm {
         const saveBtn = document.getElementById('recordSaveBtn');
         const nameInput = document.getElementById('recordName');
         const tagsInput = document.getElementById('recordTags');
+        const typeInput = document.getElementById('recordType');
+        const effectInput = document.getElementById('recordVoiceEffect');
+        const gainInput = document.getElementById('recordGain');
+        const gateInput = document.getElementById('recordGate');
+        const notesInput = document.getElementById('recordNotes');
+        const monitorBtn = document.getElementById('recordPreviewEffectBtn');
         const timerEl = document.getElementById('recordTimer');
         const playbackEl = document.getElementById('recordPlayback');
         const audioEl = document.getElementById('recordAudio');
@@ -3989,6 +4212,8 @@ class SuiteRhythm {
         let recordStart = 0;
         let recordedBlob = null;
         let recordedBlobUrl = null;
+        let chain = null;
+        let monitoring = false;
 
         recordBtn.addEventListener('click', () => {
             modal.classList.remove('hidden');
@@ -3997,6 +4222,11 @@ class SuiteRhythm {
             if (saveBtn) saveBtn.disabled = true;
             if (nameInput) nameInput.value = '';
             if (tagsInput) tagsInput.value = '';
+            if (notesInput) notesInput.value = '';
+            if (typeInput) typeInput.value = 'sfx';
+            if (effectInput) effectInput.value = 'clean';
+            if (gainInput) gainInput.value = '1';
+            if (gateInput) gateInput.value = '0.015';
             if (timerEl) timerEl.textContent = '0:00';
             recordedBlob = null;
         });
@@ -4007,6 +4237,10 @@ class SuiteRhythm {
                 mediaRecorder.stop();
             }
             clearInterval(timerInterval);
+            try { chain?.monitorNode?.disconnect(this.audioContext?.destination); } catch (_) {}
+            chain = null;
+            monitoring = false;
+            if (monitorBtn) monitorBtn.classList.remove('active');
             if (recordedBlobUrl) { URL.revokeObjectURL(recordedBlobUrl); recordedBlobUrl = null; }
         };
         if (closeBtn) closeBtn.addEventListener('click', closeModal);
@@ -4016,7 +4250,8 @@ class SuiteRhythm {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 chunks = [];
-                mediaRecorder = new MediaRecorder(stream);
+                chain = this.createRecorderAudioChain(stream, effectInput?.value, gainInput?.value, gateInput?.value);
+                mediaRecorder = new MediaRecorder(chain.destination.stream);
                 mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
                 mediaRecorder.onstop = () => {
                     stream.getTracks().forEach(t => t.stop());
@@ -4051,6 +4286,17 @@ class SuiteRhythm {
             }
         });
 
+        monitorBtn?.addEventListener('click', async () => {
+            if (!chain?.monitorNode || !this.audioContext?.destination) return;
+            try { await this.audioContext.resume?.(); } catch (_) {}
+            monitoring = !monitoring;
+            try {
+                if (monitoring) chain.monitorNode.connect(this.audioContext.destination);
+                else chain.monitorNode.disconnect(this.audioContext.destination);
+            } catch (_) {}
+            monitorBtn.classList.toggle('active', monitoring);
+        });
+
         if (stopBtn) stopBtn.addEventListener('click', () => {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
@@ -4063,12 +4309,18 @@ class SuiteRhythm {
             if (!recordedBlob) return;
             const name = (nameInput?.value || '').trim() || `Custom Sound ${this.customSounds.length + 1}`;
             const tags = (tagsInput?.value || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+            const type = ['music', 'ambience', 'sfx'].includes(typeInput?.value) ? typeInput.value : 'sfx';
 
             const reader = new FileReader();
             reader.onloadend = () => {
                 const customSound = {
+                    id: `custom:${Date.now()}:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
                     name,
+                    type,
                     tags,
+                    loop: type === 'music' || type === 'ambience',
+                    effect: effectInput?.value || 'clean',
+                    notes: (notesInput?.value || '').trim(),
                     dataUrl: reader.result,
                     created: Date.now()
                 };
@@ -6635,6 +6887,17 @@ class SuiteRhythm {
     // ===== LOCAL SAVED SOUNDS =====
     searchLocalSaved(query, type) {
         try {
+            const customMatch = (this.customSounds || []).find(sound => {
+                const soundType = sound.type || 'sfx';
+                if (type && soundType !== type && !(type === 'ambience' && soundType === 'music')) return false;
+                const haystack = [sound.name, ...(sound.tags || [])].join(' ').toLowerCase();
+                return haystack.includes(String(query || '').toLowerCase());
+            });
+            if (customMatch?.dataUrl) {
+                debugLog(`Found via custom sounds: ${query} -> ${customMatch.name}`);
+                return customMatch.dataUrl;
+            }
+
             if (!this.savedSounds?.files?.length) return null;
             
             // Use TF-IDF style matching from trigger system
@@ -9933,7 +10196,7 @@ class SuiteRhythm {
                     const labelInput = document.getElementById('cbSoundLabel');
                     if (labelInput && !labelInput.value) labelInput.value = m.name;
                     const typeSelect = document.getElementById('cbSoundType');
-                    if (typeSelect) typeSelect.value = m.type === 'music' ? 'music' : 'sfx';
+                    if (typeSelect) typeSelect.value = ['music', 'ambience', 'sfx'].includes(m.type) ? m.type : 'sfx';
                 });
                 results.appendChild(item);
             }
@@ -9947,14 +10210,18 @@ class SuiteRhythm {
         // Search saved sounds with optional type filter
         const matches = [];
         const q = (query || '').toLowerCase();
-        if (this.savedSounds && this.savedSounds.files) {
-            for (const s of this.savedSounds.files) {
+        const sources = [
+            ...((this.savedSounds && this.savedSounds.files) || []).map(s => ({ name: s.name, file: s.file, type: s.type || 'sfx', keywords: s.keywords || [] })),
+            ...((this.customSounds || []).map((s, idx) => ({ name: s.name, file: s.dataUrl, type: s.type || 'sfx', keywords: s.tags || [], custom: true, idx }))),
+        ];
+        if (sources.length) {
+            for (const s of sources) {
                 // Apply category filter
                 if (categoryFilter && (s.type || 'sfx') !== categoryFilter) continue;
                 const name = (s.name || '').toLowerCase();
                 const kw = (s.keywords || []).join(' ').toLowerCase();
                 if (!q || name.includes(q) || kw.includes(q)) {
-                    matches.push({ name: s.name, file: s.file, type: s.type || 'sfx' });
+                    matches.push({ name: s.name, file: s.file, type: s.type || 'sfx', custom: !!s.custom });
                 }
                 if (matches.length >= 30) break;
             }
@@ -9968,7 +10235,7 @@ class SuiteRhythm {
         for (const m of matches) {
             const item = document.createElement('div');
             item.className = 'cb-sound-result-item';
-            item.innerHTML = `${escapeHtml(m.name)} <span class="cb-sound-result-type">${escapeHtml(m.type)}</span>`;
+            item.innerHTML = `${escapeHtml(m.name)} <span class="cb-sound-result-type">${escapeHtml(m.custom ? `${m.type} custom` : m.type)}</span>`;
             item.addEventListener('click', () => {
                 // Select this sound
                 results.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
@@ -9978,7 +10245,7 @@ class SuiteRhythm {
                 const labelInput = document.getElementById('cbSoundLabel');
                 if (labelInput && !labelInput.value) labelInput.value = m.name;
                 const typeSelect = document.getElementById('cbSoundType');
-                if (typeSelect) typeSelect.value = m.type === 'music' ? 'music' : 'sfx';
+                if (typeSelect) typeSelect.value = ['music', 'ambience', 'sfx'].includes(m.type) ? m.type : 'sfx';
             });
             results.appendChild(item);
         }
@@ -10057,13 +10324,13 @@ class SuiteRhythm {
             btn.playing = false;
         } else {
             // Play
-            const isMusic = btn.type === 'music';
+            const isLooping = btn.type === 'music' || btn.type === 'ambience';
             btn.howl = new Howl({
                 src: this.buildSrcCandidates(btn.file),
-                loop: isMusic,
-                volume: isMusic ? 0.5 : 0.8,
+                loop: isLooping,
+                volume: btn.type === 'music' ? 0.5 : btn.type === 'ambience' ? 0.45 : 0.8,
                 onend: () => {
-                    if (!isMusic) {
+                    if (!isLooping) {
                         btn.playing = false;
                         btn.howl = null;
                         this.cbRender();

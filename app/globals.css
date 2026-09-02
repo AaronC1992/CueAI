@@ -3504,6 +3504,28 @@ kbd {
     outline: none;
     border-color: var(--primary);
 }
+.sound-lib-advanced-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    align-items: end;
+}
+.sound-lib-advanced-controls label,
+.sound-lib-check {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+.sound-lib-check {
+    flex-direction: row;
+    align-items: center;
+    min-height: 42px;
+    text-transform: none;
+}
 .sound-lib-filters {
     display: flex;
     gap: 8px;
@@ -3533,6 +3555,65 @@ kbd {
     gap: 16px;
     font-size: 0.85rem;
     color: var(--muted);
+}
+.sound-discovery-panel,
+.sound-lib-admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.sound-discovery-lane,
+.sound-audit-panel {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 12px;
+}
+.sound-discovery-lane h3,
+.sound-audit-panel h3 {
+    margin: 0 0 10px;
+    font-size: 0.9rem;
+}
+.sound-discovery-lane > div,
+.sound-review-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.sound-chip-preview,
+.sound-review-queue {
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sound-audit-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.sound-audit-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    background: rgba(255,255,255,0.03);
+}
+.sound-audit-card span {
+    display: block;
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+.sound-audit-card strong {
+    color: var(--text);
+    font-size: 1.05rem;
 }
 .sound-lib-list {
     display: flex;
@@ -3599,6 +3680,16 @@ kbd {
     color: var(--muted);
     margin-left: 4px;
 }
+.sound-lib-new {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(3,218,198,0.16);
+    color: var(--teal);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+}
 .sound-lib-tags {
     font-size: 0.75rem;
     color: var(--muted);
@@ -3617,6 +3708,27 @@ kbd {
 }
 .sound-lib-type.type-sfx { background: rgba(3,218,198,0.15); color: var(--teal); }
 .sound-lib-type.type-ambience { background: rgba(255,193,7,0.15); color: #ffc107; }
+.sound-review-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.sound-review-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.68rem;
+}
+.sound-review-btn.active,
+.sound-review-btn:hover {
+    border-color: var(--primary-2);
+    color: var(--text);
+    background: rgba(138,43,226,0.16);
+}
 .sound-lib-toggle {
     width: 36px;
     height: 20px;
@@ -3715,6 +3827,30 @@ kbd {
 .record-visualizer canvas {
     width: 100%;
     height: 100%;
+}
+.record-mixer-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.record-mixer-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+.record-mixer-grid input[type="range"] {
+    width: 100%;
+}
+.record-btns .btn-secondary.active {
+    border-color: var(--teal);
+    color: var(--teal);
+}
+.record-notes {
+    resize: vertical;
+    min-height: 72px;
 }
 
 /* ===== SESSION RECORDING PANEL ===== */

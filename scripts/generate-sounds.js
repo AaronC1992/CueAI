@@ -15,7 +15,7 @@ import { join } from 'path';
 
 const API_KEY = process.env.ELEVENLABS_API_KEY;
 const BUCKET = process.env.R2_BUCKET_NAME || 'cueai-media';
-const PREFIX = 'Saved sounds/';
+const PREFIX = 'sounds/';
 
 const r2 = new S3Client({
   region: 'auto',
@@ -219,7 +219,7 @@ async function main() {
       catalog.push({
         type: s.type,
         name: s.name,
-        file: `Saved sounds/${s.filename}`,
+        file: `sounds/${s.filename}`,
         keywords: s.keywords,
         ...(s.loop ? { loop: true } : {}),
       });
@@ -239,7 +239,7 @@ async function main() {
       catalog.push({
         type: s.type,
         name: s.name,
-        file: `Saved sounds/${s.filename}`,
+        file: `sounds/${s.filename}`,
         keywords: s.keywords,
         ...(s.loop ? { loop: true } : {}),
       });

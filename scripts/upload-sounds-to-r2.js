@@ -1,6 +1,6 @@
 /**
  * Upload all sound files from the local "Saved sounds" folder to Cloudflare R2.
- * Files are uploaded under the "Saved sounds/" prefix to match the Supabase `file` column.
+ * Files are uploaded under the "sounds/" prefix to match the Supabase `file` column.
  *
  * Usage: node scripts/upload-sounds-to-r2.js
  *
@@ -14,7 +14,7 @@ import { join, extname } from 'path';
 
 const SOUNDS_DIR = 'c:\\Users\\jenna\\Desktop\\Portfolio projects\\CueAI\\Saved sounds';
 const BUCKET = process.env.R2_BUCKET_NAME || 'cueai-media';
-const PREFIX = 'Saved sounds/';
+const PREFIX = 'sounds/';
 
 const MIME_TYPES = {
   '.mp3': 'audio/mpeg',

@@ -22,7 +22,8 @@ function shouldBypassCache(request, url) {
   if (request.method !== 'GET') return true;
   if (url.origin !== self.location.origin) return true;
   return url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/r2-audio/');
+    url.pathname.startsWith('/r2-audio/') ||
+    url.pathname.startsWith('/sounds/');
 }
 
 function isLegacySavedSoundsPath(url) {
@@ -31,7 +32,7 @@ function isLegacySavedSoundsPath(url) {
 }
 
 function buildR2AudioProxyUrl(url) {
-  const proxyPath = url.pathname.replace(/^\/Saved(?:%20| )sounds\//i, '/r2-audio/Saved%20sounds/');
+  const proxyPath = url.pathname.replace(/^\/Saved(?:%20| )sounds\//i, '/r2-audio/sounds/');
   return `${url.origin}${proxyPath}${url.search}`;
 }
 

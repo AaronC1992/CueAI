@@ -55,15 +55,15 @@ describe('instant preload ranking', () => {
 
   it('prefers cheaper files when two candidates cover a similar number of keywords', () => {
     const ranked = rankInstantPreloadFiles({
-      heavyA: { file: 'Saved sounds/gigantic-ambience.flac', category: 'weather', estimatedBytes: 5 * 1024 * 1024 },
-      heavyB: { file: 'Saved sounds/gigantic-ambience.flac', category: 'weather', estimatedBytes: 5 * 1024 * 1024 },
-      heavyC: { file: 'Saved sounds/gigantic-ambience.flac', category: 'weather', estimatedBytes: 5 * 1024 * 1024 },
-      heavyD: { file: 'Saved sounds/gigantic-ambience.flac', category: 'weather', estimatedBytes: 5 * 1024 * 1024 },
-      quickA: { file: 'Saved sounds/quick-hit.mp3', category: 'combat', estimatedBytes: 180 * 1024 },
-      quickB: { file: 'Saved sounds/quick-hit.mp3', category: 'combat', estimatedBytes: 180 * 1024 },
+      heavyA: { file: 'sounds/gigantic-ambience.flac', category: 'weather', estimatedBytes: 5 * 1024 * 1024 },
+      heavyB: { file: 'sounds/gigantic-ambience.flac', category: 'weather', estimatedBytes: 5 * 1024 * 1024 },
+      heavyC: { file: 'sounds/gigantic-ambience.flac', category: 'weather', estimatedBytes: 5 * 1024 * 1024 },
+      heavyD: { file: 'sounds/gigantic-ambience.flac', category: 'weather', estimatedBytes: 5 * 1024 * 1024 },
+      quickA: { file: 'sounds/quick-hit.mp3', category: 'combat', estimatedBytes: 180 * 1024 },
+      quickB: { file: 'sounds/quick-hit.mp3', category: 'combat', estimatedBytes: 180 * 1024 },
     });
 
-    expect(ranked[0].file).toBe('Saved sounds/quick-hit.mp3');
+    expect(ranked[0].file).toBe('sounds/quick-hit.mp3');
     expect(ranked[0].keywordCount).toBeGreaterThanOrEqual(2);
     expect(ranked[0].estimatedBytes).toBeLessThan(5 * 1024 * 1024);
   });

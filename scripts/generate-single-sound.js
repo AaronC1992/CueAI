@@ -49,7 +49,7 @@ async function main() {
   console.log(`Generated ${(audio.length / 1024).toFixed(1)} KB`);
 
   // Upload to R2
-  const r2Key = `Saved sounds/${sound.filename}`;
+  const r2Key = `sounds/${sound.filename}`;
   await r2.send(new PutObjectCommand({
     Bucket: BUCKET, Key: r2Key, Body: audio,
     ContentType: 'audio/mpeg',
@@ -65,7 +65,7 @@ async function main() {
   catalog.push({
     type: sound.type,
     name: sound.name,
-    file: `Saved sounds/${sound.filename}`,
+    file: `sounds/${sound.filename}`,
     keywords: sound.keywords,
   });
 

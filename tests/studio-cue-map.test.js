@@ -23,7 +23,7 @@ describe('studio cue map', () => {
         endTime: 1.4,
         offset: -0.25,
         cueType: 'sound effect',
-        soundSrc: 'Saved sounds/door-creak.mp3',
+        soundSrc: 'sounds/door-creak.mp3',
         volume: 0.8,
         duration: 2.5,
         trimStart: 0.4,
@@ -57,7 +57,7 @@ describe('studio cue map', () => {
         phrase: 'Thunder',
         startTime: 0,
         cueType: 'ambience',
-        soundSrc: 'Saved sounds/thunder.mp3',
+        soundSrc: 'sounds/thunder.mp3',
       }],
       savedAt: '2026-01-01T00:00:00.000Z',
     });

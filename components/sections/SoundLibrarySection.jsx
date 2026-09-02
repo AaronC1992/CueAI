@@ -22,17 +22,56 @@ export default function SoundLibrarySection() {
               className="sound-lib-search"
               placeholder="Search sounds by name or tag..."
             />
+            <div className="sound-lib-advanced-controls">
+              <label>
+                Sort
+                <select id="soundLibSort" className="record-input">
+                  <option value="newest">Newest</option>
+                  <option value="name">Name</option>
+                  <option value="type">Type</option>
+                  <option value="review">Review</option>
+                </select>
+              </label>
+              <label>
+                Mood or tag
+                <select id="soundLibTagFilter" className="record-input">
+                  <option value="">Any tag</option>
+                </select>
+              </label>
+              <label className="sound-lib-check">
+                <input id="soundLibNewOnly" type="checkbox" />
+                Recently added
+              </label>
+            </div>
             <div className="sound-lib-filters">
               <button className="sound-lib-filter active" data-filter="all">All</button>
               <button className="sound-lib-filter" data-filter="music">Music</button>
               <button className="sound-lib-filter" data-filter="sfx">SFX</button>
               <button className="sound-lib-filter" data-filter="ambience">Ambience</button>
+              <button className="sound-lib-filter" data-filter="custom">Custom</button>
+              <button className="sound-lib-filter" data-filter="needs-review">Needs Review</button>
+              <button className="sound-lib-filter" data-filter="approved">Approved</button>
+              <button className="sound-lib-filter" data-filter="rejected">Rejected</button>
               <button className="sound-lib-filter" data-filter="disabled">Disabled</button>
             </div>
             <div className="sound-lib-stats">
               <span id="soundLibCount">0 sounds</span>
               <span id="soundLibDisabledCount">0 disabled</span>
+              <span id="soundLibReviewCount">0 reviewed</span>
             </div>
+          </div>
+
+          <div id="soundDiscoveryPanel" className="sound-discovery-panel" />
+
+          <div className="sound-lib-admin-grid">
+            <section className="sound-audit-panel">
+              <h3>Sound Audit</h3>
+              <div id="soundAuditPanel" className="sound-audit-grid" />
+            </section>
+            <section className="sound-audit-panel">
+              <h3>Review Queue</h3>
+              <div id="soundReviewPanel" className="sound-review-panel" />
+            </section>
           </div>
 
           {/* Sound List — populated by engine */}
@@ -42,7 +81,7 @@ export default function SoundLibrarySection() {
           <div className="sound-lib-custom">
             <h3>Custom Sounds</h3>
             <p className="info-text">
-              Record or upload your own sounds and assign keyword tags so SuiteRhythm can trigger them.
+              Record or upload your own sounds, music, and ambience for the sound board.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button id="recordSoundBtn" className="btn-primary">Record Sound</button>
@@ -69,15 +108,45 @@ export default function SoundLibrarySection() {
       >
         <div className="modal-content record-modal">
           <button className="modal-close" id="closeRecordModal">&times;</button>
-          <h2 id="recordSoundModalTitle">Record a Sound</h2>
+          <h2 id="recordSoundModalTitle">Voice Recorder</h2>
           <div className="record-controls">
             <div className="record-visualizer">
               <canvas id="recordVisualizer" width="300" height="60" />
             </div>
             <div className="record-timer" id="recordTimer">0:00</div>
+            <div className="record-mixer-grid">
+              <label>
+                Save as
+                <select id="recordType" className="record-input">
+                  <option value="sfx">Sound Effect</option>
+                  <option value="music">Music</option>
+                  <option value="ambience">Ambience</option>
+                </select>
+              </label>
+              <label>
+                Voice effect
+                <select id="recordVoiceEffect" className="record-input">
+                  <option value="clean">Clean</option>
+                  <option value="warm">Warm</option>
+                  <option value="bright">Bright</option>
+                  <option value="radio">Radio</option>
+                  <option value="monster">Monster</option>
+                  <option value="whisper">Whisper</option>
+                </select>
+              </label>
+              <label>
+                Input gain
+                <input id="recordGain" type="range" min="0.4" max="2" step="0.1" defaultValue="1" />
+              </label>
+              <label>
+                Noise gate
+                <input id="recordGate" type="range" min="0" max="0.08" step="0.005" defaultValue="0.015" />
+              </label>
+            </div>
             <div className="record-btns">
               <button id="recordStartBtn" className="btn-record">Record</button>
               <button id="recordStopBtn" className="btn-record-stop hidden">Stop</button>
+              <button id="recordPreviewEffectBtn" className="btn-secondary" type="button">Monitor</button>
             </div>
             <div id="recordPlayback" className="record-playback hidden">
               <audio id="recordAudio" controls />
@@ -95,6 +164,12 @@ export default function SoundLibrarySection() {
               id="recordTags"
               placeholder="Tags, comma separated (e.g. dragon, roar, creature)"
               className="record-input"
+            />
+            <textarea
+              id="recordNotes"
+              placeholder="Review notes or sound board use"
+              className="record-input record-notes"
+              rows="3"
             />
             <button id="recordSaveBtn" className="btn-primary" disabled>Save Sound</button>
           </div>

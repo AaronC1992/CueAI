@@ -18,7 +18,7 @@ import { join } from 'path';
 const DRY_RUN = process.argv.includes('--dry-run');
 const API_KEY = process.env.ELEVENLABS_API_KEY;
 const BUCKET = process.env.R2_BUCKET_NAME || 'cueai-media';
-const PREFIX = 'Saved sounds/';
+const PREFIX = 'sounds/';
 const REQUIRED_ENV = ['ELEVENLABS_API_KEY', 'R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'];
 
 const r2 = DRY_RUN ? null : new S3Client({

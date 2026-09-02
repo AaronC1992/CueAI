@@ -44,6 +44,7 @@ export default function ControlBoardSection() {
             <input type="text" id="cbSoundLabel" placeholder="Button Label (e.g. Battle Theme)" />
             <select id="cbSoundType" className="mode-dropdown">
               <option value="music">Music (loops)</option>
+              <option value="ambience">Ambience (loops)</option>
               <option value="sfx">Sound Effect (plays once)</option>
             </select>
             <select id="cbSoundGroup" className="mode-dropdown">
@@ -59,6 +60,7 @@ export default function ControlBoardSection() {
               <select id="cbSoundCategoryFilter" className="mode-dropdown" style={{ flex: '0 0 auto', minWidth: 100 }}>
                 <option value="">All Types</option>
                 <option value="music">Music</option>
+                <option value="ambience">Ambience</option>
                 <option value="sfx">SFX</option>
               </select>
             </div>

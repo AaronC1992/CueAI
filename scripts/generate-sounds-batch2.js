@@ -24,7 +24,7 @@ const limitArg = process.argv.find(arg => arg.startsWith('--limit='));
 const LIMIT = limitArg ? Number(limitArg.split('=')[1]) : null;
 const API_KEY = process.env.ELEVENLABS_API_KEY;
 const BUCKET = process.env.R2_BUCKET_NAME || 'cueai-media';
-const PREFIX = 'Saved sounds/';
+const PREFIX = 'sounds/';
 
 const r2 = DRY_RUN ? null : new S3Client({
     region: 'auto',
@@ -403,7 +403,7 @@ async function main() {
             console.log(`${tag} SKIP (R2): ${s.name}`);
             catalog.push({
                 type: s.type, name: s.name,
-                file: `Saved sounds/${s.filename}`,
+                file: `sounds/${s.filename}`,
                 keywords: s.keywords,
                 ...(s.loop ? { loop: true } : {}),
             });
@@ -419,7 +419,7 @@ async function main() {
             await uploadToR2(r2Key, audio);
             catalog.push({
                 type: s.type, name: s.name,
-                file: `Saved sounds/${s.filename}`,
+                file: `sounds/${s.filename}`,
                 keywords: s.keywords,
                 ...(s.loop ? { loop: true } : {}),
             });
