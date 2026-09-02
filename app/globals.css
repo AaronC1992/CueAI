@@ -2567,7 +2567,7 @@ button:focus-visible {
 
 /* ===== TUTORIAL MODAL ===== */
 .tutorial-content {
-    max-width: min(700px, 95vw);
+    max-width: min(980px, 95vw);
     max-height: 85vh;
     overflow-y: auto;
     text-align: left;
@@ -2579,6 +2579,36 @@ button:focus-visible {
     color: #aaa;
     margin-bottom: 25px;
     text-align: center;
+}
+.tutorial-topic-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin: 0 0 20px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.tutorial-topic-nav a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    background: var(--surface);
+    text-decoration: none;
+    font-size: 0.82rem;
+    text-align: center;
+}
+.tutorial-topic-nav a:hover,
+.tutorial-topic-nav a:focus-visible {
+    border-color: var(--primary-2);
+    color: var(--primary-2);
+    outline: none;
 }
 
 .tutorial-section {
@@ -2594,6 +2624,11 @@ button:focus-visible {
     margin-bottom: 12px;
     font-size: 1.25em;
 }
+.tutorial-section h4 {
+    color: var(--text);
+    margin: 0 0 6px;
+    font-size: 0.92rem;
+}
 
 .tutorial-section p {
     color: var(--text);
@@ -2606,9 +2641,30 @@ button:focus-visible {
     color: var(--text);
 }
 
-.tutorial-section ul li {
+.tutorial-section ol {
+    margin: 10px 0 0 20px;
+    color: var(--text);
+}
+
+.tutorial-section ul li,
+.tutorial-section ol li {
     margin: 6px 0;
     line-height: 1.5;
+}
+.tutorial-mode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+.tutorial-mode-grid article {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.04);
+}
+.tutorial-mode-grid p {
+    margin: 0;
+    font-size: 0.86rem;
 }
 
 .tutorial-section a {

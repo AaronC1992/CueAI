@@ -19,75 +19,117 @@ export function TutorialModal() {
         <button id="closeTutorial" className="close-btn">&times;</button>
         <h2 id="tutorialModalTitle">SuiteRhythm User Guide</h2>
         <p className="tutorial-intro">
-          Welcome to SuiteRhythm! Here is everything you need to know to get started.
+          Learn the main modes, sound tools, recording workflow, and setup choices in one place.
         </p>
 
-        <div className="tutorial-section">
-          <h3>Volume Controls</h3>
-          <p><strong>Min/Max Volume:</strong> Set the range for automatic volume adjustments.</p>
-          <p><strong>Music Level:</strong> Control background music volume independently (0 to 100%).</p>
-          <p><strong>Sound Effects Level:</strong> Control SFX volume independently (0 to 100%).</p>
-          <p>
-            <strong>Mood and Intensity:</strong> Bias audio choices from calm (0%) to intense (100%).
-            Higher values equal louder music, deeper ducking, and more dramatic effects.
-          </p>
+        <nav className="tutorial-topic-nav" aria-label="Tutorial topics">
+          <a href="#tutorial-start">Start Here</a>
+          <a href="#tutorial-modes">Modes</a>
+          <a href="#tutorial-library">Sound Library</a>
+          <a href="#tutorial-board">Control Board</a>
+          <a href="#tutorial-recorder">Voice Recorder</a>
+          <a href="#tutorial-studio">Creator Studio</a>
+          <a href="#tutorial-obs">OBS</a>
+          <a href="#tutorial-settings">Settings</a>
+          <a href="#tutorial-fixes">Trouble Shooting</a>
+        </nav>
+
+        <div className="tutorial-section" id="tutorial-start">
+          <h3>Start Here</h3>
+          <p><strong>What it is:</strong> SuiteRhythm is a live audio workstation for story scenes, tabletop games, streams, podcasts, and creator sessions.</p>
+          <p><strong>Fast path:</strong> Open the app, choose a mode, enable your microphone if needed, then let the engine add music, ambience, and effects around your scene.</p>
+          <p><strong>Best first test:</strong> Try Auto Detect, say a short scene out loud, then open Sound Library to preview and disable anything you do not want used.</p>
         </div>
 
-        <div className="tutorial-section">
-          <h3>Performance</h3>
-          <p>
-            <strong>Low Latency Mode:</strong> When enabled, SuiteRhythm preloads more sounds in
-            parallel and responds faster. Best on strong networks and modern devices.
-          </p>
+        <div className="tutorial-section" id="tutorial-modes">
+          <h3>Modes</h3>
+          <div className="tutorial-mode-grid">
+            <article><h4>Auto Detect</h4><p>Listens to natural speech and chooses sounds based on action, place, tone, and mood.</p></article>
+            <article><h4>Table Top RPG</h4><p>Use campaign ready controls for encounters, locations, creature sounds, and dramatic cues.</p></article>
+            <article><h4>Story Teller</h4><p>Read or perform scenes while the app supports pacing with music, ambience, and effects.</p></article>
+            <article><h4>Creator Studio</h4><p>Work with media, transcripts, cue maps, preview mixes, and rendered exports.</p></article>
+            <article><h4>Control Board</h4><p>Build manual sound buttons for music loops, ambience beds, one shot effects, and custom recordings.</p></article>
+            <article><h4>Sing Backing</h4><p>Use vocal energy and tempo aware tools for backing tracks and performance support.</p></article>
+          </div>
         </div>
 
-        <div className="tutorial-section">
-          <h3>Playback Options</h3>
-          <p><strong>Music Toggle:</strong> Turn background music on or off.</p>
-          <p><strong>SFX Toggle:</strong> Turn sound effects on or off.</p>
-          <p>
-            <strong>Auto Scene Detection:</strong> When enabled, SuiteRhythm analyzes spoken words and
-            plays matching music or SFX automatically.
-          </p>
-          <p className="info-text">Tip: Turn one off to play only music or only SFX.</p>
+        <div className="tutorial-section" id="tutorial-library">
+          <h3>Sound Library</h3>
+          <p><strong>Catalog:</strong> The library has 999 entries across music, SFX, and ambience.</p>
+          <p><strong>Search:</strong> Type a name, mood, genre, object, action, or tag to narrow the list.</p>
+          <p><strong>Filters:</strong> Use type filters, recently added, tag filters, custom sounds, and review status to find the right asset quickly.</p>
+          <p><strong>Review tools:</strong> Mark sounds as approved, needs review, or rejected. Review state is local to your browser for now.</p>
+          <p><strong>Disable sounds:</strong> Turn off any catalog item you do not want Auto Detect or matching logic to use.</p>
         </div>
 
-        <div className="tutorial-section">
-          <h3>Voice Commands</h3>
-          <p>Control SuiteRhythm hands free while listening:</p>
+        <div className="tutorial-section" id="tutorial-board">
+          <h3>Control Board</h3>
+          <p><strong>Use it for:</strong> Buttons you want to trigger by hand during a session.</p>
+          <p><strong>Button types:</strong> Music and ambience loop until stopped. SFX play once.</p>
+          <p><strong>Custom audio:</strong> Recordings saved from the Voice Recorder show up in board search and can be assigned to buttons.</p>
+          <p><strong>Scene tabs:</strong> Organize buttons by scene, encounter, location, or show segment.</p>
+        </div>
+
+        <div className="tutorial-section" id="tutorial-recorder">
+          <h3>Voice Recorder</h3>
+          <p><strong>Open it from:</strong> Sound Library, Custom Sounds, Record Sound.</p>
+          <p><strong>Save as:</strong> Choose SFX, music, or ambience. Music and ambience can loop on the board.</p>
+          <p><strong>Voice effects:</strong> Clean, warm, bright, radio, monster, and whisper change the captured signal before saving.</p>
+          <p><strong>Mixer controls:</strong> Input gain boosts or lowers the mic. Noise gate removes quiet room noise. Monitor lets you hear the processed sound while recording.</p>
+          <p><strong>Tags and notes:</strong> Add tags so search can find the recording later, and add notes for your own review.</p>
+          <p><strong>Storage:</strong> Custom recordings are saved in the browser on this device. Cloud sync can be added later.</p>
+        </div>
+
+        <div className="tutorial-section" id="tutorial-studio">
+          <h3>Creator Studio</h3>
+          <p><strong>Live mode:</strong> Use the creator view for active narration, live cues, and performance control.</p>
+          <p><strong>Studio mode:</strong> Upload media, build cue maps, preview the mix, and render audio or video exports.</p>
+          <p><strong>Preview Mix:</strong> Plays your media and fires cue sounds at their planned times so you can check pacing before rendering.</p>
+          <p><strong>Transcription:</strong> Use transcript tools to help place cues against spoken content.</p>
+        </div>
+
+        <div className="tutorial-section" id="tutorial-settings">
+          <h3>Settings and Audio Behavior</h3>
+          <p><strong>Music level:</strong> Controls backing music volume.</p>
+          <p><strong>SFX level:</strong> Controls effects volume.</p>
+          <p><strong>Mood bias:</strong> Pushes the engine toward calmer or more intense choices.</p>
+          <p><strong>Music ducking:</strong> Music lowers while effects play, then returns smoothly.</p>
+          <p><strong>Low latency:</strong> Preloads more instant trigger sounds for quicker response on stronger devices and networks.</p>
+          <p><strong>Color themes:</strong> Change the visual palette without changing sound behavior.</p>
+        </div>
+
+        <div className="tutorial-section" id="tutorial-obs">
+          <h3>OBS and External Control</h3>
+          <p><strong>OBS route:</strong> Use the OBS page as a browser source when you want a stream friendly view.</p>
+          <p><strong>External commands:</strong> Browser integrations can call the SuiteRhythm command surface to trigger sounds, stop audio, change scenes, or read status.</p>
+          <p><strong>Twitch chat:</strong> The anonymous chat bridge can listen for simple sound commands without needing OAuth.</p>
+        </div>
+
+        <div className="tutorial-section" id="tutorial-fixes">
+          <h3>Trouble Shooting</h3>
           <ul>
-            <li><strong>&quot;Skip track&quot;</strong> or <strong>&quot;Next song&quot;</strong>, Change the music</li>
-            <li><strong>&quot;Quieter music&quot;</strong> or <strong>&quot;Louder music&quot;</strong>, Adjust music volume by 10%</li>
-            <li><strong>&quot;Mute music&quot;</strong> or <strong>&quot;Unmute music&quot;</strong>, Toggle music on or off</li>
-            <li><strong>&quot;Mute sound effects&quot;</strong> or <strong>&quot;Unmute SFX&quot;</strong>, Toggle SFX on or off</li>
+            <li>If microphone features do not start, check browser microphone permission.</li>
+            <li>If old screens keep appearing, unregister the service worker once and hard refresh.</li>
+            <li>If sounds do not play, interact with the page once so the browser allows audio.</li>
+            <li>If a custom recording is missing, check that browser storage was not cleared.</li>
+            <li>If AI or TTS fails, check provider keys and quota in Vercel.</li>
           </ul>
         </div>
 
         <div className="tutorial-section">
-          <h3>Audio Features</h3>
-          <p><strong>Music Ducking:</strong> Music automatically lowers when sound effects play, then returns smoothly.</p>
-          <p><strong>Spatial Audio:</strong> SFX are positioned in stereo for immersive depth.</p>
-          <p><strong>Loudness Normalization:</strong> All sounds are balanced to consistent volume.</p>
-          <p><strong>Crossfades:</strong> Music transitions smoothly without abrupt cuts.</p>
-          <p>
-            <strong>Stingers:</strong> Periodic ambient sounds play every 20 to 45 seconds for variety
-            when Auto Scene Detection is enabled.
-          </p>
-        </div>
-
-        <div className="tutorial-section">
-          <h3>Tips</h3>
-          <ul>
-            <li>Speak clearly and close to your microphone for best results</li>
-            <li>Instant triggers: Words like &quot;bang&quot;, &quot;crash&quot;, &quot;knock&quot;, &quot;bark&quot; play sounds immediately</li>
-            <li>Use the Mood slider to match the story intensity</li>
-            <li>Enable Low Latency Mode for fast reactions</li>
-            <li>The engine learns context over time, keep talking for better sound matching</li>
-          </ul>
+          <h3>Recommended Learning Path</h3>
+          <ol>
+            <li>Start with Auto Detect and say a short scene.</li>
+            <li>Open Sound Library and preview sounds by type.</li>
+            <li>Create a Control Board tab for one scene.</li>
+            <li>Record a custom voice cue and add it to the board.</li>
+            <li>Try Creator Studio when you want timeline style work.</li>
+            <li>Open Sound Audit when you want to review the catalog.</li>
+          </ol>
         </div>
 
         <button id="closeTutorialBtn" className="btn-primary" style={{ marginTop: 20 }}>
-          Got It!
+          Start Using SuiteRhythm
         </button>
       </div>
     </div>
