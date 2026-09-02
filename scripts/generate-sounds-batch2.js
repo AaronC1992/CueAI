@@ -293,7 +293,7 @@ const SELECTED_SOUNDS = Number.isInteger(LIMIT) && LIMIT > 0
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function isLikelyElevenLabsApiKey(value) {
-    return typeof value === 'string' && value.startsWith('sk_');
+    return typeof value === 'string' && value.startsWith('sk_') && value.length === 51;
 }
 
 async function r2Exists(key) {
@@ -373,7 +373,7 @@ async function main() {
 
     if (!API_KEY) { console.error('Missing ELEVENLABS_API_KEY in .env.local'); process.exit(1); }
     if (!isLikelyElevenLabsApiKey(API_KEY)) {
-        console.error('ELEVENLABS_API_KEY is not a valid API key. ElevenLabs API keys start with sk_.');
+        console.error('ELEVENLABS_API_KEY is not a valid API key. ElevenLabs API keys start with sk_ and are 51 characters long.');
         console.error('Create or rotate an ElevenLabs API key, update .env.local, then rerun this command.');
         process.exit(1);
     }
