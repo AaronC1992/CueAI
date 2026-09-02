@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { getStatus } from '../../../lib/modules/elevenlabs-generation-manager.js';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Sound Audit' };
@@ -18,6 +19,44 @@ function countBy(items, getKey) {
   }, {});
 }
 
+function fmtTime(ms) {
+  if (!ms) return 'n/a';
+  return new Date(ms).toLocaleString();
+}
+
+function AiSoundStatusSection() {
+  // Reads the manager's in-process cached status only — never forces a
+  // fresh ElevenLabs credit check just because someone opened this page.
+  const status = getStatus();
+  const rows = [
+    ['ElevenLabs', status.connected ? 'Connected' : 'Unavailable (no API key)'],
+    ['AI Sound Generation', status.enabled ? 'Enabled' : 'Disabled'],
+    ['Credit Status', status.credit.label],
+    ['Last Credit Check', fmtTime(status.credit.checkedAt)],
+    ['Next Scheduled Check', fmtTime(status.circuitBreaker.nextRecheckAt)],
+    ['Circuit Breaker', status.circuitBreaker.open ? 'Open' : 'Closed'],
+    ['Generated This Session', status.metrics.generatedThisSession],
+    ['Generation Queue', status.metrics.generationQueueLength],
+    ['Cache Hits', status.metrics.cacheHitsReported],
+    ['AI Generations Avoided', status.metrics.aiGenerationsAvoided],
+  ];
+
+  return (
+    <section style={{ border: '1px solid #273143', borderRadius: 8, padding: 16, background: '#111722', marginBottom: 24 }}>
+      <h2 style={{ marginTop: 0 }}>AI Sound Generation (ElevenLabs Fallback)</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+        {rows.map(([label, value]) => (
+          <div key={label} style={{ border: '1px solid #273143', borderRadius: 6, padding: 10 }}>
+            <div style={{ color: '#aeb7c4', fontSize: 12 }}>{label}</div>
+            <strong style={{ fontSize: 16 }}>{String(value)}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+
 export default function SoundAuditPage() {
   const files = loadCatalog();
   const byType = countBy(files, (item) => item.type);
@@ -34,6 +73,8 @@ export default function SoundAuditPage() {
       <div style={{ maxWidth: 1160, margin: '0 auto' }}>
         <h1 style={{ margin: '0 0 8px', fontSize: 34 }}>Sound Audit</h1>
         <p style={{ margin: '0 0 24px', color: '#aeb7c4' }}>Catalog health, recent library growth, and metadata coverage.</p>
+
+        <AiSoundStatusSection />
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[

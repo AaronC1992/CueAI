@@ -145,6 +145,26 @@ Common production variables:
 | `ELEVENLABS_API_KEY` | ElevenLabs key for sound generation and TTS |
 | `ELEVENLABS_VOICE_ID` | Voice used by the TTS route |
 | `PIXABAY_API_KEY` | Optional Pixabay audio search proxy |
+| `AI_SOUND_FALLBACK_ENABLED` | Enable ElevenLabs generation as a last-resort fallback for missing sounds |
+| `SOUND_MATCH_THRESHOLD` | Min AI confidence required before a "missing sound" can trigger generation |
+| `ELEVENLABS_CREDIT_CHECK_INTERVAL_MS` | How often to re-check ElevenLabs credit status while available |
+| `ELEVENLABS_DEPLETED_RECHECK_INTERVAL_MS` | How often to re-check once the circuit breaker has opened |
+| `ELEVENLABS_GENERATION_COOLDOWN_MS` | Min gap between generation requests for the same/similar cue |
+| `ELEVENLABS_MINIMUM_CREDIT_RESERVE` | Stop generating once remaining credits fall at/below this reserve |
+| `MAX_CONCURRENT_AI_SOUND_GENERATIONS` | Concurrent ElevenLabs Sound Generation calls allowed |
+| `ELEVENLABS_SFX_DURATION_SECONDS` / `ELEVENLABS_AMBIENCE_DURATION_SECONDS` | Generated clip durations |
+
+### AI sound generation fallback
+
+`app/api/generate-sound/route.js` is a last-resort fallback used only after
+the normal sound library (and the generated-sound cache) has no match for a
+cue the AI reports via `missingSound` in `/api/analyze`. See
+`lib/modules/elevenlabs-generation-manager.js` for credit checking, the
+circuit breaker, cooldowns, and concurrency limiting, and
+`lib/generated-sound-store.js` for the Supabase/R2-backed cache (falls back
+to an in-memory cache if the `generated_sounds` table doesn't exist yet —
+see the SQL comment at the bottom of that file). Admin status is visible at
+`/admin/sounds`.
 
 ## Audio Storage Notes
 

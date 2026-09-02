@@ -235,6 +235,14 @@ class SuiteRhythm {
     this.sfxLevel = parseFloat(localStorage.getItem('SuiteRhythm_sfx_level') ?? '0.9');   // default 90%
     this.ambientDurationMultiplier = parseFloat(localStorage.getItem('SuiteRhythm_ambient_duration') ?? '1.0'); // 0.5x to 3x
     try { this.ambienceEnabled = JSON.parse(localStorage.getItem('SuiteRhythm_ambience_enabled') ?? 'true'); } catch { this.ambienceEnabled = true; }
+    // AI sound generation fallback (ElevenLabs) — only ever attempted after a
+    // genuine library miss; see _maybeGenerateMissingSound(). The server is
+    // the source of truth for whether generation is actually allowed
+    // (credits/circuit breaker/etc) — these are just client-side UX toggles.
+    try { this.aiSoundFallbackEnabled = JSON.parse(localStorage.getItem('SuiteRhythm_ai_sound_fallback') ?? 'true'); } catch { this.aiSoundFallbackEnabled = true; }
+    try { this.aiSoundIndicatorEnabled = JSON.parse(localStorage.getItem('SuiteRhythm_ai_sound_indicator') ?? 'true'); } catch { this.aiSoundIndicatorEnabled = true; }
+    this._aiSoundCooldownMs = 12000; // min gap between generation requests for the same/similar cue
+    this._aiSoundCooldowns = new Map(); // normalizedCue -> last request time (client-side dedup, mirrors the server's)
     this.voiceIntensity = 0.5; // mic loudness ratio: ~0.4 quiet → ~1.5 shouting
     this._micAnalyser = null;  // AnalyserNode connected to mic (measurement only, no echo)
     this._startupSoundPlayed = false;
@@ -5906,10 +5914,93 @@ class SuiteRhythm {
                 if (this.soundHistory.length > 30) this.soundHistory.shift();
             }
         }
-        
+
+        // Last-resort AI generation fallback — only fires when the AI itself
+        // reported a real sound the library has no match for. Fire-and-forget:
+        // must never delay normal playback (see FEATURE 13 in the design notes).
+        this._maybeGenerateMissingSound(decisions);
+
     this.updateStatus(`${decisions.scene || 'Playing sounds...'}`);
     }
-    
+
+    // ===== AI SOUND GENERATION FALLBACK (ElevenLabs) =====
+    // Client-side gatekeeper before ever hitting the server: cheap cooldown
+    // dedup so narration can't fire more than one generation request for the
+    // same/similar cue. The server is still the real authority on whether
+    // generation is allowed (credits, circuit breaker, cache, concurrency).
+    _shouldRequestAiSound(normalizedCue) {
+        const now = Date.now();
+        const last = this._aiSoundCooldowns.get(normalizedCue);
+        if (last && now - last < this._aiSoundCooldownMs) return false;
+        this._aiSoundCooldowns.set(normalizedCue, now);
+        if (this._aiSoundCooldowns.size > 50) {
+            const firstKey = this._aiSoundCooldowns.keys().next().value;
+            this._aiSoundCooldowns.delete(firstKey);
+        }
+        return true;
+    }
+
+    _maybeGenerateMissingSound(decisions) {
+        if (!this.aiSoundFallbackEnabled) return;
+        if (!this.sfxEnabled || this.demoRunning) return;
+        const missing = decisions?.missingSound;
+        if (!missing || typeof missing !== 'string') return;
+
+        const normalized = missing.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!normalized || normalized.length < 3) return;
+        if (!this._shouldRequestAiSound(normalized)) {
+            debugLog('[AI Sound] Skipped — recently requested:', normalized);
+            return;
+        }
+
+        const type = /wind|rain|storm|forest|crowd|tavern|ocean|ambien|cave|dungeon|room\b|city/.test(normalized) ? 'ambience' : 'sfx';
+        const sceneStartedAtRequest = this._sceneStartedAt;
+
+        this._requestAiGeneratedSound(missing, type)
+            .then((result) => {
+                if (!result?.url) return;
+                // Short-lived one-shot cues can arrive after the moment has
+                // passed narratively — cache is already saved server-side,
+                // just skip an awkward late playback for non-ambience cues.
+                const stillRelevant = type === 'ambience' || this._sceneStartedAt === sceneStartedAtRequest;
+                if (!stillRelevant) {
+                    debugLog('[AI Sound] Generated after scene moved on — cached only, not played:', missing);
+                    return;
+                }
+                this.playAudio(result.url, {
+                    type: 'sfx',
+                    name: `ai:${missing}`.slice(0, 60),
+                    volume: this.calculateVolume(type === 'ambience' ? this.ambientBedGain : 0.8),
+                    loop: type === 'ambience',
+                });
+                this._markEventConsumed(missing);
+                if (this.aiSoundIndicatorEnabled) this.updateStatus('AI sound ready');
+            })
+            .catch((err) => debugLog('[AI Sound] Generation request failed:', err?.message || err));
+    }
+
+    async _requestAiGeneratedSound(cue, type) {
+        if (this.aiSoundIndicatorEnabled) this.updateStatus(`Creating missing sound: "${cue}"`);
+        const headers = { 'Content-Type': 'application/json' };
+        try {
+            const tok = typeof window.getSuiteRhythmAuthToken === 'function'
+                ? await window.getSuiteRhythmAuthToken()
+                : getAccessToken();
+            if (tok) headers.Authorization = `Bearer ${tok}`;
+        } catch (_) {}
+
+        const res = await fetch('/api/generate-sound', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ cue, type }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json().catch(() => null);
+        if (!data?.ok || !data.file) return null;
+        debugLog(`[AI Sound] ${data.cached ? 'Cache hit' : 'Generated'}: "${cue}" -> ${data.file}`);
+        return { url: normalizeAudioUrl(data.file), cached: !!data.cached };
+    }
+
     async updateMusicById(musicData) {
         if (!musicData || !musicData.id) return;
         if (!this.musicEnabled) {

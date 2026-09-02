@@ -11,9 +11,14 @@ import crypto from 'crypto';
 import { MODE_CONTEXTS, MODE_RULES } from '../../../lib/modules/ai-director.js';
 import { requireAuth } from '../../../lib/api-auth.js';
 import { classifyLocal } from '../../../lib/modules/local-classifier.js';
-import { buildCatalogSummary } from '../../../lib/server-catalog.js';
+import { buildCatalogSummary, SFX_EVENT_EVIDENCE } from '../../../lib/server-catalog.js';
 import { addTimingHeaders, logApiMetric } from '../../../lib/server-observability.js';
 import { checkRateLimit, rateLimitHeaders } from '../../../lib/rate-limit.js';
+
+// Confidence floor below which a reported "missingSound" is discarded rather
+// than handed to the (paid) ElevenLabs generation fallback. Single source of
+// truth — nothing else in the codebase should hardcode this threshold.
+const SOUND_MATCH_THRESHOLD = Number(process.env.SOUND_MATCH_THRESHOLD ?? 0.55);
 
 let _openai;
 function getOpenAI() {
@@ -60,6 +65,7 @@ RESPONSE FORMAT (strict JSON):
     "intensity": 0.0 to 1.0
   },
   "confidence": 0.0 to 1.0,
+  "missingSound": "a short (under 12 words) description of a sound the scene clearly calls for that has NO match in the AVAILABLE lists, or null",
   "worldState": {
     "location": "short location tag if detected, else null",
     "weather": "clear|rain|storm|snow|fog|wind|null",
@@ -91,6 +97,7 @@ CRITICAL RULES:
 - "confidence" reflects how certain you are. Set 0.3-0.5 when transcript is ambiguous.
 - "music" — only change when scene/mood shifts significantly. Use null if current music should keep playing. Pick music that matches the mood and setting.
 - "sfx" — max 2 per response. Only include sounds CLEARLY described or implied in the transcript. Never hallucinate sounds not mentioned.
+- "missingSound" — only set this when a real, current sound event is clearly happening (not past tense, not figurative) and nothing in the AVAILABLE SFX/MUSIC lists is even a loose match. Describe ONE sound only, focused on the physical event (e.g. "large wolf claws scratching heavy wooden door"), never a full sentence, never character names or dialogue. Leave it null far more often than not — most scenes are covered by the AVAILABLE lists or don't need a new sound at all.
 
 VERB TENSE & INTENT (important for not repeating one-shot sounds):
 - "intent": "event"      — a NEW discrete action happening now ("a door slams", "the train passes"). Play once.
@@ -164,10 +171,26 @@ export function buildFallbackDecision(local, error) {
     // A failed AI call is not enough evidence for automatic SFX. The
     // client still has its direct, precision-gated keyword path available.
     sfx: [],
+    missingSound: null,
     _fallback: true,
     _reason: error?.status === 429 ? 'openai_rate_limit' : 'openai_error',
     _source: 'local-classifier',
   };
+}
+
+/**
+ * Guards against a hallucinated/low-confidence "missingSound" ever reaching
+ * the (paid) ElevenLabs generation fallback: it must be a plausible short
+ * phrase, the transcript must contain real sound/action evidence, and the
+ * model's own confidence must clear SOUND_MATCH_THRESHOLD.
+ */
+export function sanitizeMissingSound(value, transcript, confidence) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 140 || trimmed.split(/\s+/).length > 14) return null;
+  if (typeof confidence === 'number' && confidence < SOUND_MATCH_THRESHOLD) return null;
+  if (!SFX_EVENT_EVIDENCE.test(String(transcript || ''))) return null;
+  return trimmed;
 }
 
 export async function POST(request) {
@@ -238,6 +261,7 @@ export async function POST(request) {
     const raw = completion.choices[0]?.message?.content;
     if (!raw) throw new Error('Empty response from OpenAI');
     const data = JSON.parse(raw);
+    data.missingSound = sanitizeMissingSound(data.missingSound, transcript, data.confidence);
 
     // Cache the response for dedup
     setCache(cacheKey, data);
