@@ -311,7 +311,9 @@ async function generateSound(prompt, duration) {
     });
     if (!resp.ok) {
         const errText = await resp.text().catch(() => '');
-        throw new Error(`ElevenLabs ${resp.status}: ${errText}`);
+        const error = new Error(`ElevenLabs ${resp.status}: ${errText}`);
+        error.quotaExceeded = resp.status === 401 && errText.includes('quota_exceeded');
+        throw error;
     }
     return Buffer.from(await resp.arrayBuffer());
 }
@@ -434,6 +436,10 @@ async function main() {
         } catch (err) {
             console.log(` FAIL: ${err.message}`);
             failed++;
+            if (err.quotaExceeded) {
+                console.log('  [stopping: ElevenLabs quota exhausted]');
+                break;
+            }
         }
     }
 

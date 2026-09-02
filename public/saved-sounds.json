@@ -18498,6 +18498,1013 @@
         "money",
         "dnd"
       ]
+    },
+    {
+      "type": "music",
+      "name": "boss fight epic music",
+      "file": "Saved sounds/boss-fight-epic-music.mp3",
+      "keywords": [
+        "boss",
+        "fight",
+        "epic",
+        "battle",
+        "climactic",
+        "fantasy"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "skirmish quick combat music",
+      "file": "Saved sounds/skirmish-quick-combat-music.mp3",
+      "keywords": [
+        "skirmish",
+        "combat",
+        "fight",
+        "quick",
+        "short"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "arena gladiator combat music",
+      "file": "Saved sounds/arena-gladiator-combat-music.mp3",
+      "keywords": [
+        "arena",
+        "gladiator",
+        "combat",
+        "crowd",
+        "roman"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "duel tense standoff music",
+      "file": "Saved sounds/duel-tense-standoff-music.mp3",
+      "keywords": [
+        "duel",
+        "standoff",
+        "tense",
+        "honor",
+        "western"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "siege warfare music",
+      "file": "Saved sounds/siege-warfare-music.mp3",
+      "keywords": [
+        "siege",
+        "war",
+        "castle",
+        "assault",
+        "medieval"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "last stand heroic music",
+      "file": "Saved sounds/last-stand-heroic-music.mp3",
+      "keywords": [
+        "last stand",
+        "heroic",
+        "sacrifice",
+        "final",
+        "defiant"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "retreat escape music",
+      "file": "Saved sounds/retreat-escape-music.mp3",
+      "keywords": [
+        "retreat",
+        "escape",
+        "flee",
+        "desperate",
+        "chase"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "stealth heist music",
+      "file": "Saved sounds/stealth-heist-music.mp3",
+      "keywords": [
+        "stealth",
+        "heist",
+        "sneak",
+        "rogue",
+        "infiltration"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "naval battle music",
+      "file": "Saved sounds/naval-battle-music.mp3",
+      "keywords": [
+        "naval",
+        "sea",
+        "battle",
+        "cannon",
+        "pirate"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "ambush surprise music",
+      "file": "Saved sounds/ambush-surprise-music.mp3",
+      "keywords": [
+        "ambush",
+        "surprise",
+        "sudden",
+        "attack"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "cave exploration music",
+      "file": "Saved sounds/cave-exploration-music.mp3",
+      "keywords": [
+        "cave",
+        "exploration",
+        "underground",
+        "echo",
+        "dark"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "ancient ruins exploration music",
+      "file": "Saved sounds/ancient-ruins-exploration-music.mp3",
+      "keywords": [
+        "ruins",
+        "ancient",
+        "exploration",
+        "mystery",
+        "archaeology"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "snowy mountain pass music",
+      "file": "Saved sounds/snowy-mountain-pass-music.mp3",
+      "keywords": [
+        "snow",
+        "mountain",
+        "pass",
+        "cold",
+        "travel"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "coastal voyage music",
+      "file": "Saved sounds/coastal-voyage-music.mp3",
+      "keywords": [
+        "coastal",
+        "voyage",
+        "sea",
+        "travel",
+        "adventure"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "haunted forest music",
+      "file": "Saved sounds/haunted-forest-music.mp3",
+      "keywords": [
+        "haunted",
+        "forest",
+        "eerie",
+        "ghost",
+        "horror"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "underground river music",
+      "file": "Saved sounds/underground-river-music.mp3",
+      "keywords": [
+        "underground",
+        "river",
+        "cave",
+        "water",
+        "ambient"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "alien world ambient music",
+      "file": "Saved sounds/alien-world-ambient-music.mp3",
+      "keywords": [
+        "alien",
+        "planet",
+        "sci-fi",
+        "ambient",
+        "strange"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "ghost ship airship music",
+      "file": "Saved sounds/ghost-ship-airship-music.mp3",
+      "keywords": [
+        "airship",
+        "ship",
+        "ghost",
+        "steampunk",
+        "sky"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "desert expanse music",
+      "file": "Saved sounds/desert-expanse-music.mp3",
+      "keywords": [
+        "desert",
+        "expanse",
+        "dunes",
+        "travel",
+        "arid"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "jungle expedition music",
+      "file": "Saved sounds/jungle-expedition-music.mp3",
+      "keywords": [
+        "jungle",
+        "expedition",
+        "rainforest",
+        "tropical",
+        "adventure"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "noble feast music",
+      "file": "Saved sounds/noble-feast-music.mp3",
+      "keywords": [
+        "noble",
+        "feast",
+        "banquet",
+        "royal",
+        "celebration"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "tavern quiet evening music",
+      "file": "Saved sounds/tavern-quiet-evening-music.mp3",
+      "keywords": [
+        "tavern",
+        "quiet",
+        "evening",
+        "fireplace",
+        "peaceful"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "festival dance music",
+      "file": "Saved sounds/festival-dance-music.mp3",
+      "keywords": [
+        "festival",
+        "dance",
+        "celebration",
+        "joyful",
+        "medieval"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "wedding ceremony music",
+      "file": "Saved sounds/wedding-ceremony-music.mp3",
+      "keywords": [
+        "wedding",
+        "ceremony",
+        "love",
+        "celebration",
+        "romantic"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "city bustle music",
+      "file": "Saved sounds/city-bustle-music.mp3",
+      "keywords": [
+        "city",
+        "bustle",
+        "market",
+        "urban",
+        "medieval"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "tavern brawl music",
+      "file": "Saved sounds/tavern-brawl-music.mp3",
+      "keywords": [
+        "tavern",
+        "brawl",
+        "fight",
+        "chaotic",
+        "comedic"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "hope rising music",
+      "file": "Saved sounds/hope-rising-music.mp3",
+      "keywords": [
+        "hope",
+        "rising",
+        "uplifting",
+        "hopeful",
+        "warm"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "dread creeping music",
+      "file": "Saved sounds/dread-creeping-music.mp3",
+      "keywords": [
+        "dread",
+        "creeping",
+        "horror",
+        "unease",
+        "tension"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "melancholy reflection music",
+      "file": "Saved sounds/melancholy-reflection-music.mp3",
+      "keywords": [
+        "melancholy",
+        "sad",
+        "reflection",
+        "lonely",
+        "introspective"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "triumph glory music",
+      "file": "Saved sounds/triumph-glory-music.mp3",
+      "keywords": [
+        "triumph",
+        "glory",
+        "victory",
+        "heroic",
+        "fanfare"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "wonder awe music",
+      "file": "Saved sounds/wonder-awe-music.mp3",
+      "keywords": [
+        "wonder",
+        "awe",
+        "magical",
+        "discovery",
+        "beauty"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "rage fury music",
+      "file": "Saved sounds/rage-fury-music.mp3",
+      "keywords": [
+        "rage",
+        "fury",
+        "berserk",
+        "aggressive",
+        "barbarian"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "calm peaceful music",
+      "file": "Saved sounds/calm-peaceful-music.mp3",
+      "keywords": [
+        "calm",
+        "peaceful",
+        "rest",
+        "resting",
+        "serene"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "eerie unsettling music",
+      "file": "Saved sounds/eerie-unsettling-music.mp3",
+      "keywords": [
+        "eerie",
+        "unsettling",
+        "strange",
+        "uneasy",
+        "horror"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "whimsical playful music",
+      "file": "Saved sounds/whimsical-playful-music.mp3",
+      "keywords": [
+        "whimsical",
+        "playful",
+        "fairy",
+        "comedic",
+        "light"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "betrayal revelation music",
+      "file": "Saved sounds/betrayal-revelation-music.mp3",
+      "keywords": [
+        "betrayal",
+        "revelation",
+        "shock",
+        "dramatic",
+        "turn"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "space opera sci-fi music",
+      "file": "Saved sounds/space-opera-sci-fi-music.mp3",
+      "keywords": [
+        "space",
+        "opera",
+        "sci-fi",
+        "epic",
+        "stars"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "cyberpunk neon music",
+      "file": "Saved sounds/cyberpunk-neon-music.mp3",
+      "keywords": [
+        "cyberpunk",
+        "neon",
+        "sci-fi",
+        "future",
+        "synth"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "western frontier music",
+      "file": "Saved sounds/western-frontier-music.mp3",
+      "keywords": [
+        "western",
+        "frontier",
+        "cowboy",
+        "desert"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "gothic horror organ music",
+      "file": "Saved sounds/gothic-horror-organ-music.mp3",
+      "keywords": [
+        "gothic",
+        "horror",
+        "organ",
+        "dark",
+        "castle"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "lovecraftian cosmic horror music",
+      "file": "Saved sounds/lovecraftian-cosmic-horror-music.mp3",
+      "keywords": [
+        "lovecraft",
+        "cosmic",
+        "horror",
+        "eldritch",
+        "insane"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "post-apocalyptic wasteland music",
+      "file": "Saved sounds/post-apocalyptic-wasteland-music.mp3",
+      "keywords": [
+        "post-apocalyptic",
+        "wasteland",
+        "ruined",
+        "survival",
+        "sci-fi"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "steampunk industrial music",
+      "file": "Saved sounds/steampunk-industrial-music.mp3",
+      "keywords": [
+        "steampunk",
+        "industrial",
+        "victorian",
+        "clockwork"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "dark fantasy grimdark music",
+      "file": "Saved sounds/dark-fantasy-grimdark-music.mp3",
+      "keywords": [
+        "dark fantasy",
+        "grimdark",
+        "brooding",
+        "witcher"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "high fantasy heroic music",
+      "file": "Saved sounds/high-fantasy-heroic-music.mp3",
+      "keywords": [
+        "high fantasy",
+        "heroic",
+        "tolkien",
+        "epic",
+        "adventure"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "asian fantasy music",
+      "file": "Saved sounds/asian-fantasy-music.mp3",
+      "keywords": [
+        "asian",
+        "fantasy",
+        "eastern",
+        "samurai",
+        "martial"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "noir jazz detective music",
+      "file": "Saved sounds/noir-jazz-detective-music.mp3",
+      "keywords": [
+        "noir",
+        "jazz",
+        "detective",
+        "1940s",
+        "investigation"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "egyptian ancient music",
+      "file": "Saved sounds/egyptian-ancient-music.mp3",
+      "keywords": [
+        "egyptian",
+        "ancient",
+        "pyramid",
+        "desert",
+        "pharaoh"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "norse viking music",
+      "file": "Saved sounds/norse-viking-music.mp3",
+      "keywords": [
+        "norse",
+        "viking",
+        "nordic",
+        "saga",
+        "warrior"
+      ]
+    },
+    {
+      "type": "music",
+      "name": "pirate sea shanty battle music",
+      "file": "Saved sounds/pirate-sea-shanty-battle-music.mp3",
+      "keywords": [
+        "pirate",
+        "sea shanty",
+        "battle",
+        "sailing",
+        "adventure"
+      ]
+    },
+    {
+      "type": "ambience",
+      "name": "tavern busy night ambience",
+      "file": "Saved sounds/tavern-busy-night-ambience.mp3",
+      "keywords": [
+        "tavern",
+        "busy",
+        "night",
+        "crowd",
+        "chatter",
+        "inn"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "tavern empty day ambience",
+      "file": "Saved sounds/tavern-empty-day-ambience.mp3",
+      "keywords": [
+        "tavern",
+        "empty",
+        "quiet",
+        "day",
+        "inn"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "tavern fireplace ambience",
+      "file": "Saved sounds/tavern-fireplace-ambience.mp3",
+      "keywords": [
+        "tavern",
+        "fireplace",
+        "crackling",
+        "cozy",
+        "fire"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "tavern kitchen ambience",
+      "file": "Saved sounds/tavern-kitchen-ambience.mp3",
+      "keywords": [
+        "tavern",
+        "kitchen",
+        "cooking",
+        "pots",
+        "inn"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "tavern bard performing ambience",
+      "file": "Saved sounds/tavern-bard-performing-ambience.mp3",
+      "keywords": [
+        "tavern",
+        "bard",
+        "music",
+        "lute",
+        "performance"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "tavern rowdy brawl ambience",
+      "file": "Saved sounds/tavern-rowdy-brawl-ambience.mp3",
+      "keywords": [
+        "tavern",
+        "rowdy",
+        "brawl",
+        "fight",
+        "chaotic"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "medieval city street ambience",
+      "file": "Saved sounds/medieval-city-street-ambience.mp3",
+      "keywords": [
+        "city",
+        "street",
+        "medieval",
+        "urban",
+        "crowd"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "market square ambience",
+      "file": "Saved sounds/market-square-ambience.mp3",
+      "keywords": [
+        "market",
+        "square",
+        "vendors",
+        "crowd",
+        "bazaar"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "slum alleyway ambience",
+      "file": "Saved sounds/slum-alleyway-ambience.mp3",
+      "keywords": [
+        "slum",
+        "alley",
+        "poor",
+        "dirty",
+        "urban"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "docks harbor ambience",
+      "file": "Saved sounds/docks-harbor-ambience.mp3",
+      "keywords": [
+        "docks",
+        "harbor",
+        "port",
+        "ships",
+        "sea"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "noble district ambience",
+      "file": "Saved sounds/noble-district-ambience.mp3",
+      "keywords": [
+        "noble",
+        "district",
+        "wealthy",
+        "city",
+        "quiet"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "city night patrol ambience",
+      "file": "Saved sounds/city-night-patrol-ambience.mp3",
+      "keywords": [
+        "city",
+        "night",
+        "patrol",
+        "guard",
+        "quiet"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "light rain gentle ambience",
+      "file": "Saved sounds/light-rain-gentle-ambience.mp3",
+      "keywords": [
+        "rain",
+        "light",
+        "gentle",
+        "drizzle",
+        "soft"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "distant thunder rolling ambience",
+      "file": "Saved sounds/distant-thunder-rolling-ambience.mp3",
+      "keywords": [
+        "thunder",
+        "distant",
+        "rolling",
+        "storm",
+        "rain"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "blizzard howling wind ambience",
+      "file": "Saved sounds/blizzard-howling-wind-ambience.mp3",
+      "keywords": [
+        "blizzard",
+        "wind",
+        "snow",
+        "howling",
+        "storm"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "desert wind sand ambience",
+      "file": "Saved sounds/desert-wind-sand-ambience.mp3",
+      "keywords": [
+        "desert",
+        "wind",
+        "sand",
+        "dry",
+        "hot"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "mountain wind high altitude ambience",
+      "file": "Saved sounds/mountain-wind-altitude-ambience.mp3",
+      "keywords": [
+        "mountain",
+        "wind",
+        "altitude",
+        "cold",
+        "high"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "foggy marsh ambience",
+      "file": "Saved sounds/foggy-marsh-ambience.mp3",
+      "keywords": [
+        "foggy",
+        "marsh",
+        "swamp",
+        "eerie",
+        "mist"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "summer hot cicadas ambience",
+      "file": "Saved sounds/summer-hot-cicadas-ambience.mp3",
+      "keywords": [
+        "summer",
+        "hot",
+        "cicadas",
+        "insects",
+        "day"
+      ],
+      "loop": true
+    },
+    {
+      "type": "ambience",
+      "name": "autumn leaves wind ambience",
+      "file": "Saved sounds/autumn-leaves-wind-ambience.mp3",
+      "keywords": [
+        "autumn",
+        "leaves",
+        "wind",
+        "fall",
+        "rustling"
+      ],
+      "loop": true
+    },
+    {
+      "type": "sfx",
+      "name": "dagger stab quick",
+      "file": "Saved sounds/dagger-stab-quick.mp3",
+      "keywords": [
+        "dagger",
+        "stab",
+        "quick",
+        "rogue",
+        "assassin"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "rapier thrust lunge",
+      "file": "Saved sounds/rapier-thrust-lunge.mp3",
+      "keywords": [
+        "rapier",
+        "thrust",
+        "fencing",
+        "lunge",
+        "duelist"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "warhammer heavy swing",
+      "file": "Saved sounds/warhammer-heavy-swing.mp3",
+      "keywords": [
+        "warhammer",
+        "heavy",
+        "swing",
+        "blunt",
+        "warrior"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "throwing knife whoosh",
+      "file": "Saved sounds/throwing-knife-whoosh.mp3",
+      "keywords": [
+        "throwing knife",
+        "whoosh",
+        "dagger",
+        "throw",
+        "assassin"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "whip crack sharp",
+      "file": "Saved sounds/whip-crack-sharp.mp3",
+      "keywords": [
+        "whip",
+        "crack",
+        "sharp",
+        "leather"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "punch fist impact flesh",
+      "file": "Saved sounds/punch-fist-impact-flesh.mp3",
+      "keywords": [
+        "punch",
+        "fist",
+        "impact",
+        "flesh",
+        "unarmed"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "kick impact body",
+      "file": "Saved sounds/kick-impact-body.mp3",
+      "keywords": [
+        "kick",
+        "impact",
+        "body",
+        "martial"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "detect magic ping",
+      "file": "Saved sounds/detect-magic-ping.mp3",
+      "keywords": [
+        "detect",
+        "magic",
+        "ping",
+        "sense"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "counterspell cancel",
+      "file": "Saved sounds/counterspell-cancel.mp3",
+      "keywords": [
+        "counterspell",
+        "cancel",
+        "dispel"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "portal open arcane",
+      "file": "Saved sounds/portal-open-arcane.mp3",
+      "keywords": [
+        "portal",
+        "open",
+        "arcane",
+        "teleport"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "portal close collapse",
+      "file": "Saved sounds/portal-close-collapse.mp3",
+      "keywords": [
+        "portal",
+        "close",
+        "collapse",
+        "teleport"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "eldritch blast dark",
+      "file": "Saved sounds/eldritch-blast-dark.mp3",
+      "keywords": [
+        "eldritch",
+        "blast",
+        "warlock",
+        "dark",
+        "force"
+      ]
+    },
+    {
+      "type": "sfx",
+      "name": "sacred flame divine",
+      "file": "Saved sounds/sacred-flame-divine.mp3",
+      "keywords": [
+        "sacred",
+        "flame",
+        "divine",
+        "cleric",
+        "holy"
+      ]
     }
   ]
 }
