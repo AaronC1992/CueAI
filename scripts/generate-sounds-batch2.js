@@ -20,6 +20,8 @@ import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 
 const DRY_RUN = process.argv.includes('--dry-run');
+const limitArg = process.argv.find(arg => arg.startsWith('--limit='));
+const LIMIT = limitArg ? Number(limitArg.split('=')[1]) : null;
 const API_KEY = process.env.ELEVENLABS_API_KEY;
 const BUCKET = process.env.R2_BUCKET_NAME || 'cueai-media';
 const PREFIX = 'Saved sounds/';
@@ -282,9 +284,17 @@ const NEW_SOUNDS = [
     { name: 'compass needle spin', filename: 'compass-needle-spin.mp3', duration: 3, type: 'sfx', keywords: ['compass', 'needle', 'spin', 'navigation'], prompt: 'Compass needle spinning and settling, soft metallic tick, navigation finding north' },
 ];
 
+const SELECTED_SOUNDS = Number.isInteger(LIMIT) && LIMIT > 0
+    ? NEW_SOUNDS.slice(0, LIMIT)
+    : NEW_SOUNDS;
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function isLikelyElevenLabsApiKey(value) {
+    return typeof value === 'string' && value.startsWith('sk_');
+}
 
 async function r2Exists(key) {
     try {
@@ -321,7 +331,10 @@ async function uploadToR2(key, body) {
 function validate() {
     const seen = new Set();
     const errors = [];
-    for (const s of NEW_SOUNDS) {
+    if (LIMIT !== null && (!Number.isInteger(LIMIT) || LIMIT <= 0)) {
+        errors.push(`invalid --limit value: ${limitArg}`);
+    }
+    for (const s of SELECTED_SOUNDS) {
         const req = ['name', 'filename', 'prompt', 'duration', 'type', 'keywords'];
         for (const key of req) {
             if (s[key] === undefined || s[key] === null) errors.push(`${s.name || '(unnamed)'}: missing ${key}`);
@@ -347,10 +360,10 @@ async function main() {
     }
 
     // Breakdown summary, always printed.
-    const byType = NEW_SOUNDS.reduce((acc, s) => { acc[s.type] = (acc[s.type] || 0) + 1; return acc; }, {});
-    console.log(`\nBatch 2: ${NEW_SOUNDS.length} new sounds`);
+    const byType = SELECTED_SOUNDS.reduce((acc, s) => { acc[s.type] = (acc[s.type] || 0) + 1; return acc; }, {});
+    console.log(`\nBatch 2: ${SELECTED_SOUNDS.length} selected sounds${LIMIT ? ` (limit ${LIMIT} of ${NEW_SOUNDS.length})` : ''}`);
     for (const [t, n] of Object.entries(byType)) console.log(`  ${t.padEnd(10)} ${n}`);
-    const totalDur = NEW_SOUNDS.reduce((sum, s) => sum + s.duration, 0);
+    const totalDur = SELECTED_SOUNDS.reduce((sum, s) => sum + s.duration, 0);
     console.log(`  total duration: ${totalDur}s (~${Math.ceil(totalDur / 60)} min)`);
 
     if (DRY_RUN) {
@@ -359,6 +372,11 @@ async function main() {
     }
 
     if (!API_KEY) { console.error('Missing ELEVENLABS_API_KEY in .env.local'); process.exit(1); }
+    if (!isLikelyElevenLabsApiKey(API_KEY)) {
+        console.error('ELEVENLABS_API_KEY is not a valid API key. ElevenLabs API keys start with sk_.');
+        console.error('Create or rotate an ElevenLabs API key, update .env.local, then rerun this command.');
+        process.exit(1);
+    }
 
     const catalogPath = join(process.cwd(), 'public', 'saved-sounds.json');
     const catalogJson = JSON.parse(await readFile(catalogPath, 'utf-8'));
@@ -368,10 +386,10 @@ async function main() {
     console.log(`\nExisting catalog: ${catalog.length} sounds\n`);
 
     let generated = 0, skipped = 0, failed = 0;
-    for (let i = 0; i < NEW_SOUNDS.length; i++) {
-        const s = NEW_SOUNDS[i];
+    for (let i = 0; i < SELECTED_SOUNDS.length; i++) {
+        const s = SELECTED_SOUNDS[i];
         const r2Key = `${PREFIX}${s.filename}`;
-        const tag = `[${i + 1}/${NEW_SOUNDS.length}]`;
+        const tag = `[${i + 1}/${SELECTED_SOUNDS.length}]`;
 
         if (existingNames.has(s.name.toLowerCase())) {
             console.log(`${tag} SKIP (exists): ${s.name}`);
