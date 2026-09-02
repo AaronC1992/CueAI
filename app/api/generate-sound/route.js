@@ -20,6 +20,7 @@ import {
   generateSound,
   normalizeCue,
   reportCacheHit,
+  getStatus,
 } from '../../../lib/modules/elevenlabs-generation-manager.js';
 import { findCachedGeneratedSound, saveGeneratedSound } from '../../../lib/generated-sound-store.js';
 
@@ -82,8 +83,11 @@ export async function POST(request) {
   const result = await generateSound({ cue, type });
   if (!result.ok) {
     console.info(`[AI Sound] Generation skipped — reason: ${result.reason}`);
+    // Include the credit-check detail (no secrets) so "unavailable"/"depleted"
+    // is diagnosable from the response alone — module state resets between
+    // serverless invocations, so server logs alone aren't always reachable.
     return NextResponse.json(
-      { ok: false, reason: result.reason },
+      { ok: false, reason: result.reason, detail: getStatus().credit },
       { headers: rateLimitHeaders(rate) }
     );
   }

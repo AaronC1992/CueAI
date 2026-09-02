@@ -107,7 +107,7 @@ describe('/api/generate-sound', () => {
     const res = await POST(postRequest(token, { cue: 'giant spider dragging claws on window' }));
     const body = await res.json();
 
-    expect(body).toEqual({ ok: false, reason: 'depleted' });
+    expect(body).toMatchObject({ ok: false, reason: 'depleted' });
     expect(saveGeneratedSound).not.toHaveBeenCalled();
   });
 });
