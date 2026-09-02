@@ -28,9 +28,6 @@ describe('settings menu wiring', () => {
     expect(toggleIds.length).toBeGreaterThan(0);
     expect(pairs.map((pair) => pair.toggleId)).toEqual(toggleIds);
 
-    expect(pairs).toContainEqual({
-      toggleId: 'subscriptionMenuToggle',
-      contentId: 'subscriptionMenuContent',
-    });
+    expect(pairs.map((pair) => pair.toggleId)).not.toContain('subscriptionMenuToggle');
   });
 });

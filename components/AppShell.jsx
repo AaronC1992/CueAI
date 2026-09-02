@@ -38,7 +38,6 @@ import TableTopSection from './sections/TableTopSection';
 import StoryTellerSection from './sections/StoryTellerSection';
 import SingSection from './sections/SingSection';
 import {
-  SubscribeModal,
   TutorialModal,
   FeedbackModal,
   LoadingOverlay,
@@ -283,7 +282,6 @@ export default function AppShell({ user }) {
       </div>
 
       {/* Body level modals and overlays */}
-      <SubscribeModal />
       <TutorialModal />
       <FeedbackModal />
       <LoadingOverlay />

@@ -30,7 +30,6 @@ export default function DashboardSection() {
         <span>
           Local sound engine active with full sound library.
         </span>
-        <button id="showSubscribeModal" type="button">Preferences</button>
       </div>
 
       {/* Primary Studio Modes Grid */}

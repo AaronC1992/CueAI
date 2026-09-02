@@ -184,30 +184,6 @@ export default function SettingsSection() {
           </div>
         </section>
 
-        {/* App Access */}
-        <section className="menu-section">
-          <button className="menu-toggle" id="subscriptionMenuToggle">
-            App Access
-            <span className="toggle-indicator">&#9660;</span>
-          </button>
-          <div className="menu-content hidden" id="subscriptionMenuContent">
-            <div id="subscriptionStatus" className="info-text" style={{ marginBottom: 10 }}>
-              Full sound engine active
-            </div>
-            <button id="refreshTokenBtn" className="btn-secondary" style={{ width: '100%', marginTop: 4 }}>
-              Refresh Access Token
-            </button>
-            <button id="subscribeBtn2" className="btn-primary" style={{ width: '100%', marginTop: 8 }}>
-              Save Access Token
-            </button>
-            <p className="info-text" style={{ marginTop: 12, fontSize: '0.8rem' }}>
-              <a href="/terms" target="_blank">Terms of Service</a>
-              &nbsp;&nbsp;&middot;&nbsp;&nbsp;
-              <a href="/privacy" target="_blank">Privacy Policy</a>
-            </p>
-          </div>
-        </section>
-
         {/* Audio Source (Pixabay) */}
         <section className="menu-section">
           <button className="menu-toggle" id="audioSourceMenuToggle">

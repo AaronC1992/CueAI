@@ -133,7 +133,6 @@ export default function Sidebar({ user: _user }) {
         <div className="sidebar-footer-actions">
           <button id="tutorialBtn" className="sidebar-action-btn" type="button">Quick Guide</button>
           <button id="feedbackBtn" className="sidebar-action-btn" type="button">Feedback</button>
-          <button id="manageSubscriptionBtn" className="sidebar-action-btn" type="button">Config</button>
         </div>
         <div className="sidebar-version-badge">
           <span>SuiteRhythm v3.6.4</span>
