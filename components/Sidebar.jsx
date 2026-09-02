@@ -1,35 +1,44 @@
 'use client';
 
 import EngineStatusDot from './EngineStatusDot';
-import AuthStatus from './AuthStatus';
 
 /**
- * Sidebar — platform navigation.
- * All button clicks (section switching) are handled by the SuiteRhythm
- * engine's setupEventListeners() which queries the DOM by data-section
- * attributes. React only renders the markup; the engine wires event listeners.
+ * Sidebar navigation for the sound application.
+ * Section switching is wired by the engine event listeners via data-section attributes.
  */
-export default function Sidebar({ user }) {
+export default function Sidebar({ user: _user }) {
   return (
     <aside id="platformSidebar" aria-label="Platform navigation">
       <div className="sidebar-brand">
         <div className="sidebar-brand-row">
-          <span className="sidebar-logo-text">SuiteRhythm</span>
+          <div className="sidebar-brand-identity">
+            <span className="sidebar-brand-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M2 10v4" />
+                <path d="M6 6v12" />
+                <path d="M10 3v18" />
+                <path d="M14 7v10" />
+                <path d="M18 5v14" />
+                <path d="M22 11v2" />
+              </svg>
+            </span>
+            <span className="sidebar-logo-text">SuiteRhythm</span>
+          </div>
           <EngineStatusDot />
         </div>
-        <span className="sidebar-tagline">Reactive Sound Design</span>
+        <span className="sidebar-tagline">Reactive Sound Studio</span>
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
-        <button className="sidebar-nav-item" data-section="dashboardPanel" aria-label="Home">
+        <div className="sidebar-nav-group-label">Studio Modes</div>
+
+        <button className="sidebar-nav-item active" data-section="dashboardPanel" aria-label="Home">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-          Home
+          Studio Home
         </button>
-
-        <div className="sidebar-nav-group-label">Tools</div>
 
         <button className="sidebar-nav-item" data-section="dndAutoDetect" aria-label="Auto Detect">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -47,7 +56,7 @@ export default function Sidebar({ user }) {
             <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
             <line x1="12" y1="22.08" x2="12" y2="12" />
           </svg>
-          Table Top
+          Table Top RPG
         </button>
 
         <button className="sidebar-nav-item" data-section="storyTellerSection" aria-label="Story Teller">
@@ -64,7 +73,7 @@ export default function Sidebar({ user }) {
             <line x1="8" y1="21" x2="16" y2="21" />
             <line x1="12" y1="17" x2="12" y2="21" />
           </svg>
-          Creator
+          Creator Studio
         </button>
 
         <button className="sidebar-nav-item" data-section="singSection" aria-label="Sing">
@@ -73,8 +82,10 @@ export default function Sidebar({ user }) {
             <circle cx="6" cy="18" r="3" />
             <circle cx="18" cy="16" r="3" />
           </svg>
-          Sing
+          Sing Backing
         </button>
+
+        <div className="sidebar-nav-group-label">Creative Tools</div>
 
         <button className="sidebar-nav-item" data-section="dndCreateCampaign" aria-label="Story Editor">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -94,8 +105,6 @@ export default function Sidebar({ user }) {
           Control Board
         </button>
 
-        <div className="sidebar-nav-group-label">Library</div>
-
         <button className="sidebar-nav-item" data-section="soundLibrarySection" aria-label="Sound Library">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 18V5l12-2v13" />
@@ -105,7 +114,7 @@ export default function Sidebar({ user }) {
           Sound Library
         </button>
 
-        <div className="sidebar-nav-group-label">System</div>
+        <div className="sidebar-nav-group-label">Preferences</div>
 
         <button className="sidebar-nav-item" data-section="settingsSection" aria-label="Settings">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -117,15 +126,18 @@ export default function Sidebar({ user }) {
       </nav>
 
       <div className="sidebar-footer">
-        <AuthStatus user={user} />
-        <div className="sidebar-api-row">
-          <button id="manageSubscriptionBtn" className="sidebar-reset-key">Access</button>
+        <div className="sidebar-engine-pill">
+          <span className="sidebar-engine-indicator" aria-hidden="true" />
+          <span className="sidebar-engine-text">Sound Engine Ready</span>
         </div>
         <div className="sidebar-footer-actions">
-          <button id="tutorialBtn" className="sidebar-action-btn">How to Use</button>
-          <button id="feedbackBtn" className="sidebar-action-btn">Feedback</button>
+          <button id="tutorialBtn" className="sidebar-action-btn" type="button">Quick Guide</button>
+          <button id="feedbackBtn" className="sidebar-action-btn" type="button">Feedback</button>
+          <button id="manageSubscriptionBtn" className="sidebar-action-btn" type="button">Config</button>
         </div>
-        <p className="version">v3.6.1 | SuiteRhythm &copy; 2026</p>
+        <div className="sidebar-version-badge">
+          <span>SuiteRhythm v3.6.4</span>
+        </div>
       </div>
     </aside>
   );

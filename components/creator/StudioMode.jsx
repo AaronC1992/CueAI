@@ -381,14 +381,6 @@ async function getAuthToken() {
   try {
     const response = await fetch('/api/auth/token', { cache: 'no-cache' });
     if (!response.ok) {
-      const detail = await response.json().catch(() => ({}));
-      if (response.status === 401) {
-        const currentPath = `${window.location.pathname}${window.location.search}`;
-        const redirectTo = encodeURIComponent(currentPath || '/dashboard');
-        window.location.assign(detail.refreshRequired
-          ? `/api/auth/refresh?redirect=${redirectTo}`
-          : `/login?redirect=${redirectTo}`);
-      }
       return null;
     }
     const data = await response.json();

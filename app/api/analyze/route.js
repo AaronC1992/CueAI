@@ -152,6 +152,22 @@ function buildUserMessage(transcript, mode, context) {
   return parts.join('\n');
 }
 
+export function buildFallbackDecision(local, error) {
+  return {
+    scene: local.scene,
+    mood: local.mood,
+    confidence: Math.min(local.confidence, 0.35),
+    worldState: local.worldState,
+    music: { id: null, action: 'play_or_continue', volume: 0.5 },
+    // A failed AI call is not enough evidence for automatic SFX. The
+    // client still has its direct, precision-gated keyword path available.
+    sfx: [],
+    _fallback: true,
+    _reason: error?.status === 429 ? 'openai_rate_limit' : 'openai_error',
+    _source: 'local-classifier',
+  };
+}
+
 export async function POST(request) {
   const startedAt = Date.now();
   // Auth check — reject unauthenticated requests before doing any work
@@ -235,17 +251,7 @@ export async function POST(request) {
     // "keep current" JSON so the client-side rule-based fallback
     // has a clean decision to merge with (no hallucinated SFX).
     const local = classifyLocal(transcript, { mode });
-    const fallback = {
-      scene: local.scene,
-      mood: local.mood,
-      confidence: Math.min(local.confidence, 0.35),
-      worldState: local.worldState,
-      music: { id: null, action: 'play_or_continue', volume: 0.5 },
-      sfx: local.sfx,
-      _fallback: true,
-      _reason: err?.status === 429 ? 'openai_rate_limit' : 'openai_error',
-      _source: 'local-classifier',
-    };
+    const fallback = buildFallbackDecision(local, err);
     const status = err?.status === 429 ? 429 : 200; // 200 lets client merge with ruleBased
     const res = NextResponse.json(fallback, { status });
     res.headers.set('X-RateLimit-Remaining', String(rate.remaining));

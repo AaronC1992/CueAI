@@ -62,6 +62,20 @@ describe('server-catalog', () => {
         expect(sfxList).not.toContain('forest ambience daytime');
     });
 
+    it('does not produce SFX candidates from context when fresh narration has no event evidence', () => {
+        const summary = buildCatalogSummary({
+            transcript: 'The narrator pauses for a moment.',
+            mode: 'dnd',
+            context: {
+                sessionContext: 'A stormy forest battle with wolves and thunder',
+                storyTitle: 'The Howling Forest',
+            },
+        });
+        const sfxList = summary.match(/AVAILABLE SFX CANDIDATES \(\d+ sounds[^\n]*\):\n([^\n]*)/)?.[1] || '';
+
+        expect(sfxList).toBe('');
+    });
+
     it('surfaces exact new Foley for chair movement and inflected actions', () => {
         const summary = buildCatalogSummary({
             transcript: 'he pulls a chair up to a table',

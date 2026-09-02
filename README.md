@@ -2,9 +2,9 @@
 
 # SuiteRhythm
 
-### Intelligent Audio Companion for Tabletop RPGs
+### Reactive Sound Studio for Games, Stories, and Broadcasts
 
-AI-powered ambient sound designer that listens to your game in real time and automatically plays contextually-appropriate music and sound effects.
+An interactive sound application that listens to live narration and layers music, ambience, and sound effects in real time.
 
 <br>
 
@@ -16,54 +16,47 @@ AI-powered ambient sound designer that listens to your game in real time and aut
 
 ---
 
-## The Problem
+## What It Does
 
-Tabletop RPG game masters spend hours curating playlists and manually triggering sound effects mid-session. It breaks immersion, splits focus, and most groups just skip audio entirely.
+SuiteRhythm provides live audio tools for tabletop games, narrated stories, streams, podcasts, and vocal performance.
 
-## The Solution
+## Core Experience
 
-SuiteRhythm listens to what's happening at the table and **automatically** plays the right sounds at the right time — no manual input needed.
+Choose a studio mode, provide narration or microphone input, and let SuiteRhythm react with sounds that match the current action, setting, and mood.
 
-- A player says *"I kick down the tavern door"* — tavern ambiance fades in
-- The DM describes a thunderstorm — rain and thunder start rolling
-- Combat breaks out — the music shifts to battle drums
+- A player says *"I kick down the tavern door"*, tavern ambience fades in
+- A narrator describes a thunderstorm, rain and thunder start rolling
+- Combat breaks out, the music shifts to battle drums
 
-The GM stays in the story. The players stay immersed. The audio just works.
+The creator stays focused on the moment while the audio adapts around them.
 
 ## How It Works
 
-SuiteRhythm uses **speech recognition** to capture live conversation, sends it through an **AI analysis layer** (GPT-4.1), and maps the output to a curated library of **700+ sound effects, ambience beds, and music tracks** — all in real time.
+SuiteRhythm uses **speech recognition** to capture live conversation, sends it through an **AI analysis layer** (GPT 4.1), and maps the output to a curated library of **700+ sound effects, ambience beds, and music tracks** in real time.
 
 ```
-Voice Input → Speech Recognition → AI Context Analysis → Sound Matching → Playback
+Voice Input -> Speech Recognition -> AI Context Analysis -> Sound Matching -> Playback
 ```
 
 ### Key Capabilities
 
 | Feature | Description |
 |---|---|
-| **Auto-Detect Mode** | Listens to live speech and triggers sounds automatically via AI |
-| **Story Mode** | Pre-written narrative scenes with timed audio cues |
-| **Sound Library** | 700+ categorized sounds — ambient, combat, weather, creatures, music |
-| **Session Recording** | Browser mixed-session export for review, editing, and show notes |
-| **Control Board** | Manual triggers for GMs who want direct control alongside auto-detect |
+| **Auto Detect Mode** | Listens to live speech and triggers sounds automatically via AI |
+| **Story Mode** | Written narrative scenes with timed audio cues |
+| **Sound Library** | 700+ categorized sounds for ambience, combat, weather, creatures, and music |
+| **Session Recording** | Browser mixed session export for review, editing, and show notes |
+| **Control Board** | Manual triggers for users who want direct control alongside auto detect |
 | **Smart Layering** | Multiple sounds play simultaneously with intelligent volume balancing |
-| **Instant Response** | Sub-second latency from spoken word to audio playback |
+| **Instant Response** | Fast response from spoken word to audio playback |
 
-## Market Opportunity
+### Studio Modes
 
-The tabletop RPG market has grown into a **$2B+ industry** (2025), fueled by actual-play content (Critical Role, Dimension 20) and the mainstreaming of D&D. Supporting tools — VTTs, digital maps, audio — are a fast-growing adjacent segment.
-
-**No product on the market offers real-time, voice-reactive audio.**
-
-Current alternatives require manual playlist management (Syrinscape, Tabletop Audio) or pre-configured triggers. SuiteRhythm is the first to close the loop between spoken narrative and dynamic audio — zero-touch.
-
-### Target Users
-
-- **Game Masters** running in-person or online TTRPG sessions
-- **Actual-play streamers & podcasters** looking for production-quality audio
-- **Game cafes & event organizers** hosting RPG nights
-- **LARP & immersive experience designers**
+- **Auto Detect** listens to narration and reacts with contextual audio
+- **Table Top RPG** brings campaign sessions, encounters, and locations to life
+- **Story Teller** provides genre focused support for narrated stories
+- **Creator Studio** offers live tools and timeline based audio scoring
+- **Sing Backing** reacts to tempo and vocal energy with accompaniment
 
 ## Tech Stack
 
@@ -77,22 +70,9 @@ Current alternatives require manual playlist management (Syrinscape, Tabletop Au
 | **Media Storage** | Cloudflare R2 (700+ audio files via CDN proxy) |
 | **Hosting** | Vercel (serverless, edge-optimized) |
 
-## Beta Login
+## Public Access
 
-SuiteRhythm currently uses one temporary shared free tester login while the app is in private testing:
-
-- Username: `tester`
-- Password: `password`
-
-Required deployment variables for login:
-
-- `API_AUTH_SECRET`
-- `BETA_TESTER_ENABLED=true`
-- `BETA_TESTER_USERNAME=tester`
-- `BETA_TESTER_PASSWORD=password`
-- `BETA_AUTH_SECRET` if you want tester sessions signed with a separate secret from `API_AUTH_SECRET`
-
-The app routes `/dashboard` and `/obs` require that signed tester session. The backend API token endpoint also requires the same session before it issues short-lived API tokens. To revoke free tester access, set `BETA_TESTER_ENABLED=false`, change `BETA_TESTER_PASSWORD`, or rotate `BETA_AUTH_SECRET`/`API_AUTH_SECRET`; existing tester cookies will stop validating.
+The app is open for direct use without a sign in flow. Production deployments must configure `API_AUTH_SECRET` to protect internal API tokens, and should add a managed quota system before enabling cost bearing AI features for unrestricted public traffic.
 
 ## Architecture
 

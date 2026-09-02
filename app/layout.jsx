@@ -4,23 +4,23 @@ import GlobalAudioKill from '../components/GlobalAudioKill';
 import DebugPerfPanel from '../components/DebugPerfPanel';
 
 export const metadata = {
-  title: 'SuiteRhythm - Reactive Sound Design for Storytellers',
+  title: 'SuiteRhythm | Reactive Sound Studio',
   description:
-    'SuiteRhythm listens to your voice and plays the perfect music, ambience, and sound effects in real time — built for tabletop RPGs, storytelling, and live streaming.',
+    'Create reactive soundtracks, ambience, and sound effects for tabletop games, storytelling, and creative broadcasts.',
   manifest: '/manifest.json',
   openGraph: {
     type: 'website',
     url: 'https://suiterhythm.vercel.app/',
-    title: 'SuiteRhythm - Reactive Sound Design for Storytellers',
+    title: 'SuiteRhythm | Reactive Sound Studio',
     description:
-      'SuiteRhythm listens to your voice and plays the perfect music, ambience, and sound effects in real time — built for tabletop RPGs, storytelling, and live streaming.',
+      'Create reactive soundtracks, ambience, and sound effects for tabletop games, storytelling, and creative broadcasts.',
     images: [{ url: 'https://suiterhythm.vercel.app/og-image.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SuiteRhythm - Reactive Sound Design for Storytellers',
+    title: 'SuiteRhythm | Reactive Sound Studio',
     description:
-      'SuiteRhythm listens to your voice and plays the perfect music, ambience, and sound effects in real time — built for tabletop RPGs, storytelling, and live streaming.',
+      'Create reactive soundtracks, ambience, and sound effects for tabletop games, storytelling, and creative broadcasts.',
     images: ['https://suiterhythm.vercel.app/og-image.png'],
   },
 };

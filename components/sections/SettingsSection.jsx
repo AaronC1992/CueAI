@@ -184,21 +184,21 @@ export default function SettingsSection() {
           </div>
         </section>
 
-        {/* Beta Access */}
+        {/* App Access */}
         <section className="menu-section">
           <button className="menu-toggle" id="subscriptionMenuToggle">
-            Beta Access
+            App Access
             <span className="toggle-indicator">&#9660;</span>
           </button>
           <div className="menu-content hidden" id="subscriptionMenuContent">
             <div id="subscriptionStatus" className="info-text" style={{ marginBottom: 10 }}>
-              Checking beta access...
+              Full sound engine active
             </div>
             <button id="refreshTokenBtn" className="btn-secondary" style={{ width: '100%', marginTop: 4 }}>
               Refresh Access Token
             </button>
             <button id="subscribeBtn2" className="btn-primary" style={{ width: '100%', marginTop: 8 }}>
-              Continue with Beta Access
+              Save Access Token
             </button>
             <p className="info-text" style={{ marginTop: 12, fontSize: '0.8rem' }}>
               <a href="/terms" target="_blank">Terms of Service</a>
@@ -216,14 +216,14 @@ export default function SettingsSection() {
           </button>
           <div className="menu-content hidden" id="audioSourceMenuContent">
             <p className="info-text" style={{ marginBottom: 8 }}>
-              SuiteRhythm uses the built-in library first. If a server-side Pixabay key is configured,
+              SuiteRhythm uses the built in library first. If a server side Pixabay key is configured,
               the app can also search Pixabay without exposing the key in your browser.
             </p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <button id="saveAudioKeys" className="btn-secondary">Check Pixabay Proxy</button>
             </div>
             <div id="pixabayKeyStatus" className="info-text" style={{ marginTop: 6, fontSize: '0.8rem' }}>
-              Built-in library available. Pixabay proxy not checked yet.
+              Built in library available. Pixabay proxy not checked yet.
             </div>
           </div>
         </section>
@@ -293,6 +293,16 @@ export default function SettingsSection() {
                 <span className="toggle-slider" />
               </label>
             </div>
+            <div className="toggle-row">
+              <label htmlFor="automaticAtmosphereToggle">Automatic Atmosphere</label>
+              <label className="toggle-switch">
+                <input type="checkbox" id="automaticAtmosphereToggle" />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+            <p className="info-text" style={{ marginTop: -4, marginBottom: 12 }}>
+              Add ambient beds and occasional accent sounds between spoken events. Disabled by default for precision.
+            </p>
 
             <h3 style={{ marginTop: 20 }}>Creator Tools</h3>
             <div className="toggle-row">
@@ -372,8 +382,8 @@ export default function SettingsSection() {
           </button>
           <div className="menu-content hidden" id="scenePresetsContent">
             <p className="info-text">
-              Quick-switch scene buttons shown in Auto Detect. Click a preset to instantly set the
-              mood and context. Double-click a preset name above to rename it.
+              Quick switch scene buttons shown in Auto Detect. Click a preset to instantly set the
+              mood and context. Double click a preset name above to rename it.
             </p>
             <div id="scenePresetsList" />
             <button id="addScenePresetBtn" className="btn-secondary" style={{ marginTop: 12, width: '100%', fontSize: '0.85rem' }}>
@@ -391,7 +401,7 @@ export default function SettingsSection() {
           <div className="menu-content hidden" id="customPhrasesContent">
             <p className="info-text">
               Add phrases that trigger a specific sound when spoken aloud. The phrase is matched as
-              a substring — multiple variants can share one sound.
+              a substring, multiple variants can share one sound.
             </p>
             <div id="customPhrasesList" />
             <div
@@ -438,7 +448,7 @@ export default function SettingsSection() {
               final 60 seconds, then stops all audio.
             </p>
             <div className="slider-container">
-              <label htmlFor="bedtimeTimerSelect">Fade-out after:</label>
+              <label htmlFor="bedtimeTimerSelect">Fade out after:</label>
               <select id="bedtimeTimerSelect" defaultValue="0">
                 <option value="0">Off</option>
                 <option value="5">5 min</option>
@@ -459,8 +469,7 @@ export default function SettingsSection() {
           </button>
           <div className="menu-content hidden" id="sessionRecMenuContent">
             <p className="info-text">
-              Record everything — all sounds, music, and ambience — into a single downloadable
-              audio file.
+              Record everything, all sounds, music, and ambience, into a single downloadable audio file.
             </p>
             <div className="session-rec-controls">
               <button id="recStartBtn" className="btn-primary">Record Session</button>
@@ -486,8 +495,8 @@ export default function SettingsSection() {
           </button>
           <div className="menu-content hidden" id="obsSettingsContent">
             <p className="info-text">
-              Connect to OBS Studio via WebSocket to auto-switch scenes based on mood changes.
-              Requires OBS with the obs-websocket plugin (v5) enabled.
+              Connect to OBS Studio via WebSocket to switch scenes automatically based on mood changes.
+              Requires OBS with the obs websocket plugin enabled.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               <input

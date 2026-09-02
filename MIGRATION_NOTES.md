@@ -49,10 +49,10 @@ All sections are **always rendered** in the DOM (hidden via the CSS `hidden` cla
 
 ## What Still Needs Backend Work
 
-### 1. Auth (DONE)
-- A temporary shared free tester login now backs the beta flow: username `tester`, password `password`.
-- `/dashboard` and `/obs` require a valid server-verified session cookie and redirect unauthenticated users to `/login`.
-- Tester access can be revoked by setting `BETA_TESTER_ENABLED=false`, changing `BETA_TESTER_PASSWORD`, or rotating `BETA_AUTH_SECRET`/`API_AUTH_SECRET`.
+### 1. Public App Access (DONE)
+- The core application, dashboard, and OBS page are available without a sign in flow.
+- `API_AUTH_SECRET` remains required in production to sign and validate internal API tokens.
+- Add account based quotas or a bot challenge before making provider backed AI endpoints freely available at scale.
 
 ### 2. Stripe subscription (TODO)
 - Paid checkout is intentionally disabled during beta.
@@ -65,7 +65,7 @@ All sections are **always rendered** in the DOM (hidden via the CSS `hidden` cla
 
 ### 4. OpenAI / AI analysis (TODO)
 - `POST /api/analyze` runs server-side in Next.js using the OpenAI key from environment variables.
-- **Next step**: Add production account/subscription gating when paid plans are enabled.
+- **Next step**: Add production usage quotas before broad public deployment.
 
 ### 5. Service Worker (DONE)
 - Registration handled via `useEffect` in `AppShell.jsx`.
@@ -93,10 +93,10 @@ All sections are **always rendered** in the DOM (hidden via the CSS `hidden` cla
 2. ~~**Add favicon**~~ — Done
 3. **Add `.env.local`**: Copy `.env.example` → `.env.local` and set `NEXT_PUBLIC_BACKEND_URL`.
 4. ~~**Service worker**~~ — Done
-5. ~~**Auth layer**~~ — Done. Configure the temporary tester login now; replace it with subscription-aware login before launch.
+5. ~~**Public app access**~~ Done. Configure production API authorization and usage quotas before launch.
 6. **Stripe**: Build the subscription checkout flow when paid plans are ready.
 7. **Database**: Connect Supabase. Migrate localStorage data (stories, boards, custom sounds) to the DB.
-8. **Production auth**: Enforce account/subscription access around paid API routes.
+8. **Production usage controls**: Enforce account or anonymous session quotas around provider backed API routes.
 9. **Deploy to Vercel**: `git push` → Vercel auto-deploys. Set env vars in Vercel dashboard.
 
 ---
@@ -107,7 +107,7 @@ All sections are **always rendered** in the DOM (hidden via the CSS `hidden` cla
 cd SuiteRhythm-next
 cp .env.example .env.local   # or create manually
 npm run dev
-# → http://localhost:3000/dashboard
+# -> http://localhost:3000
 ```
 
 ## Building for Production

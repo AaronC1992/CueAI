@@ -9,7 +9,7 @@ export default function StoryEditorSection() {
       </div>
       <div className="section-body">
         <p className="section-intro" id="createSectionIntro">
-          Write your stories and play them with SuiteRhythm&apos;s real-time sound engine.
+          Write your stories and play them with SuiteRhythm&apos;s real time sound engine.
         </p>
 
         <div className="wyo-controls">
@@ -61,7 +61,7 @@ export default function StoryEditorSection() {
                 Generate Soundscape
               </button>
               <p className="info-text" style={{ marginTop: 4 }}>
-                Build a full sound timeline from the script — no mic needed. Play or export the result.
+                Build a full sound timeline from the script without needing a mic. Play or export the result.
               </p>
             </div>
           </div>

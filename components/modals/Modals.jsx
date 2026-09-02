@@ -1,10 +1,9 @@
 'use client';
 
 /**
- * Collection of all overlay/modal components.
+ * Collection of all overlay and modal components.
  * Grouped in one file to keep imports clean in AppShell.
- * Each modal is always rendered in the DOM (hidden via CSS class) so the
- * SuiteRhythm engine can show/hide them via classList manipulation.
+ * Each modal is rendered in the DOM so the engine can show or hide them.
  */
 
 export function SubscribeModal() {
@@ -17,30 +16,29 @@ export function SubscribeModal() {
       aria-labelledby="subscribeModalTitle"
     >
       <div className="modal-content">
-        <h2 id="subscribeModalTitle">Welcome to SuiteRhythm</h2>
-        <p><strong>Reactive Sound Design for Storytellers</strong></p>
+        <h2 id="subscribeModalTitle">SuiteRhythm Studio Access</h2>
+        <p><strong>Reactive Sound Design for Storytellers and Creators</strong></p>
         <p className="info-text">
-          Live scene listening is currently available in beta. Paid plans are coming later,
-          but checkout is not active yet.
+          Full sound library and local engine active. Configure optional access tokens below.
         </p>
 
         <div className="provider-info" style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--primary-2)', margin: '16px 0' }}>
-            Beta Access
+          <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary-2)', margin: '14px 0' }}>
+            Sound Workstation Ready
           </p>
           <button
             id="subscribeBtn"
             className="btn-primary"
             style={{ width: '100%', padding: 14, fontSize: '1.05rem' }}
           >
-            Continue to App
+            Continue to Studio
           </button>
           <button
             id="enterTokenBtn"
             className="btn-secondary"
             style={{ width: '100%', marginTop: 8 }}
           >
-            I have an access token
+            Configure Access Token
           </button>
         </div>
 
@@ -66,7 +64,7 @@ export function SubscribeModal() {
           className="btn-secondary"
           style={{ width: '100%', marginTop: 8 }}
         >
-          Try Keyword-Only Mode
+          Use Standard Mode
         </button>
 
         <p className="info-text" style={{ marginTop: 14, fontSize: '0.8rem', textAlign: 'center' }}>
@@ -89,20 +87,20 @@ export function TutorialModal() {
       aria-labelledby="tutorialModalTitle"
     >
       <div className="modal-content tutorial-content">
-        <button id="closeTutorial" className="close-btn">✕</button>
-        <h2 id="tutorialModalTitle">SuiteRhythm Tutorial</h2>
+        <button id="closeTutorial" className="close-btn">&times;</button>
+        <h2 id="tutorialModalTitle">SuiteRhythm User Guide</h2>
         <p className="tutorial-intro">
-          Welcome to SuiteRhythm! Here&apos;s everything you need to know to get started.
+          Welcome to SuiteRhythm! Here is everything you need to know to get started.
         </p>
 
         <div className="tutorial-section">
           <h3>Volume Controls</h3>
           <p><strong>Min/Max Volume:</strong> Set the range for automatic volume adjustments.</p>
-          <p><strong>Music Level:</strong> Control background music volume independently (0-100%).</p>
-          <p><strong>Sound Effects Level:</strong> Control SFX volume independently (0-100%).</p>
+          <p><strong>Music Level:</strong> Control background music volume independently (0 to 100%).</p>
+          <p><strong>Sound Effects Level:</strong> Control SFX volume independently (0 to 100%).</p>
           <p>
-            <strong>Mood/Intensity:</strong> Bias audio choices from calm (0%) to intense (100%).
-            Higher values = louder music, deeper ducking, more dramatic effects.
+            <strong>Mood and Intensity:</strong> Bias audio choices from calm (0%) to intense (100%).
+            Higher values equal louder music, deeper ducking, and more dramatic effects.
           </p>
         </div>
 
@@ -110,32 +108,29 @@ export function TutorialModal() {
           <h3>Performance</h3>
           <p>
             <strong>Low Latency Mode:</strong> When enabled, SuiteRhythm preloads more sounds in
-            parallel and responds faster. Best on strong networks and modern devices; may use more
-            bandwidth and battery.
+            parallel and responds faster. Best on strong networks and modern devices.
           </p>
         </div>
 
         <div className="tutorial-section">
           <h3>Playback Options</h3>
-          <p><strong>Music Toggle:</strong> Turn background music on/off.</p>
-          <p><strong>SFX Toggle:</strong> Turn sound effects on/off.</p>
+          <p><strong>Music Toggle:</strong> Turn background music on or off.</p>
+          <p><strong>SFX Toggle:</strong> Turn sound effects on or off.</p>
           <p>
-            <strong>Auto Scene Detection:</strong> When enabled, SuiteRhythm analyzes what you say and
-            auto-plays matching music/SFX. Default is off. Turn off to prevent any automatic sounds;
-            instant keyword triggers (e.g., &quot;bang&quot;, &quot;knock&quot;, &quot;bark&quot;)
-            still work.
+            <strong>Auto Scene Detection:</strong> When enabled, SuiteRhythm analyzes spoken words and
+            plays matching music or SFX automatically.
           </p>
           <p className="info-text">Tip: Turn one off to play only music or only SFX.</p>
         </div>
 
         <div className="tutorial-section">
           <h3>Voice Commands</h3>
-          <p>Control SuiteRhythm hands-free while listening:</p>
+          <p>Control SuiteRhythm hands free while listening:</p>
           <ul>
-            <li><strong>&quot;Skip track&quot;</strong> or <strong>&quot;Next song&quot;</strong> - Change the music</li>
-            <li><strong>&quot;Quieter music&quot;</strong> or <strong>&quot;Louder music&quot;</strong> - Adjust music volume by 10%</li>
-            <li><strong>&quot;Mute music&quot;</strong> or <strong>&quot;Unmute music&quot;</strong> - Toggle music on/off</li>
-            <li><strong>&quot;Mute sound effects&quot;</strong> or <strong>&quot;Unmute SFX&quot;</strong> - Toggle SFX on/off</li>
+            <li><strong>&quot;Skip track&quot;</strong> or <strong>&quot;Next song&quot;</strong>, Change the music</li>
+            <li><strong>&quot;Quieter music&quot;</strong> or <strong>&quot;Louder music&quot;</strong>, Adjust music volume by 10%</li>
+            <li><strong>&quot;Mute music&quot;</strong> or <strong>&quot;Unmute music&quot;</strong>, Toggle music on or off</li>
+            <li><strong>&quot;Mute sound effects&quot;</strong> or <strong>&quot;Unmute SFX&quot;</strong>, Toggle SFX on or off</li>
           </ul>
         </div>
 
@@ -146,8 +141,8 @@ export function TutorialModal() {
           <p><strong>Loudness Normalization:</strong> All sounds are balanced to consistent volume.</p>
           <p><strong>Crossfades:</strong> Music transitions smoothly without abrupt cuts.</p>
           <p>
-            <strong>Stingers:</strong> Periodic ambient sounds play every 20-45 seconds for variety
-            (only when <em>Auto Scene Detection</em> is enabled).
+            <strong>Stingers:</strong> Periodic ambient sounds play every 20 to 45 seconds for variety
+            when Auto Scene Detection is enabled.
           </p>
         </div>
 
@@ -156,9 +151,9 @@ export function TutorialModal() {
           <ul>
             <li>Speak clearly and close to your microphone for best results</li>
             <li>Instant triggers: Words like &quot;bang&quot;, &quot;crash&quot;, &quot;knock&quot;, &quot;bark&quot; play sounds immediately</li>
-            <li>Use the Mood slider to match your story&apos;s intensity</li>
-            <li>Enable Low Latency Mode for split-second reactions</li>
-            <li>The engine learns context over time - keep talking for better sound matching</li>
+            <li>Use the Mood slider to match the story intensity</li>
+            <li>Enable Low Latency Mode for fast reactions</li>
+            <li>The engine learns context over time, keep talking for better sound matching</li>
           </ul>
         </div>
 
@@ -180,10 +175,9 @@ export function FeedbackModal() {
       aria-labelledby="feedbackModalTitle"
     >
       <div className="modal-content">
-        <h2 id="feedbackModalTitle">Feedback / Suggestion</h2>
+        <h2 id="feedbackModalTitle">Feedback or Suggestion</h2>
         <p className="info-text">
-          This opens your email app or Gmail with a prefilled message to Aaron. You&apos;ll need to
-          press Send to deliver it.
+          Share suggestions, bugs, or ideas to help make SuiteRhythm even better.
         </p>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
@@ -259,7 +253,7 @@ export function StoryContextModal() {
             id="storyContextInput"
             rows="5"
             className="story-context-input"
-            placeholder="Example: 'A dark medieval fantasy adventure in a haunted castle' or 'A cheerful children's story in a magical forest'"
+            placeholder="Example: 'A dark medieval fantasy adventure in a haunted castle' or 'A cheerful children story in a magical forest'"
           />
           <p className="info-text story-context-tip">
             Tip: Mention the setting, genre, mood, or time period. SuiteRhythm will use this to better
@@ -269,7 +263,7 @@ export function StoryContextModal() {
 
         <div className="story-context-actions">
           <button id="startWithContext" className="btn-primary">Start Listening</button>
-          <button id="skipContext" className="btn-secondary">Skip &amp; Start</button>
+          <button id="skipContext" className="btn-secondary">Skip and Start</button>
         </div>
       </div>
     </div>
@@ -280,7 +274,7 @@ export function StoryOverlay() {
   return (
     <div id="storyOverlay" className="story-overlay hidden">
       <div className="story-header">
-        <button id="closeStory" className="close-btn" aria-label="Close story">✕</button>
+        <button id="closeStory" className="close-btn" aria-label="Close story">&times;</button>
         <h2 id="storyTitle" className="story-title" />
       </div>
       <div id="storyContent" className="story-content" tabIndex={0} />
@@ -301,7 +295,7 @@ export function DemoSelectorOverlay() {
   return (
     <div id="demoSelectorOverlay" className="overlay hidden">
       <div className="overlay-content" style={{ flexDirection: 'column', maxWidth: 600, width: '90%' }}>
-        <button id="demoSelectorClose" className="close-btn" aria-label="Close" style={{ alignSelf: 'flex-end' }}>✕</button>
+        <button id="demoSelectorClose" className="close-btn" aria-label="Close" style={{ alignSelf: 'flex-end' }}>&times;</button>
         <h2 style={{ margin: 0 }}>Choose a Demo Story</h2>
         <div id="demoStoryList" className="demo-story-list" />
       </div>

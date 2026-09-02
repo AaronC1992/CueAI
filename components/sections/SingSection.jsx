@@ -23,7 +23,7 @@ export default function SingSection() {
             <option value="pop">Pop</option>
             <option value="rock">Rock</option>
             <option value="country">Country</option>
-            <option value="rap">Rap / Hip-Hop</option>
+            <option value="rap">Rap / Hip Hop</option>
             <option value="rnb">R&amp;B / Soul</option>
             <option value="jazz">Jazz</option>
             <option value="blues">Blues</option>
@@ -35,8 +35,8 @@ export default function SingSection() {
             <option value="punk">Punk</option>
             <option value="indie">Indie</option>
             <option value="latin">Latin</option>
-            <option value="kpop">K-Pop</option>
-            <option value="lofi">Lo-Fi</option>
+            <option value="kpop">K Pop</option>
+            <option value="lofi">Lo Fi</option>
             <option value="gospel">Gospel</option>
           </select>
           <p className="info-text" style={{ marginTop: 4 }}>
@@ -65,7 +65,7 @@ export default function SingSection() {
         {/* Sing Stats */}
         <div className="sing-stats" style={{ marginTop: 16 }}>
           <div className="stat-item">
-            <span className="stat-value" id="singSectionBpmReadout">— BPM</span>
+            <span className="stat-value" id="singSectionBpmReadout">0 BPM</span>
             <span className="stat-label">Detected Tempo</span>
           </div>
           <div className="stat-item">
@@ -84,7 +84,7 @@ export default function SingSection() {
             </label>
           </div>
           <p className="info-text" style={{ marginTop: 0 }}>
-            Plays a crowd applause cue after ~6s of silence following a sustained song.
+            Plays a crowd applause cue after silence following a sustained song.
           </p>
           <div className="toggle-row" style={{ marginTop: 8 }}>
             <label htmlFor="singSectionStageFeelToggle">Live stage feel</label>
@@ -94,7 +94,7 @@ export default function SingSection() {
             </label>
           </div>
           <p className="info-text" style={{ marginTop: 0 }}>
-            Occasional quiet crowd cheers/whistles mid-song, like a live gig. Off = silent audience.
+            Occasional quiet crowd cheers or whistles during songs, like a live gig. Off equals silent audience.
           </p>
         </div>
 

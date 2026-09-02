@@ -69,9 +69,9 @@ export default function StoryTellerSection() {
           <button className="btn-secondary section-undo-music" title="Revert the most recent music change">Undo Music</button>
         </section>
 
-        {/* Bedtime auto fade-out */}
+        {/* Bedtime auto fade out */}
         <section className="bedtime-timer-panel" style={{ margin: '12px 0' }}>
-          <label htmlFor="storyTellerBedtimeTimer" style={{ marginRight: 8 }}>Bedtime fade-out:</label>
+          <label htmlFor="storyTellerBedtimeTimer" style={{ marginRight: 8 }}>Bedtime fade out:</label>
           <select id="storyTellerBedtimeTimer" className="bedtime-timer-mirror" defaultValue="0">
             <option value="0">Off</option>
             <option value="5">5 min</option>

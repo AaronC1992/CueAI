@@ -15,7 +15,7 @@ export default function LiveMode({ active }) {
           id="creatorContextInput"
           className="context-input-mirror"
           rows="3"
-          placeholder="Example: 'Chill lo-fi podcast recording session' or 'High-energy gaming stream'"
+          placeholder="Example: 'Chill lo fi podcast recording session' or 'High energy gaming stream'"
         />
         <p className="info-text">
           Describe your content type or mood to help SuiteRhythm choose better sounds.
