@@ -9418,6 +9418,12 @@ class SuiteRhythm {
             if (btn) btn.textContent = 'Read Aloud (AI Voice)';
             return;
         }
+        if (this._readAloudUtterance) {
+            speechSynthesis.cancel();
+            this._readAloudUtterance = null;
+            if (btn) btn.textContent = 'Read Aloud (AI Voice)';
+            return;
+        }
 
         if (btn) { btn.textContent = 'Generating...'; btn.disabled = true; }
 
@@ -9436,7 +9442,10 @@ class SuiteRhythm {
                     headers,
                     body: JSON.stringify({ text: chunk }),
                 });
-                if (!resp.ok) throw new Error(`TTS ${resp.status}`);
+                if (!resp.ok) {
+                    const info = await resp.json().catch(() => null);
+                    throw new Error(info?.detail || info?.error || `TTS ${resp.status}`);
+                }
                 audioBlobs.push(await resp.blob());
             }
 
@@ -9455,8 +9464,37 @@ class SuiteRhythm {
             this._readAloudAudio.play();
         } catch (e) {
             console.error('[ReadAloud]', e);
-            this.showToast('Read Aloud failed - check your AI/TTS configuration', 'error');
+            this._readAloudBrowserFallback(text, btn, e.message);
+        }
+    }
+
+    /** Narrate with the built in browser voice when the AI TTS service is unavailable. */
+    _readAloudBrowserFallback(text, btn, reason) {
+        if (!('speechSynthesis' in window)) {
+            this.showToast(`Read Aloud failed: ${reason || 'TTS unavailable'}`, 'error');
             if (btn) { btn.textContent = 'Read Aloud (AI Voice)'; btn.disabled = false; }
+            return;
+        }
+
+        this.showToast('AI voice unavailable — using your browser voice instead', 'warning');
+        speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        const reset = () => {
+            this._readAloudUtterance = null;
+            if (btn) { btn.textContent = 'Read Aloud (AI Voice)'; btn.disabled = false; }
+        };
+        utterance.onend = reset;
+        utterance.onerror = reset;
+
+        this._readAloudUtterance = utterance;
+        if (btn) { btn.textContent = 'Stop Reading'; btn.disabled = false; }
+        try {
+            speechSynthesis.speak(utterance);
+        } catch (err) {
+            debugLog('Browser read aloud failed:', err.message);
+            reset();
         }
     }
 

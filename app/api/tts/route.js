@@ -88,11 +88,25 @@ export async function POST(request) {
         );
 
         if (!resp.ok) {
-            const errText = await resp.text().catch(() => 'Unknown error');
+            const errText = await resp.text().catch(() => '');
             console.error('[TTS] ElevenLabs error:', resp.status, errText);
+            // Upstream quota/auth failures are actionable, so pass enough detail through
+            // for the client to show instead of a bare 502.
+            let detail = '';
+            try {
+                const parsed = JSON.parse(errText);
+                detail = parsed?.detail?.message || parsed?.detail?.status || parsed?.message || '';
+            } catch {
+                detail = errText.slice(0, 200);
+            }
+            const status = resp.status === 429 ? 429 : 502;
             return new Response(
-                JSON.stringify({ error: `ElevenLabs API error: ${resp.status}` }),
-                { status: 502, headers: { 'Content-Type': 'application/json' } }
+                JSON.stringify({
+                    error: `ElevenLabs API error: ${resp.status}`,
+                    upstreamStatus: resp.status,
+                    detail,
+                }),
+                { status, headers: { 'Content-Type': 'application/json' } }
             );
         }
 
