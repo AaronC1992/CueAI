@@ -22,6 +22,24 @@ describe('trigger-system matching precision', () => {
         expect(shouldTriggerKeyword('cast', 'The statue cast a long shadow.')).toBe(false);
     });
 
+    it('does not fire generic animal/creature verbs without a matching noun (self-referential category gates)', () => {
+        expect(shouldTriggerKeyword('bark', 'The tree bark was rough and cold.')).toBe(false);
+        expect(shouldTriggerKeyword('howl', 'The wind howled through the trees.')).toBe(false);
+        expect(shouldTriggerKeyword('howling', 'The wind was howling outside.')).toBe(false);
+        expect(shouldTriggerKeyword('growl', 'His stomach growled with hunger.')).toBe(false);
+        expect(shouldTriggerKeyword('roar', 'The chainsaw roared to life.')).toBe(false);
+        expect(shouldTriggerKeyword('roared', 'The chainsaw roared to life and tore through the oak tree.')).toBe(false);
+        expect(shouldTriggerKeyword('screech', 'The tires screeched around the corner.')).toBe(false);
+    });
+
+    it('still fires generic animal/creature verbs when a real noun is present', () => {
+        expect(shouldTriggerKeyword('bark', 'The dog began to bark.')).toBe(true);
+        expect(shouldTriggerKeyword('howl', 'The wolf let out a howl.')).toBe(true);
+        expect(shouldTriggerKeyword('growl', 'The bear growled from the cave.')).toBe(true);
+        expect(shouldTriggerKeyword('roared', 'The dragon roared and breathed fire.')).toBe(true);
+        expect(shouldTriggerKeyword('screech', 'The cat let out a screech.')).toBe(true);
+    });
+
     it('keeps auto-mode rule-based fallback silent without transcript evidence', () => {
         const savedSounds = {
             files: [
