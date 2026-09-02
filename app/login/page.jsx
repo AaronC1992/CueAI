@@ -1,9 +1,9 @@
-import { redirect } from 'next/navigation';
+import DashboardClient from '../../components/DashboardClient';
 
 export const metadata = {
   title: 'SuiteRhythm Sound App',
 };
 
 export default function LoginPage() {
-  redirect('/dashboard');
+  return <DashboardClient user={{ username: 'Sound Creator', plan: 'unlimited', freeAccess: true }} />;
 }

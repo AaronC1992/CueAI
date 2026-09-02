@@ -117,7 +117,7 @@ const nextConfig = {
     return [
       {
         source: '/login',
-        destination: '/dashboard',
+        destination: '/',
         permanent: false,
       },
     ];
