@@ -131,7 +131,7 @@ export default function Sidebar({ user: _user }) {
           <span className="sidebar-engine-text">Sound Engine Ready</span>
         </div>
         <div className="sidebar-footer-actions">
-          <button id="tutorialBtn" className="sidebar-action-btn" type="button">Quick Guide</button>
+          <a href="/tutorial" className="sidebar-action-btn">Tutorial</a>
           <button id="feedbackBtn" className="sidebar-action-btn" type="button">Feedback</button>
           <a href="/admin/sounds" className="sidebar-action-btn">Audit</a>
         </div>

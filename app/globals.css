@@ -2719,6 +2719,177 @@ button:focus-visible {
     background: var(--primary-2);
 }
 
+/* ===== FULL PAGE TUTORIAL ===== */
+.tutorial-page {
+    min-height: 100vh;
+    color: var(--text);
+    background:
+        linear-gradient(135deg, rgba(183, 28, 28, 0.2), transparent 28%),
+        linear-gradient(225deg, rgba(0, 137, 123, 0.18), transparent 34%),
+        var(--bg);
+    padding: 28px;
+}
+.tutorial-hero-panel {
+    max-width: 1180px;
+    margin: 0 auto 18px;
+    padding: 28px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.05);
+}
+.tutorial-back-link {
+    display: inline-flex;
+    margin-bottom: 18px;
+    color: var(--teal);
+    text-decoration: none;
+    font-weight: 700;
+}
+.tutorial-kicker {
+    margin: 0 0 8px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0;
+    font-size: 0.78rem;
+}
+.tutorial-hero-panel h1 {
+    margin: 0 0 12px;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 1;
+}
+.tutorial-hero-panel p {
+    max-width: 820px;
+    color: var(--muted);
+    line-height: 1.7;
+}
+.tutorial-layout {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+.tutorial-sidebar {
+    position: sticky;
+    top: 18px;
+    max-height: calc(100vh - 36px);
+    overflow: auto;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: rgba(10, 10, 10, 0.72);
+    backdrop-filter: blur(16px);
+}
+.tutorial-sidebar h2 {
+    margin: 0 0 12px;
+    font-size: 1rem;
+}
+.tutorial-sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.tutorial-sidebar a,
+.tutorial-decision-card,
+.tutorial-section-heading a {
+    color: var(--text);
+    text-decoration: none;
+}
+.tutorial-sidebar a {
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    color: var(--muted);
+}
+.tutorial-sidebar a:hover,
+.tutorial-sidebar a:focus-visible {
+    color: var(--teal);
+    border-color: var(--border);
+    outline: none;
+}
+.tutorial-main-column {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.tutorial-decision-panel,
+.tutorial-detail-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+}
+.tutorial-decision-panel h2,
+.tutorial-detail-section h2 {
+    margin: 0 0 12px;
+}
+.tutorial-decision-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 10px;
+}
+.tutorial-decision-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+.tutorial-decision-card span {
+    color: var(--muted);
+    line-height: 1.45;
+}
+.tutorial-decision-card strong {
+    color: var(--teal);
+}
+.tutorial-section-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+.tutorial-section-heading a {
+    color: var(--teal);
+}
+.tutorial-summary {
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 18px;
+}
+.tutorial-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.75fr);
+    gap: 16px;
+}
+.tutorial-detail-grid h3 {
+    margin: 0 0 10px;
+    color: var(--teal);
+}
+.tutorial-detail-grid ul,
+.tutorial-detail-grid ol {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--text);
+}
+.tutorial-detail-grid li {
+    margin: 0 0 9px;
+    line-height: 1.65;
+}
+
+@media (max-width: 860px) {
+    .tutorial-page { padding: 16px; }
+    .tutorial-layout { grid-template-columns: 1fr; }
+    .tutorial-sidebar { position: static; max-height: none; }
+    .tutorial-sidebar nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+    .tutorial-detail-grid { grid-template-columns: 1fr; }
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .brand h1 { font-size: 1.8rem; }

@@ -2888,10 +2888,6 @@ class SuiteRhythm {
         }
     }
     
-    showTutorial() {
-        document.getElementById('tutorialModal').classList.remove('hidden');
-    }
-    
     showFeedback() {
         document.getElementById('feedbackModal').classList.remove('hidden');
     }
@@ -2989,10 +2985,6 @@ class SuiteRhythm {
         }
     }
 
-    hideTutorial() {
-        document.getElementById('tutorialModal').classList.add('hidden');
-    }
-    
     async refreshApp() {
         try {
             // Confirm before stopping — so cancelling does not disrupt the active session
@@ -3595,14 +3587,6 @@ class SuiteRhythm {
         if (refreshAppBtn) {
             refreshAppBtn.addEventListener('click', () => this.refreshApp());
         }
-
-    // Tutorial
-        const tutorialBtn = document.getElementById('tutorialBtn');
-        if (tutorialBtn) tutorialBtn.addEventListener('click', () => this.showTutorial());
-        const closeTutorial = document.getElementById('closeTutorial');
-        if (closeTutorial) closeTutorial.addEventListener('click', () => this.hideTutorial());
-        const closeTutorialBtn = document.getElementById('closeTutorialBtn');
-        if (closeTutorialBtn) closeTutorialBtn.addEventListener('click', () => this.hideTutorial());
 
     // Feedback modal
     const feedbackBtn = document.getElementById('feedbackBtn');
