@@ -18509,7 +18509,11 @@
         "epic",
         "battle",
         "climactic",
-        "fantasy"
+        "fantasy",
+        "combat",
+        "cinematic",
+        "grand",
+        "heroic"
       ]
     },
     {
@@ -18521,7 +18525,8 @@
         "combat",
         "fight",
         "quick",
-        "short"
+        "short",
+        "battle"
       ]
     },
     {
@@ -18533,7 +18538,9 @@
         "gladiator",
         "combat",
         "crowd",
-        "roman"
+        "roman",
+        "battle",
+        "fight"
       ]
     },
     {
@@ -18545,7 +18552,11 @@
         "standoff",
         "tense",
         "honor",
-        "western"
+        "western",
+        "combat",
+        "fight",
+        "suspense",
+        "tension"
       ]
     },
     {
@@ -18557,7 +18568,11 @@
         "war",
         "castle",
         "assault",
-        "medieval"
+        "medieval",
+        "fantasy",
+        "battle",
+        "warfare",
+        "combat"
       ]
     },
     {
@@ -18569,7 +18584,11 @@
         "heroic",
         "sacrifice",
         "final",
-        "defiant"
+        "defiant",
+        "brave",
+        "epic",
+        "last",
+        "stand"
       ]
     },
     {
@@ -18605,7 +18624,15 @@
         "sea",
         "battle",
         "cannon",
-        "pirate"
+        "pirate",
+        "combat",
+        "fight",
+        "firearm",
+        "nautical",
+        "ranged",
+        "sailing",
+        "siege",
+        "war"
       ]
     },
     {
@@ -18628,7 +18655,8 @@
         "exploration",
         "underground",
         "echo",
-        "dark"
+        "dark",
+        "cavern"
       ]
     },
     {
@@ -18640,7 +18668,10 @@
         "ancient",
         "exploration",
         "mystery",
-        "archaeology"
+        "archaeology",
+        "historic",
+        "old",
+        "ruined"
       ]
     },
     {
@@ -18652,7 +18683,11 @@
         "mountain",
         "pass",
         "cold",
-        "travel"
+        "travel",
+        "weather",
+        "altitude",
+        "peak",
+        "snowy"
       ]
     },
     {
@@ -18664,7 +18699,10 @@
         "voyage",
         "sea",
         "travel",
-        "adventure"
+        "adventure",
+        "coast",
+        "ocean",
+        "nature"
       ]
     },
     {
@@ -18676,7 +18714,10 @@
         "forest",
         "eerie",
         "ghost",
-        "horror"
+        "horror",
+        "nature",
+        "trees",
+        "woodland"
       ]
     },
     {
@@ -18688,7 +18729,11 @@
         "river",
         "cave",
         "water",
-        "ambient"
+        "ambient",
+        "nature",
+        "dungeon",
+        "stream",
+        "fantasy"
       ]
     },
     {
@@ -18700,7 +18745,10 @@
         "planet",
         "sci-fi",
         "ambient",
-        "strange"
+        "strange",
+        "scifi",
+        "futuristic",
+        "world"
       ]
     },
     {
@@ -18712,7 +18760,18 @@
         "ship",
         "ghost",
         "steampunk",
-        "sky"
+        "sky",
+        "horror",
+        "aerial",
+        "air",
+        "boat",
+        "clockwork",
+        "industrial",
+        "nautical",
+        "spectral",
+        "spirit",
+        "undead",
+        "victorian"
       ]
     },
     {
@@ -18724,7 +18783,9 @@
         "expanse",
         "dunes",
         "travel",
-        "arid"
+        "arid",
+        "dry",
+        "sand"
       ]
     },
     {
@@ -18748,7 +18809,8 @@
         "feast",
         "banquet",
         "royal",
-        "celebration"
+        "celebration",
+        "wealthy"
       ]
     },
     {
@@ -18760,7 +18822,13 @@
         "quiet",
         "evening",
         "fireplace",
-        "peaceful"
+        "peaceful",
+        "fantasy",
+        "bar",
+        "inn",
+        "medieval",
+        "pub",
+        "soft"
       ]
     },
     {
@@ -18772,7 +18840,8 @@
         "dance",
         "celebration",
         "joyful",
-        "medieval"
+        "medieval",
+        "fantasy"
       ]
     },
     {
@@ -18796,7 +18865,8 @@
         "bustle",
         "market",
         "urban",
-        "medieval"
+        "medieval",
+        "fantasy"
       ]
     },
     {
@@ -18808,7 +18878,13 @@
         "brawl",
         "fight",
         "chaotic",
-        "comedic"
+        "comedic",
+        "fantasy",
+        "combat",
+        "bar",
+        "inn",
+        "medieval",
+        "pub"
       ]
     },
     {
@@ -18844,7 +18920,9 @@
         "sad",
         "reflection",
         "lonely",
-        "introspective"
+        "introspective",
+        "reflective",
+        "sorrow"
       ]
     },
     {
@@ -18856,7 +18934,8 @@
         "glory",
         "victory",
         "heroic",
-        "fanfare"
+        "fanfare",
+        "celebration"
       ]
     },
     {
@@ -18880,7 +18959,8 @@
         "fury",
         "berserk",
         "aggressive",
-        "barbarian"
+        "barbarian",
+        "warrior"
       ]
     },
     {
@@ -18892,7 +18972,9 @@
         "peaceful",
         "rest",
         "resting",
-        "serene"
+        "serene",
+        "gentle",
+        "quiet"
       ]
     },
     {
@@ -18904,7 +18986,8 @@
         "unsettling",
         "strange",
         "uneasy",
-        "horror"
+        "horror",
+        "creepy"
       ]
     },
     {
@@ -18940,7 +19023,11 @@
         "opera",
         "sci-fi",
         "epic",
-        "stars"
+        "stars",
+        "scifi",
+        "cosmic",
+        "futuristic",
+        "science fiction"
       ]
     },
     {
@@ -18952,7 +19039,9 @@
         "neon",
         "sci-fi",
         "future",
-        "synth"
+        "synth",
+        "scifi",
+        "futuristic"
       ]
     },
     {
@@ -18975,7 +19064,12 @@
         "horror",
         "organ",
         "dark",
-        "castle"
+        "castle",
+        "fantasy",
+        "creepy",
+        "fear",
+        "scary",
+        "victorian"
       ]
     },
     {
@@ -18987,7 +19081,15 @@
         "cosmic",
         "horror",
         "eldritch",
-        "insane"
+        "insane",
+        "creepy",
+        "fear",
+        "lovecraftian",
+        "scary",
+        "sci-fi",
+        "space",
+        "scifi",
+        "futuristic"
       ]
     },
     {
@@ -18999,7 +19101,9 @@
         "wasteland",
         "ruined",
         "survival",
-        "sci-fi"
+        "sci-fi",
+        "scifi",
+        "futuristic"
       ]
     },
     {
@@ -19021,7 +19125,15 @@
         "dark fantasy",
         "grimdark",
         "brooding",
-        "witcher"
+        "witcher",
+        "fantasy",
+        "dark",
+        "evil",
+        "magical",
+        "medieval",
+        "ominous",
+        "sinister",
+        "horror"
       ]
     },
     {
@@ -19033,7 +19145,12 @@
         "heroic",
         "tolkien",
         "epic",
-        "adventure"
+        "adventure",
+        "fantasy",
+        "brave",
+        "high",
+        "magical",
+        "medieval"
       ]
     },
     {
@@ -19045,7 +19162,10 @@
         "fantasy",
         "eastern",
         "samurai",
-        "martial"
+        "martial",
+        "japanese",
+        "magical",
+        "medieval"
       ]
     },
     {
@@ -19069,7 +19189,9 @@
         "ancient",
         "pyramid",
         "desert",
-        "pharaoh"
+        "pharaoh",
+        "historic",
+        "old"
       ]
     },
     {
@@ -19093,7 +19215,16 @@
         "sea shanty",
         "battle",
         "sailing",
-        "adventure"
+        "adventure",
+        "combat",
+        "fight",
+        "nautical",
+        "ocean",
+        "sea",
+        "shanty",
+        "war",
+        "water",
+        "nature"
       ]
     },
     {
@@ -19106,7 +19237,12 @@
         "night",
         "crowd",
         "chatter",
-        "inn"
+        "inn",
+        "fantasy",
+        "ambience",
+        "bar",
+        "medieval",
+        "pub"
       ],
       "loop": true
     },
@@ -19119,7 +19255,12 @@
         "empty",
         "quiet",
         "day",
-        "inn"
+        "inn",
+        "fantasy",
+        "ambience",
+        "bar",
+        "medieval",
+        "pub"
       ],
       "loop": true
     },
@@ -19132,7 +19273,13 @@
         "fireplace",
         "crackling",
         "cozy",
-        "fire"
+        "fire",
+        "fantasy",
+        "ambience",
+        "bar",
+        "inn",
+        "medieval",
+        "pub"
       ],
       "loop": true
     },
@@ -19145,7 +19292,12 @@
         "kitchen",
         "cooking",
         "pots",
-        "inn"
+        "inn",
+        "fantasy",
+        "ambience",
+        "bar",
+        "medieval",
+        "pub"
       ],
       "loop": true
     },
@@ -19156,9 +19308,15 @@
       "keywords": [
         "tavern",
         "bard",
-        "music",
         "lute",
-        "performance"
+        "performance",
+        "fantasy",
+        "ambience",
+        "bar",
+        "inn",
+        "medieval",
+        "performing",
+        "pub"
       ],
       "loop": true
     },
@@ -19171,7 +19329,14 @@
         "rowdy",
         "brawl",
         "fight",
-        "chaotic"
+        "chaotic",
+        "fantasy",
+        "combat",
+        "ambience",
+        "bar",
+        "inn",
+        "medieval",
+        "pub"
       ],
       "loop": true
     },
@@ -19184,7 +19349,10 @@
         "street",
         "medieval",
         "urban",
-        "crowd"
+        "crowd",
+        "fantasy",
+        "ambience",
+        "historic"
       ],
       "loop": true
     },
@@ -19197,7 +19365,9 @@
         "square",
         "vendors",
         "crowd",
-        "bazaar"
+        "bazaar",
+        "ambience",
+        "marketplace"
       ],
       "loop": true
     },
@@ -19210,7 +19380,9 @@
         "alley",
         "poor",
         "dirty",
-        "urban"
+        "urban",
+        "alleyway",
+        "ambience"
       ],
       "loop": true
     },
@@ -19223,7 +19395,8 @@
         "harbor",
         "port",
         "ships",
-        "sea"
+        "sea",
+        "ambience"
       ],
       "loop": true
     },
@@ -19236,7 +19409,9 @@
         "district",
         "wealthy",
         "city",
-        "quiet"
+        "quiet",
+        "ambience",
+        "royal"
       ],
       "loop": true
     },
@@ -19249,7 +19424,8 @@
         "night",
         "patrol",
         "guard",
-        "quiet"
+        "quiet",
+        "ambience"
       ],
       "loop": true
     },
@@ -19262,7 +19438,12 @@
         "light",
         "gentle",
         "drizzle",
-        "soft"
+        "soft",
+        "weather",
+        "ambience",
+        "calm",
+        "storm",
+        "water"
       ],
       "loop": true
     },
@@ -19275,7 +19456,10 @@
         "distant",
         "rolling",
         "storm",
-        "rain"
+        "rain",
+        "weather",
+        "ambience",
+        "lightning"
       ],
       "loop": true
     },
@@ -19288,7 +19472,12 @@
         "wind",
         "snow",
         "howling",
-        "storm"
+        "storm",
+        "weather",
+        "ambience",
+        "breeze",
+        "cold",
+        "winter"
       ],
       "loop": true
     },
@@ -19301,7 +19490,11 @@
         "wind",
         "sand",
         "dry",
-        "hot"
+        "hot",
+        "ambience",
+        "arid",
+        "breeze",
+        "weather"
       ],
       "loop": true
     },
@@ -19314,7 +19507,11 @@
         "wind",
         "altitude",
         "cold",
-        "high"
+        "high",
+        "ambience",
+        "breeze",
+        "peak",
+        "weather"
       ],
       "loop": true
     },
@@ -19327,7 +19524,9 @@
         "marsh",
         "swamp",
         "eerie",
-        "mist"
+        "mist",
+        "ambience",
+        "wetland"
       ],
       "loop": true
     },
@@ -19340,7 +19539,8 @@
         "hot",
         "cicadas",
         "insects",
-        "day"
+        "day",
+        "ambience"
       ],
       "loop": true
     },
@@ -19353,7 +19553,10 @@
         "leaves",
         "wind",
         "fall",
-        "rustling"
+        "rustling",
+        "ambience",
+        "breeze",
+        "weather"
       ],
       "loop": true
     },
@@ -19366,7 +19569,12 @@
         "stab",
         "quick",
         "rogue",
-        "assassin"
+        "assassin",
+        "combat",
+        "blade",
+        "melee",
+        "stealth",
+        "weapon"
       ]
     },
     {
@@ -19378,7 +19586,10 @@
         "thrust",
         "fencing",
         "lunge",
-        "duelist"
+        "duelist",
+        "melee",
+        "weapon",
+        "combat"
       ]
     },
     {
@@ -19390,7 +19601,12 @@
         "heavy",
         "swing",
         "blunt",
-        "warrior"
+        "warrior",
+        "intense",
+        "melee",
+        "powerful",
+        "weapon",
+        "combat"
       ]
     },
     {
@@ -19402,7 +19618,15 @@
         "whoosh",
         "dagger",
         "throw",
-        "assassin"
+        "assassin",
+        "combat",
+        "blade",
+        "knife",
+        "melee",
+        "rogue",
+        "stealth",
+        "throwing",
+        "weapon"
       ]
     },
     {
@@ -19413,7 +19637,8 @@
         "whip",
         "crack",
         "sharp",
-        "leather"
+        "leather",
+        "weapon"
       ]
     },
     {
@@ -19447,7 +19672,9 @@
         "detect",
         "magic",
         "ping",
-        "sense"
+        "sense",
+        "arcane",
+        "spell"
       ]
     },
     {
@@ -19468,7 +19695,9 @@
         "portal",
         "open",
         "arcane",
-        "teleport"
+        "teleport",
+        "magic",
+        "spell"
       ]
     },
     {
@@ -19479,7 +19708,9 @@
         "portal",
         "close",
         "collapse",
-        "teleport"
+        "teleport",
+        "arcane",
+        "magic"
       ]
     },
     {
@@ -19491,7 +19722,14 @@
         "blast",
         "warlock",
         "dark",
-        "force"
+        "force",
+        "cosmic",
+        "evil",
+        "horror",
+        "magic",
+        "ominous",
+        "pact",
+        "sinister"
       ]
     },
     {
@@ -19503,7 +19741,9 @@
         "flame",
         "divine",
         "cleric",
-        "holy"
+        "holy",
+        "fire",
+        "heat"
       ]
     }
   ]
