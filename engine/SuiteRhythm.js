@@ -2815,7 +2815,6 @@ class SuiteRhythm {
     }
 
     async checkSubscription() {
-        const modal = document.getElementById('subscribeModal');
         const appContainer = document.getElementById('appContainer');
         const noKeyBanner = document.getElementById('noKeyBanner');
 
@@ -2849,37 +2848,16 @@ class SuiteRhythm {
             }
         }
 
-        // Check for Stripe session_id in URL (post-checkout redirect)
         const urlParams = new URLSearchParams(location.search);
-        const sessionId = urlParams.get('session_id');
-        if (sessionId) {
-            history.replaceState(null, '', location.pathname); // clean URL
-            try {
-                this.updateStatus('Activating subscription...');
-                const resp = await fetch(`${backendUrl}/activate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId }),
-                });
-                if (resp.ok) {
-                    const data = await resp.json();
-                    setAccessToken(data.token);
-                    this.accessToken = data.token;
-                    this.updateStatus('Subscription activated! Welcome to SuiteRhythm.');
-                    this.logActivity('Subscription activated', 'success');
-                } else {
-                    const err = await resp.json().catch(() => ({}));
-                    this.updateStatus(`Activation failed: ${err.error || 'Please try again.'}`);
-                }
-            } catch (err) {
-                this.updateStatus('Activation failed — check your connection.');
-            }
+        if (urlParams.has('session_id')) {
+            urlParams.delete('session_id');
+            const cleanQuery = urlParams.toString();
+            history.replaceState(null, '', `${location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${location.hash}`);
         }
 
         this.accessToken = getAccessToken();
 
-        // Free access - skip paywall, enable AI features directly
-        if (modal) modal.classList.add('hidden');
+        // Free public beta access: never show a paywall or login gate.
         if (noKeyBanner) noKeyBanner.classList.add('hidden');
         this.backendAvailable = true;
         this.updateStatus('Ready - AI features active');
@@ -2903,64 +2881,10 @@ class SuiteRhythm {
                 el.textContent = `Active — token expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
                 el.style.color = daysLeft <= 5 ? 'orange' : '';
             } catch (_) {
-                el.textContent = 'Active subscription';
+                el.textContent = 'Free public access active';
             }
         } else {
-            el.textContent = 'Beta access active. Paid subscription enforcement is not enabled yet.';
-        }
-    }
-
-    async startCheckout() {
-        this.backendAvailable = true;
-        this.closeSubscribeModal?.();
-        this.updateStatus('Beta access enabled. Paid checkout is not active yet.');
-    }
-
-    async saveToken() {
-        const input = document.getElementById('accessTokenInput');
-        if (!input) return;
-        const token = input.value.trim();
-        if (!token || token.split('.').length !== 3) {
-            this.updateStatus('Invalid token format — paste the full token you received');
-            return;
-        }
-        setAccessToken(token);
-        this.accessToken = token;
-        input.value = '';
-        document.getElementById('subscribeModal')?.classList.add('hidden');
-        document.getElementById('noKeyBanner')?.classList.add('hidden');
-        this.updateStatus('Token activated! AI features are now active.');
-        this.updateApiStatusIndicators();
-        this._updateSubscriptionStatus();
-    }
-
-    async refreshToken() {
-        const backendUrl = this.getBackendUrl();
-        if (!this.accessToken) {
-            this.updateStatus('No access token to refresh yet.');
-            return;
-        }
-        try {
-            this.updateStatus('Refreshing access token...');
-            const resp = await fetch(`${backendUrl}/refresh-token`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.accessToken}`,
-                },
-            });
-            if (!resp.ok) {
-                const err = await resp.json().catch(() => ({}));
-                this.updateStatus(`Refresh failed: ${err.error || 'Subscription may be inactive.'}`);
-                return;
-            }
-            const data = await resp.json();
-            setAccessToken(data.token);
-            this.accessToken = data.token;
-            this.updateStatus('Access token refreshed successfully.');
-            this._updateSubscriptionStatus();
-        } catch (err) {
-            this.updateStatus(`Refresh error: ${err.message}`);
+            el.textContent = 'Free public access active';
         }
     }
     
@@ -3140,22 +3064,6 @@ class SuiteRhythm {
     
     // ===== EVENT LISTENERS =====
     setupEventListeners() {
-        // Subscribe / Token management
-        document.getElementById('subscribeBtn')?.addEventListener('click', () => this.startCheckout());
-        document.getElementById('subscribeBtn2')?.addEventListener('click', () => this.startCheckout());
-        document.getElementById('showSubscribeModal')?.addEventListener('click', () => this.startCheckout());
-        document.getElementById('saveTokenBtn')?.addEventListener('click', () => this.saveToken());
-        document.getElementById('refreshTokenBtn')?.addEventListener('click', () => this.refreshToken());
-        document.getElementById('enterTokenBtn')?.addEventListener('click', () => {
-            document.getElementById('enterTokenForm')?.classList.toggle('hidden');
-        });
-        document.getElementById('manageSubscriptionBtn')?.addEventListener('click', () => {
-            this.navigateToSection('settingsSection');
-            document.getElementById('subscriptionMenuContent')?.classList.remove('hidden');
-            document.getElementById('subscriptionMenuToggle')?.classList.add('active');
-            document.getElementById('subscriptionMenuToggle')?.setAttribute('aria-expanded', 'true');
-        });
-        
         // Legacy mode buttons (if still present)
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.setAttribute('aria-pressed', 'false');

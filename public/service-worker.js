@@ -1,5 +1,5 @@
 // SuiteRhythm Service Worker
-const CACHE_NAME = 'SuiteRhythm-v31'; // Bumped: remove stale public login shell
+const CACHE_NAME = 'SuiteRhythm-v32'; // Bumped: remove stale public login/pay shell
 const UPDATE_MESSAGE = 'SR_SW_UPDATE_AVAILABLE';
 
 // Note: Sound files are served via /r2-audio/* proxy (Cloudflare R2) and NOT cached here
