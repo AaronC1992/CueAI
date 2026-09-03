@@ -2747,19 +2747,31 @@ class SuiteRhythm {
                 if (bytesUsed >= byteBudget) { skipped++; return; }
                 const url = normalizeAudioUrl(file);
                 const srcs = this.buildSrcCandidates(url);
-                let resp = null;
-                for (const src of srcs) {
-                    try { resp = await fetch(src); if (resp.ok) break; } catch(_) { resp = null; }
+
+                // Size-probe with HEAD. Downloading first and cancelling the body
+                // for over-budget files wasted bandwidth and logged a fetch failure
+                // per skipped file, which looked like a wall of 404s.
+                let src = null;
+                let headWorked = false;
+                for (const candidate of srcs) {
+                    let head;
+                    try { head = await fetch(candidate, { method: 'HEAD' }); } catch (_) { continue; }
+                    if (!head.ok) continue;
+                    headWorked = true;
+                    const declared = Number(head.headers.get('content-length') || 0);
+                    if (declared > maxFileBytes || bytesUsed + declared > byteBudget) { skipped++; return; }
+                    src = candidate;
+                    break;
                 }
-                if (!resp || !resp.ok) { loaded++; this.updatePreloadProgress(loaded, toPreload.length); return; }
-                const declared = Number(resp.headers.get('content-length') || 0);
-                if (declared > maxFileBytes || bytesUsed + declared > byteBudget) {
-                    try { await resp.body?.cancel(); } catch (_) {}
-                    skipped++;
-                    return;
-                }
+                // HEAD unsupported by the origin — fall back to a plain GET.
+                if (!src && !headWorked) src = srcs[0] || null;
+                if (!src) { loaded++; this.updatePreloadProgress(loaded, toPreload.length); return; }
+
+                const resp = await fetch(src);
+                if (!resp.ok) { loaded++; this.updatePreloadProgress(loaded, toPreload.length); return; }
                 const ab = await resp.arrayBuffer();
-                bytesUsed += declared || ab.byteLength;
+                if (ab.byteLength > maxFileBytes) { skipped++; return; }
+                bytesUsed += ab.byteLength;
                 const buffer = await this.audioContext.decodeAudioData(ab);
                 
                 // Map all keywords that point to this file 
