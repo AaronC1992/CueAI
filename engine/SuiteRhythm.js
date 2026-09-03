@@ -4076,25 +4076,11 @@ class SuiteRhythm {
         const ctx = this.audioContext || new (window.AudioContext || window.webkitAudioContext)();
         const source = ctx.createMediaStreamSource(stream);
         const gain = ctx.createGain();
-        const filter = ctx.createBiquadFilter();
-        const shaper = ctx.createWaveShaper();
         const gate = ctx.createScriptProcessor?.(1024, 1, 1);
         const analyser = ctx.createAnalyser();
         const destination = ctx.createMediaStreamDestination();
 
         gain.gain.value = Math.max(0.2, Math.min(2.5, Number(gainValue) || 1));
-        filter.type = 'allpass';
-        filter.frequency.value = 1000;
-        filter.Q.value = 0.7;
-        shaper.curve = null;
-        shaper.oversample = '2x';
-
-        const effect = String(effectName || 'clean');
-        if (effect === 'warm') { filter.type = 'lowpass'; filter.frequency.value = 3200; }
-        if (effect === 'bright') { filter.type = 'highshelf'; filter.frequency.value = 2200; filter.gain.value = 5; }
-        if (effect === 'radio') { filter.type = 'bandpass'; filter.frequency.value = 1200; filter.Q.value = 1.8; shaper.curve = this.makeDistortionCurve(18); }
-        if (effect === 'monster') { filter.type = 'lowshelf'; filter.frequency.value = 450; filter.gain.value = 9; shaper.curve = this.makeDistortionCurve(10); }
-        if (effect === 'whisper') { filter.type = 'highpass'; filter.frequency.value = 900; gain.gain.value *= 0.7; }
 
         if (gate) {
             const threshold = Math.max(0, Math.min(0.12, Number(gateValue) || 0));
@@ -4107,18 +4093,125 @@ class SuiteRhythm {
             };
         }
 
+        // Gain and gate are captured, the voice effect is not. Recording the dry
+        // signal is what lets any effect be auditioned or saved afterwards.
+        const dry = ctx.createGain();
         source.connect(gain);
-        gain.connect(filter);
-        filter.connect(shaper);
         if (gate) {
-            shaper.connect(gate);
-            gate.connect(analyser);
+            gain.connect(gate);
+            gate.connect(dry);
         } else {
-            shaper.connect(analyser);
+            gain.connect(dry);
         }
-        analyser.connect(destination);
+        dry.connect(destination);
 
-        return { ctx, source, gain, filter, shaper, gate, analyser, destination, monitorNode: analyser };
+        let fx = null;
+        const setEffect = (name) => {
+            if (fx) {
+                try { dry.disconnect(fx.input); } catch (_) {}
+                try { fx.output.disconnect(analyser); } catch (_) {}
+            }
+            fx = this.buildVoiceEffectNodes(ctx, name);
+            dry.connect(fx.input);
+            fx.output.connect(analyser);
+        };
+        setEffect(effectName);
+
+        return { ctx, source, gain, gate, analyser, destination, monitorNode: analyser, setEffect };
+    }
+
+    /**
+     * Voice effect presets, shared by live monitoring, playback preview,
+     * and the offline render performed on save.
+     */
+    static VOICE_EFFECTS = {
+        clean: { gainMul: 1 },
+        warm: { filter: { type: 'lowpass', frequency: 3200, Q: 0.7 }, gainMul: 1 },
+        bright: { filter: { type: 'highshelf', frequency: 2200, gain: 5 }, gainMul: 1 },
+        radio: { filter: { type: 'bandpass', frequency: 1200, Q: 1.8 }, distortion: 18, gainMul: 1 },
+        monster: { filter: { type: 'lowshelf', frequency: 450, gain: 9 }, distortion: 10, gainMul: 1 },
+        whisper: { filter: { type: 'highpass', frequency: 900, Q: 0.7 }, gainMul: 0.7 },
+    };
+
+    /** Build an input/output node pair implementing a voice effect preset. */
+    buildVoiceEffectNodes(ctx, effectName) {
+        const spec = SuiteRhythm.VOICE_EFFECTS[String(effectName || 'clean')] || SuiteRhythm.VOICE_EFFECTS.clean;
+        const input = ctx.createGain();
+        input.gain.value = spec.gainMul ?? 1;
+        let node = input;
+
+        if (spec.filter) {
+            const filter = ctx.createBiquadFilter();
+            filter.type = spec.filter.type;
+            filter.frequency.value = spec.filter.frequency;
+            if (spec.filter.Q != null) filter.Q.value = spec.filter.Q;
+            if (spec.filter.gain != null) filter.gain.value = spec.filter.gain;
+            node.connect(filter);
+            node = filter;
+        }
+        if (spec.distortion) {
+            const shaper = ctx.createWaveShaper();
+            shaper.curve = this.makeDistortionCurve(spec.distortion);
+            shaper.oversample = '2x';
+            node.connect(shaper);
+            node = shaper;
+        }
+        return { input, output: node };
+    }
+
+    /** Re-render a dry recording through an effect so it can be saved as heard. */
+    async renderRecordingWithEffect(blob, effectName) {
+        if (!blob || !effectName || effectName === 'clean') return blob;
+        const ctx = this.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if (!OfflineCtx) return blob;
+
+        const offline = new OfflineCtx(decoded.numberOfChannels, decoded.length, decoded.sampleRate);
+        const source = offline.createBufferSource();
+        source.buffer = decoded;
+        const fx = this.buildVoiceEffectNodes(offline, effectName);
+        source.connect(fx.input);
+        fx.output.connect(offline.destination);
+        source.start();
+        return this.audioBufferToWavBlob(await offline.startRendering());
+    }
+
+    /** Encode an AudioBuffer as a 16 bit PCM WAV blob. */
+    audioBufferToWavBlob(buffer) {
+        const channels = buffer.numberOfChannels;
+        const frames = buffer.length;
+        const bytes = new ArrayBuffer(44 + frames * channels * 2);
+        const view = new DataView(bytes);
+        const writeStr = (offset, str) => {
+            for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+        };
+
+        writeStr(0, 'RIFF');
+        view.setUint32(4, 36 + frames * channels * 2, true);
+        writeStr(8, 'WAVE');
+        writeStr(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, channels, true);
+        view.setUint32(24, buffer.sampleRate, true);
+        view.setUint32(28, buffer.sampleRate * channels * 2, true);
+        view.setUint16(32, channels * 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, 'data');
+        view.setUint32(40, frames * channels * 2, true);
+
+        const data = [];
+        for (let c = 0; c < channels; c++) data.push(buffer.getChannelData(c));
+        let offset = 44;
+        for (let i = 0; i < frames; i++) {
+            for (let c = 0; c < channels; c++) {
+                const sample = Math.max(-1, Math.min(1, data[c][i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+                offset += 2;
+            }
+        }
+        return new Blob([view], { type: 'audio/wav' });
     }
 
     makeDistortionCurve(amount = 8) {
@@ -4151,6 +4244,7 @@ class SuiteRhythm {
         const timerEl = document.getElementById('recordTimer');
         const playbackEl = document.getElementById('recordPlayback');
         const audioEl = document.getElementById('recordAudio');
+        const hintEl = document.getElementById('recordEffectHint');
         if (!recordBtn || !modal) return;
 
         let mediaRecorder = null;
@@ -4161,6 +4255,42 @@ class SuiteRhythm {
         let recordedBlobUrl = null;
         let chain = null;
         let monitoring = false;
+
+        // Playback effect chain. The recording itself is dry, so the selected
+        // effect is applied here on the way to the speakers.
+        let playbackFx = null;
+        const routePlaybackThroughEffect = () => {
+            if (!audioEl || !this.audioContext) return;
+            try {
+                if (!this._recordPlaybackSource) {
+                    this._recordPlaybackSource = this.audioContext.createMediaElementSource(audioEl);
+                }
+            } catch (_) {
+                return; // already routed by another chain, or unsupported
+            }
+            const source = this._recordPlaybackSource;
+            if (playbackFx) {
+                try { source.disconnect(playbackFx.input); } catch (_) {}
+                try { playbackFx.output.disconnect(this.audioContext.destination); } catch (_) {}
+            }
+            playbackFx = this.buildVoiceEffectNodes(this.audioContext, effectInput?.value);
+            source.connect(playbackFx.input);
+            playbackFx.output.connect(this.audioContext.destination);
+        };
+
+        effectInput?.addEventListener('change', () => {
+            // Live monitoring follows the dropdown while recording.
+            try { chain?.setEffect?.(effectInput.value); } catch (_) {}
+            if (recordedBlob) {
+                routePlaybackThroughEffect();
+                if (hintEl) hintEl.textContent = `Preview using the ${effectInput.value} effect. Press play to hear it.`;
+            }
+        });
+
+        audioEl?.addEventListener('play', () => {
+            try { this.audioContext?.resume?.(); } catch (_) {}
+            routePlaybackThroughEffect();
+        });
 
         recordBtn.addEventListener('click', () => {
             modal.classList.remove('hidden');
@@ -4175,6 +4305,7 @@ class SuiteRhythm {
             if (gainInput) gainInput.value = '1';
             if (gateInput) gateInput.value = '0.015';
             if (timerEl) timerEl.textContent = '0:00';
+            if (hintEl) hintEl.textContent = '';
             recordedBlob = null;
         });
 
@@ -4207,6 +4338,8 @@ class SuiteRhythm {
                     recordedBlobUrl = URL.createObjectURL(recordedBlob);
                     if (audioEl) audioEl.src = recordedBlobUrl;
                     if (playbackEl) playbackEl.classList.remove('hidden');
+                    if (hintEl) hintEl.textContent = 'Recorded clean. Switch the voice effect above and press play to compare.';
+                    routePlaybackThroughEffect();
                     if (saveBtn) saveBtn.disabled = false;
                     clearInterval(timerInterval);
                 };
@@ -4252,11 +4385,22 @@ class SuiteRhythm {
             stopBtn.classList.add('hidden');
         });
 
-        if (saveBtn) saveBtn.addEventListener('click', () => {
+        if (saveBtn) saveBtn.addEventListener('click', async () => {
             if (!recordedBlob) return;
             const name = (nameInput?.value || '').trim() || `Custom Sound ${this.customSounds.length + 1}`;
             const tags = (tagsInput?.value || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
             const type = ['music', 'ambience', 'sfx'].includes(typeInput?.value) ? typeInput.value : 'sfx';
+            const effect = effectInput?.value || 'clean';
+
+            saveBtn.disabled = true;
+            if (hintEl && effect !== 'clean') hintEl.textContent = `Applying the ${effect} effect...`;
+
+            let blobToSave = recordedBlob;
+            try {
+                blobToSave = await this.renderRecordingWithEffect(recordedBlob, effect);
+            } catch (err) {
+                debugLog('Effect render failed, saving dry recording:', err.message);
+            }
 
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -4266,7 +4410,7 @@ class SuiteRhythm {
                     type,
                     tags,
                     loop: type === 'music' || type === 'ambience',
-                    effect: effectInput?.value || 'clean',
+                    effect,
                     notes: (notesInput?.value || '').trim(),
                     dataUrl: reader.result,
                     created: Date.now()
@@ -4276,7 +4420,7 @@ class SuiteRhythm {
                 this.renderCustomSounds();
                 closeModal();
             };
-            reader.readAsDataURL(recordedBlob);
+            reader.readAsDataURL(blobToSave);
         });
     }
 
@@ -10334,28 +10478,55 @@ class SuiteRhythm {
         if (group) group.value = '';
         const catFilter = document.getElementById('cbSoundCategoryFilter');
         if (catFilter) catFilter.value = '';
+        this.cbSetSelectedSound(null);
         modal.classList.remove('hidden');
 
         // Show recent sounds by default
         if (this.cbRecentSounds.length > 0 && results) {
             results.innerHTML = '<div class="cb-recent-label">Recent</div>';
             for (const m of this.cbRecentSounds) {
-                const item = document.createElement('div');
-                item.className = 'cb-sound-result-item';
-                item.innerHTML = `${escapeHtml(m.name)} <span class="cb-sound-result-type">${escapeHtml(m.type)}</span>`;
-                item.addEventListener('click', () => {
-                    results.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-                    item.classList.add('selected');
-                    const fileInput = document.getElementById('cbSoundFile');
-                    if (fileInput) fileInput.value = m.file;
-                    const labelInput = document.getElementById('cbSoundLabel');
-                    if (labelInput && !labelInput.value) labelInput.value = m.name;
-                    const typeSelect = document.getElementById('cbSoundType');
-                    if (typeSelect) typeSelect.value = ['music', 'ambience', 'sfx'].includes(m.type) ? m.type : 'sfx';
-                });
-                results.appendChild(item);
+                results.appendChild(this.cbBuildResultItem(m, results));
             }
         }
+        if (search) search.focus();
+    }
+
+    /** Build one selectable row for the add-sound search results. */
+    cbBuildResultItem(match, results) {
+        const item = document.createElement('div');
+        item.className = 'cb-sound-result-item';
+        item.setAttribute('role', 'option');
+        const typeLabel = match.custom ? `${match.type} custom` : match.type;
+        item.innerHTML = `${escapeHtml(match.name)} <span class="cb-sound-result-type">${escapeHtml(typeLabel)}</span>`;
+        item.addEventListener('click', () => {
+            results.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+            item.setAttribute('aria-selected', 'true');
+            this.cbSetSelectedSound(match);
+        });
+        return item;
+    }
+
+    /** Reflect the chosen sound in the hidden input, the summary chip, and the confirm button. */
+    cbSetSelectedSound(match) {
+        const fileInput = document.getElementById('cbSoundFile');
+        const labelInput = document.getElementById('cbSoundLabel');
+        const typeSelect = document.getElementById('cbSoundType');
+        const chip = document.getElementById('cbSelectedSound');
+        const confirm = document.getElementById('cbAddConfirm');
+
+        if (fileInput) fileInput.value = match ? match.file : '';
+        if (match && labelInput && !labelInput.value) labelInput.value = match.name;
+        if (match && typeSelect) {
+            typeSelect.value = ['music', 'ambience', 'sfx'].includes(match.type) ? match.type : 'sfx';
+        }
+        if (chip) {
+            chip.classList.toggle('is-empty', !match);
+            chip.innerHTML = match
+                ? `<span class="cb-selected-label">Selected: ${escapeHtml(match.name)}</span>`
+                : '<span class="cb-selected-label">No sound selected yet</span>';
+        }
+        if (confirm) confirm.disabled = !match;
     }
 
     cbSearchSounds(query, categoryFilter = '') {
@@ -10384,25 +10555,11 @@ class SuiteRhythm {
 
         results.innerHTML = '';
         if (matches.length === 0) {
-            results.innerHTML = '<div class="cb-sound-result-item" style="color:var(--muted-2)">No matches found</div>';
+            results.innerHTML = '<div class="cb-sound-result-item" style="color:var(--muted-2)">No sounds matched. Try a broader word like storm, sword, or forest.</div>';
             return;
         }
         for (const m of matches) {
-            const item = document.createElement('div');
-            item.className = 'cb-sound-result-item';
-            item.innerHTML = `${escapeHtml(m.name)} <span class="cb-sound-result-type">${escapeHtml(m.custom ? `${m.type} custom` : m.type)}</span>`;
-            item.addEventListener('click', () => {
-                // Select this sound
-                results.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-                item.classList.add('selected');
-                const fileInput = document.getElementById('cbSoundFile');
-                if (fileInput) fileInput.value = m.file;
-                const labelInput = document.getElementById('cbSoundLabel');
-                if (labelInput && !labelInput.value) labelInput.value = m.name;
-                const typeSelect = document.getElementById('cbSoundType');
-                if (typeSelect) typeSelect.value = ['music', 'ambience', 'sfx'].includes(m.type) ? m.type : 'sfx';
-            });
-            results.appendChild(item);
+            results.appendChild(this.cbBuildResultItem(m, results));
         }
     }
 
@@ -10411,7 +10568,8 @@ class SuiteRhythm {
         const type = document.getElementById('cbSoundType')?.value || 'sfx';
         const file = (document.getElementById('cbSoundFile')?.value || '').trim();
         const group = document.getElementById('cbSoundGroup')?.value || '';
-        if (!label || !file) { alert('Please set a label and select a sound.'); return; }
+        if (!file) { this.updateStatus('Pick a sound from the list first'); return; }
+        if (!label) { this.updateStatus('Give the button a label'); return; }
 
         const canvas = document.getElementById('cbCanvas');
         const cw = canvas ? canvas.clientWidth : 600;

@@ -73,11 +73,12 @@ const tutorialSections = [
       'Open it from Sound Library, then Custom Sounds, then Record Sound.',
       'Save recordings as SFX, music, or ambience. Music and ambience can loop on the Control Board.',
       'Voice effects include clean, warm, bright, radio, monster, and whisper.',
+      'Recording is captured clean, so you can switch the voice effect after recording and press play to compare. The effect you leave selected is the one that gets saved.',
       'Input gain changes the microphone level before saving. Noise gate reduces quiet room noise. Monitor lets you hear the processed sound while recording.',
       'Tags make recordings searchable. Notes help you remember where a sound belongs.',
       'Custom recordings currently live in browser storage on this device. Moving them to cloud storage is a later upgrade.',
     ],
-    workflow: ['Open Record Sound', 'Choose save type', 'Choose an effect', 'Set gain and gate', 'Record', 'Preview', 'Save with tags'],
+    workflow: ['Open Record Sound', 'Set gain and gate', 'Record', 'Preview', 'Try different effects', 'Save with tags'],
   },
   {
     id: 'creator-studio',

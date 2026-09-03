@@ -41,38 +41,88 @@ export default function ControlBoardSection() {
 
       {/* Add Sound Modal */}
       <div id="cbAddModal" className="modal hidden">
-        <div className="modal-content">
-          <h2>Add Sound Button</h2>
-          <div className="cb-add-form">
-            <input type="text" id="cbSoundLabel" placeholder="Button Label (e.g. Battle Theme)" />
-            <select id="cbSoundType" className="mode-dropdown">
-              <option value="music">Music (loops)</option>
-              <option value="ambience">Ambience (loops)</option>
-              <option value="sfx">Sound Effect (plays once)</option>
-            </select>
-            <select id="cbSoundGroup" className="mode-dropdown">
-              <option value="">No Group</option>
-              <option value="combat">Combat</option>
-              <option value="ambience">Ambience</option>
-              <option value="music">Music</option>
-              <option value="npc">NPC / Dialogue</option>
-              <option value="custom">Custom</option>
-            </select>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="text" id="cbSoundSearch" placeholder="Search sounds..." className="cb-search-input" style={{ flex: 1 }} />
-              <select id="cbSoundCategoryFilter" className="mode-dropdown" style={{ flex: '0 0 auto', minWidth: 100 }}>
-                <option value="">All Types</option>
-                <option value="music">Music</option>
-                <option value="ambience">Ambience</option>
-                <option value="sfx">SFX</option>
-              </select>
-            </div>
-            <div id="cbSoundResults" className="cb-sound-results" />
-            <input type="hidden" id="cbSoundFile" />
+        <div className="modal-content cb-add-modal">
+          <div className="cb-add-header">
+            <h2>Add a Sound Button</h2>
+            <p className="cb-add-subtitle">Pick a sound from your library, then name the button.</p>
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'center' }}>
-            <button id="cbAddConfirm" className="btn-primary">Add to Board</button>
+
+          <div className="cb-add-form">
+            <div className="cb-add-step">
+              <div className="cb-step-heading">
+                <span className="cb-step-num">1</span>
+                <span className="cb-step-title">Choose a sound</span>
+              </div>
+
+              <div className="cb-search-row">
+                <div className="cb-search-field">
+                  <svg className="cb-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35" />
+                  </svg>
+                  <input
+                    type="text"
+                    id="cbSoundSearch"
+                    className="cb-search-input"
+                    placeholder="Search by name or keyword, try thunder or tavern"
+                    autoComplete="off"
+                  />
+                </div>
+                <select id="cbSoundCategoryFilter" className="mode-dropdown cb-search-filter" aria-label="Filter by sound type">
+                  <option value="">All types</option>
+                  <option value="music">Music</option>
+                  <option value="ambience">Ambience</option>
+                  <option value="sfx">SFX</option>
+                </select>
+              </div>
+
+              <div id="cbSoundResults" className="cb-sound-results" role="listbox" aria-label="Sound search results" />
+
+              <div id="cbSelectedSound" className="cb-selected-sound is-empty">
+                <span className="cb-selected-label">No sound selected yet</span>
+              </div>
+              <input type="hidden" id="cbSoundFile" />
+            </div>
+
+            <div className="cb-add-step">
+              <div className="cb-step-heading">
+                <span className="cb-step-num">2</span>
+                <span className="cb-step-title">Set up the button</span>
+              </div>
+
+              <label className="cb-field">
+                <span className="cb-field-label">Button label</span>
+                <input type="text" id="cbSoundLabel" placeholder="Battle Theme" autoComplete="off" />
+              </label>
+
+              <div className="cb-field-row">
+                <label className="cb-field">
+                  <span className="cb-field-label">Playback</span>
+                  <select id="cbSoundType" className="mode-dropdown">
+                    <option value="music">Music, loops until toggled off</option>
+                    <option value="ambience">Ambience, loops until toggled off</option>
+                    <option value="sfx">Sound effect, plays once</option>
+                  </select>
+                </label>
+
+                <label className="cb-field">
+                  <span className="cb-field-label">Group</span>
+                  <select id="cbSoundGroup" className="mode-dropdown">
+                    <option value="">No group</option>
+                    <option value="combat">Combat</option>
+                    <option value="ambience">Ambience</option>
+                    <option value="music">Music</option>
+                    <option value="npc">NPC / Dialogue</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="cb-add-actions">
             <button id="cbAddCancel" className="btn-secondary">Cancel</button>
+            <button id="cbAddConfirm" className="btn-primary">Add to Board</button>
           </div>
         </div>
       </div>

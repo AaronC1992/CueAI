@@ -3,7 +3,7 @@
 import EngineStatusDot from './EngineStatusDot';
 
 /**
- * Sidebar navigation for the sound application.
+ * Clean minimal sidebar navigation with dark fantasy audio atmosphere.
  * Section switching is wired by the engine event listeners via data-section attributes.
  */
 export default function Sidebar({ user: _user }) {
@@ -26,18 +26,18 @@ export default function Sidebar({ user: _user }) {
           </div>
           <EngineStatusDot />
         </div>
-        <span className="sidebar-tagline">Reactive Sound Studio</span>
+        <span className="sidebar-tagline">AI Live Audio Director</span>
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
-        <div className="sidebar-nav-group-label">Studio Modes</div>
+        <div className="sidebar-nav-group-label">Experience</div>
 
         <button className="sidebar-nav-item active" data-section="dashboardPanel" aria-label="Home">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-          Studio Home
+          Overview
         </button>
 
         <button className="sidebar-nav-item" data-section="dndAutoDetect" aria-label="Auto Detect">
@@ -47,62 +47,47 @@ export default function Sidebar({ user: _user }) {
             <line x1="12" y1="19" x2="12" y2="23" />
             <line x1="8" y1="23" x2="16" y2="23" />
           </svg>
-          Auto Detect
+          Live Voice Detection
         </button>
 
-        <button className="sidebar-nav-item" data-section="tableTopSection" aria-label="Table Top Games">
+        <div className="sidebar-nav-group-label">Realms</div>
+
+        <button className="sidebar-nav-item" data-section="tableTopSection" aria-label="Tabletop RPG">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
             <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
             <line x1="12" y1="22.08" x2="12" y2="12" />
           </svg>
-          Table Top RPG
+          Tabletop RPG
         </button>
 
-        <button className="sidebar-nav-item" data-section="storyTellerSection" aria-label="Story Teller">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-          </svg>
-          Story Teller
-        </button>
-
-        <button className="sidebar-nav-item" data-section="creatorSection" aria-label="Creator">
+        <button className="sidebar-nav-item" data-section="creatorSection" data-context="content" aria-label="Streamers">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
             <line x1="8" y1="21" x2="16" y2="21" />
             <line x1="12" y1="17" x2="12" y2="21" />
           </svg>
-          Creator Studio
+          Streamers &amp; Broadcast
         </button>
 
-        <button className="sidebar-nav-item" data-section="singSection" aria-label="Sing">
+        <button className="sidebar-nav-item" data-section="storyTellerSection" aria-label="Audiobooks and Stories">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 18V5l12-2v13" />
-            <circle cx="6" cy="18" r="3" />
-            <circle cx="18" cy="16" r="3" />
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
           </svg>
-          Sing Backing
+          Audiobooks &amp; Tales
         </button>
 
-        <div className="sidebar-nav-group-label">Creative Tools</div>
+        <div className="sidebar-nav-group-label">Sound Vault</div>
 
-        <button className="sidebar-nav-item" data-section="dndCreateCampaign" aria-label="Story Editor">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-          </svg>
-          Story Editor
-        </button>
-
-        <button className="sidebar-nav-item" data-section="dndControlBoard" aria-label="Control Board">
+        <button className="sidebar-nav-item" data-section="dndControlBoard" aria-label="Soundboard">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="7" height="7" rx="1" />
             <rect x="14" y="3" width="7" height="7" rx="1" />
             <rect x="3" y="14" width="7" height="7" rx="1" />
             <rect x="14" y="14" width="7" height="7" rx="1" />
           </svg>
-          Control Board
+          Quick Board
         </button>
 
         <button className="sidebar-nav-item" data-section="soundLibrarySection" aria-label="Sound Library">
@@ -113,8 +98,6 @@ export default function Sidebar({ user: _user }) {
           </svg>
           Sound Library
         </button>
-
-        <div className="sidebar-nav-group-label">Preferences</div>
 
         <button className="sidebar-nav-item" data-section="settingsSection" aria-label="Settings">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -131,9 +114,9 @@ export default function Sidebar({ user: _user }) {
           <span className="sidebar-engine-text">Sound Engine Ready</span>
         </div>
         <div className="sidebar-footer-actions">
-          <a href="/tutorial" className="sidebar-action-btn">Tutorial</a>
+          <a href="/tutorial" className="sidebar-action-btn">Guide</a>
           <button id="feedbackBtn" className="sidebar-action-btn" type="button">Feedback</button>
-          <a href="/admin/sounds" className="sidebar-action-btn">Audit</a>
+          <a href="/admin/sounds" className="sidebar-action-btn">Vault Audit</a>
         </div>
         <div className="sidebar-version-badge">
           <span>SuiteRhythm v3.6.4</span>

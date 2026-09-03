@@ -153,6 +153,7 @@ export default function SoundLibrarySection() {
             </div>
             <div id="recordPlayback" className="record-playback hidden">
               <audio id="recordAudio" controls />
+              <p id="recordEffectHint" className="record-effect-hint" />
             </div>
           </div>
           <div className="record-form">
