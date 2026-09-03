@@ -23,6 +23,7 @@ import {
   getStatus,
 } from '../../../lib/modules/elevenlabs-generation-manager.js';
 import { findCachedGeneratedSound, saveGeneratedSound } from '../../../lib/generated-sound-store.js';
+import { buildKeywords } from '../../../lib/server-catalog.js';
 
 const MAX_CUE_LENGTH = 140;
 const VALID_TYPES = new Set(['sfx', 'ambience']);
@@ -100,7 +101,7 @@ export async function POST(request) {
       audio: result.audio,
       duration: result.durationSeconds,
       type,
-      tags: cue.toLowerCase().split(/\s+/).filter((w) => w.length > 2),
+      tags: buildKeywords(cue, { type }),
       generationModel: result.generationModel,
       generationSettings: { promptInfluence: result.promptInfluence, durationSeconds: result.durationSeconds },
     });

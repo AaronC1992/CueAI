@@ -975,49 +975,31 @@ class SuiteRhythm {
                     audioBlobs.push(await resp.blob());
                 }
 
-                // Combine blobs into a single audio blob
-                const fullBlob = new Blob(audioBlobs, { type: 'audio/mpeg' });
-                const audioUrl = URL.createObjectURL(fullBlob);
+                // Each chunk plays as its own element. Concatenating MP3 blobs makes the
+                // browser report only the first chunk's duration, which compressed every
+                // word timing into that window and ran the highlight ahead of the voice.
+                const chunkUrls = audioBlobs.map((b) => URL.createObjectURL(b));
+                this._autoReadAudioUrls = chunkUrls;
 
-                this._autoReadAudio = new Audio(audioUrl);
-                this._autoReadAudioUrl = audioUrl;
+                // Character offset of every remaining token, relative to textFromHere.
+                const wordCharOffset = new Map();
+                let runningChars = 0;
+                for (let t = this.storyIndex; t < this.storyTokens.length; t++) {
+                    wordCharOffset.set(t, runningChars);
+                    runningChars += (this.storyTokens[t] || '').length;
+                }
 
-                // Wait for metadata to get duration
-                await new Promise((resolve, reject) => {
-                    this._autoReadAudio.addEventListener('loadedmetadata', resolve, { once: true });
-                    this._autoReadAudio.addEventListener('error', reject, { once: true });
-                    this._autoReadAudio.load();
-                });
-
-                const duration = this._autoReadAudio.duration;
-                if (!duration || !isFinite(duration)) throw new Error('Invalid audio duration');
-
-                // Build word timing estimates based on proportional character positions
-                const wordTimings = this._buildWordTimings(wordIndices, duration);
+                const chunkSpans = [];
+                let spanStart = 0;
+                for (const chunk of chunks) {
+                    chunkSpans.push({ start: spanStart, end: spanStart + chunk.length });
+                    spanStart += chunk.length;
+                }
 
                 if (demoStatus) demoStatus.textContent = 'AI narration playing...';
                 this.logActivity('AI TTS narration started', 'info');
 
-                // Sync highlights with audio playback
-                let lastWordIdx = 0;
-                this._autoReadAudio.addEventListener('timeupdate', () => {
-                    if (!this._autoReading || !this._autoReadAudio) return;
-                    const currentTime = this._autoReadAudio.currentTime;
-
-                    while (lastWordIdx < wordTimings.length && wordTimings[lastWordIdx].time <= currentTime) {
-                        const targetIdx = wordTimings[lastWordIdx].storyIdx;
-                        for (let j = this.storyIndex; j <= targetIdx; j++) {
-                            const w = this.storyNorm[j];
-                            if (w) this.maybeTriggerStorySfx(w, j);
-                        }
-                        this.storyIndex = targetIdx + 1;
-                        this.updateStoryHighlight();
-                        lastWordIdx++;
-                    }
-                });
-
-                this._autoReadAudio.addEventListener('ended', () => {
-                    if (!this._autoReading) return;
+                const finishAutoRead = () => {
                     for (let j = this.storyIndex; j < this.storyTokens.length; j++) {
                         const w = this.storyNorm[j];
                         if (w) this.maybeTriggerStorySfx(w, j);
@@ -1027,9 +1009,58 @@ class SuiteRhythm {
                     this._autoReading = false;
                     if (demoStatus) demoStatus.textContent = 'Story complete! Press Stop to end.';
                     this.logActivity('AI TTS narration finished', 'info');
-                });
+                };
 
-                this._autoReadAudio.play();
+                const playChunk = async (chunkIdx) => {
+                    if (!this._autoReading) return;
+                    if (chunkIdx >= chunkUrls.length) { finishAutoRead(); return; }
+
+                    const span = chunkSpans[chunkIdx];
+                    const audio = new Audio(chunkUrls[chunkIdx]);
+                    this._autoReadAudio = audio;
+
+                    await new Promise((resolve, reject) => {
+                        audio.addEventListener('loadedmetadata', resolve, { once: true });
+                        audio.addEventListener('error', reject, { once: true });
+                        audio.load();
+                    });
+
+                    const chunkDuration = audio.duration;
+                    if (!chunkDuration || !isFinite(chunkDuration)) throw new Error('Invalid audio duration');
+
+                    const spanLen = Math.max(1, span.end - span.start);
+                    const timings = [];
+                    for (const idx of wordIndices) {
+                        const off = wordCharOffset.get(idx);
+                        if (off == null || off < span.start || off >= span.end) continue;
+                        timings.push({ storyIdx: idx, time: ((off - span.start) / spanLen) * chunkDuration });
+                    }
+
+                    let nextTiming = 0;
+                    audio.addEventListener('timeupdate', () => {
+                        if (!this._autoReading || this._autoReadAudio !== audio) return;
+                        const currentTime = audio.currentTime;
+                        while (nextTiming < timings.length && timings[nextTiming].time <= currentTime) {
+                            const targetIdx = timings[nextTiming].storyIdx;
+                            for (let j = this.storyIndex; j <= targetIdx; j++) {
+                                const w = this.storyNorm[j];
+                                if (w) this.maybeTriggerStorySfx(w, j);
+                            }
+                            this.storyIndex = targetIdx + 1;
+                            this.updateStoryHighlight();
+                            nextTiming++;
+                        }
+                    });
+
+                    audio.addEventListener('ended', () => {
+                        if (!this._autoReading || this._autoReadAudio !== audio) return;
+                        playChunk(chunkIdx + 1).catch((e) => debugLog('TTS chunk playback failed:', e.message));
+                    }, { once: true });
+
+                    await audio.play();
+                };
+
+                await playChunk(0);
                 return; // Success — AI TTS is running
             } catch (err) {
                 debugLog('AI TTS failed, falling back to browser TTS:', err.message);
@@ -1061,24 +1092,6 @@ class SuiteRhythm {
         return chunks;
     }
 
-    _buildWordTimings(wordIndices, duration) {
-        // Estimate each word's time based on its character position in the text
-        const totalChars = this.storyTokens.slice(this.storyIndex).join('').length;
-        if (totalChars === 0) return [];
-
-        const timings = [];
-        for (const idx of wordIndices) {
-            // Count chars from storyIndex to this word's position
-            let charPos = 0;
-            for (let t = this.storyIndex; t < idx; t++) {
-                charPos += (this.storyTokens[t] || '').length;
-            }
-            const time = (charPos / totalChars) * duration;
-            timings.push({ storyIdx: idx, time });
-        }
-        return timings;
-    }
-
     _cleanupAutoReadAudio() {
         if (this._autoReadAudio) {
             this._autoReadAudio.pause();
@@ -1088,6 +1101,12 @@ class SuiteRhythm {
         if (this._autoReadAudioUrl) {
             URL.revokeObjectURL(this._autoReadAudioUrl);
             this._autoReadAudioUrl = null;
+        }
+        if (Array.isArray(this._autoReadAudioUrls)) {
+            for (const u of this._autoReadAudioUrls) {
+                try { URL.revokeObjectURL(u); } catch (_) {}
+            }
+            this._autoReadAudioUrls = null;
         }
     }
 
@@ -1935,7 +1954,7 @@ class SuiteRhythm {
                 snd.gainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + fadeMs / 1000);
                 setTimeout(() => {
                     try { snd.source && snd.source.stop(); } catch(_){}
-                    this.activeSounds.delete(entry.id);
+                    this._releaseSoundSlot(entry.id);
                     this._activeStorySfx.delete(entry.id);
                 }, fadeMs + 50);
             } else if (snd._howl) {
@@ -1943,12 +1962,12 @@ class SuiteRhythm {
                 snd._howl.fade(snd._howl.volume(), 0, fadeMs);
                 setTimeout(() => {
                     try { snd._howl.stop(); snd._howl.unload(); } catch(_){}
-                    this.activeSounds.delete(entry.id);
+                    this._releaseSoundSlot(entry.id);
                     this._activeStorySfx.delete(entry.id);
                 }, fadeMs + 50);
             }
         } catch(_) {
-            this.activeSounds.delete(entry.id);
+            this._releaseSoundSlot(entry.id);
             this._activeStorySfx.delete(entry.id);
         }
     }
@@ -1958,13 +1977,17 @@ class SuiteRhythm {
     _fadeOutStaleStorySfx(newCategory) {
         if (!this._activeStorySfx) return;
         const ambientCategories = new Set(['weather', 'atmosphere', 'fire', 'water']);
-        const newIsAmbient = ambientCategories.has(newCategory);
+        const now = Date.now();
         for (const [id, entry] of this._activeStorySfx) {
             if (entry._fadingOut) continue;
             if (entry.category === newCategory) continue; // same category, keep
             const entryIsAmbient = ambientCategories.has(entry.category);
             // Ambient categories coexist — don't fade ambient sounds unless a non-ambient takes over
             if (entryIsAmbient) continue;
+            // Cues fired moments ago haven't been heard yet. During auto read the story
+            // crosses categories every few words, which used to silence one-shots
+            // like arrows and shouts before they made a sound.
+            if (now - (entry.startedAt || 0) < 1500) continue;
             // Non-ambient sounds get faded when category changes
             this._fadeOutStorySfx(entry);
         }
@@ -2088,11 +2111,11 @@ class SuiteRhythm {
         try {
             if (snd._howl) {
                 snd._howl.fade(snd._howl.volume(), 0, fadeMs);
-                setTimeout(() => { try { snd._howl.stop(); snd._howl.unload(); } catch(_){} this.activeSounds.delete(layer.id); }, fadeMs + 50);
+                setTimeout(() => { try { snd._howl.stop(); snd._howl.unload(); } catch(_){} this._releaseSoundSlot(layer.id); }, fadeMs + 50);
             } else if (snd.gainNode) {
                 snd.gainNode.gain.setValueAtTime(snd.gainNode.gain.value, this.audioContext.currentTime);
                 snd.gainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + fadeMs / 1000);
-                setTimeout(() => { try { snd.source?.stop(); } catch(_){} this.activeSounds.delete(layer.id); }, fadeMs + 50);
+                setTimeout(() => { try { snd.source?.stop(); } catch(_){} this._releaseSoundSlot(layer.id); }, fadeMs + 50);
             }
         } catch (_) {}
         debugLog(`Scene bed layer faded: ${category}`);
@@ -2455,7 +2478,7 @@ class SuiteRhythm {
             this.activeSounds.forEach((snd, id) => {
                 if (snd.name === 'beat-silence') {
                     try {
-                        if (snd._howl) { snd._howl.fade(snd._howl.volume(), 0, 300); setTimeout(() => { try { snd._howl.stop(); snd._howl.unload(); } catch(_){} this.activeSounds.delete(id); }, 350); }
+                        if (snd._howl) { snd._howl.fade(snd._howl.volume(), 0, 300); setTimeout(() => { try { snd._howl.stop(); snd._howl.unload(); } catch(_){} this._releaseSoundSlot(id); }, 350); }
                     } catch (_) {}
                 }
             });
@@ -2652,7 +2675,7 @@ class SuiteRhythm {
                     const timer = maxDur
                         ? setTimeout(() => this._fadeOutStorySfx(this._activeStorySfx.get(id)), maxDur)
                         : null;
-                    this._activeStorySfx.set(id, { id, category, timer, _fadingOut: false });
+                    this._activeStorySfx.set(id, { id, category, timer, startedAt: Date.now(), _fadingOut: false });
                 }
                 return;
             }
@@ -2672,7 +2695,7 @@ class SuiteRhythm {
                     const timer = maxDur
                         ? setTimeout(() => this._fadeOutStorySfx(this._activeStorySfx.get(id)), maxDur)
                         : null;
-                    this._activeStorySfx.set(id, { id, category, timer, _fadingOut: false });
+                    this._activeStorySfx.set(id, { id, category, timer, startedAt: Date.now(), _fadingOut: false });
                 }
             };
             searchAndPlay().catch(e => debugLog('Story SFX trigger failed:', e.message));
@@ -3571,7 +3594,7 @@ class SuiteRhythm {
                     this.activeSounds.forEach((soundObj) => {
                         try { if (soundObj.source) soundObj.source.stop(); } catch (err) {}
                     });
-                    this.activeSounds.clear();
+                    this._clearActiveSounds();
                     this.updateSoundsList();
                 }
             });
@@ -4607,6 +4630,28 @@ class SuiteRhythm {
     }
 
     /**
+     * Drop an active sound and hand its priority-budget slot back. Every manual
+     * stop path must go through here; only natural `onend` releases the slot
+     * otherwise, so faded or force-stopped cues used to leak their slot forever.
+     */
+    _releaseSoundSlot(id) {
+        if (id == null) return;
+        const snd = this.activeSounds.get(id);
+        if (snd && snd.budgetToken != null) {
+            try { this.priorityBudget?.remove(snd.budgetToken); } catch (_) {}
+        }
+        this._removeFromCueTimeline(id);
+        this.activeSounds.delete(id);
+    }
+
+    /** Clear every active sound and reset the priority budget together. */
+    _clearActiveSounds() {
+        this.activeSounds.clear();
+        this._cueTimeline = [];
+        try { this.priorityBudget?.clear(); } catch (_) {}
+    }
+
+    /**
      * Build a cheap synthetic impulse response for the reverb send bus.
      * duration = seconds of tail, decay = exponential decay rate.
      * Good defaults per scene type:
@@ -5468,27 +5513,28 @@ class SuiteRhythm {
                 
                 // Track as active sound
                 const id = 'instant_' + Date.now();
+                // Looping cues never fire onended, so they must not sit in the one-shot pool.
+                const budgetCat = loop ? 'ambient' : 'sfx';
                 let budgetToken = null;
                 if (this.priorityBudget) {
-                    try { budgetToken = this.priorityBudget.add('sfx', id); } catch (_) {}
+                    try { budgetToken = this.priorityBudget.add(budgetCat, id); } catch (_) {}
                 }
                 try {
                     const durMs = buffer?.duration ? Math.round(buffer.duration * 1000) : 1500;
-                    this._cueTimeline.push({ id, category: 'sfx', startedAt: Date.now(), durationMs: durMs, token: budgetToken });
+                    this._cueTimeline.push({ id, category: budgetCat, startedAt: Date.now(), durationMs: durMs, token: budgetToken });
                     if (this._cueTimeline.length > 64) this._cueTimeline.splice(0, this._cueTimeline.length - 64);
                 } catch (_) {}
                 this.activeSounds.set(id, {
                     type: 'sfx',
                     source,
                     gainNode,
+                    budgetToken,
                     startTime: Date.now()
                 });
                 
                 // Clean up on end (only fires for non-looping sources)
                 source.onended = () => {
-                    this.activeSounds.delete(id);
-                    if (budgetToken != null) this.priorityBudget?.remove(budgetToken);
-                    this._removeFromCueTimeline(id);
+                    this._releaseSoundSlot(id);
                     try { source.disconnect(); } catch {}
                     try { gainNode.disconnect(); } catch {}
                     if (panner) { try { panner.disconnect(); } catch {} }
@@ -5689,7 +5735,7 @@ class SuiteRhythm {
                 }
             } catch (_) {}
         });
-        this.activeSounds.clear();
+        this._clearActiveSounds();
 
 
 
@@ -5843,7 +5889,7 @@ class SuiteRhythm {
                             soundObj._howl.fade(soundObj._howl.volume(), 0, 300);
                             setTimeout(() => {
                                 try { soundObj._howl.stop(); soundObj._howl.unload(); } catch(_) {}
-                                this.activeSounds.delete(id);
+                                this._releaseSoundSlot(id);
                             }, 350);
                         }
                     } catch(_) {}
@@ -7031,7 +7077,11 @@ class SuiteRhythm {
 
         // Priority budget: enforce per-category caps. For stingers we ask the
         // budget to evict the oldest ambient cue first so the hit can land.
-        const budgetCat = options.category === 'stinger' ? 'stinger' : 'sfx';
+        // Looping cues count as ambient — they never end on their own, so leaving
+        // them in the one-shot pool would permanently starve short SFX.
+        const budgetCat = options.category === 'stinger'
+            ? 'stinger'
+            : (options.loop ? 'ambient' : 'sfx');
         if (this.priorityBudget && !this.priorityBudget.canAdd(budgetCat)) {
             if (budgetCat === 'stinger') {
                 const victim = this.priorityBudget.oldestIn('ambient') || this.priorityBudget.oldestIn('sfx');
@@ -7091,9 +7141,8 @@ class SuiteRhythm {
                 onend: () => {
                     // Looping sounds should NOT be cleaned up on each loop iteration
                     if (howl.loop()) return;
-                    this.activeSounds.delete(id);
+                    this._releaseSoundSlot(id);
                     if (budgetToken != null) this.priorityBudget?.remove(budgetToken);
-                    this._removeFromCueTimeline(id);
                     this.updateSoundsList();
                     // Pool handles unloading on eviction. Keep the Howl loaded so a
                     // rapid second play reuses the decoded buffer.
@@ -7136,6 +7185,7 @@ class SuiteRhythm {
             name: options.name, 
             originalVolume: original, 
             type: 'sfx',
+            budgetToken,
             startTime: Date.now() // Track when SFX started for age-based cleanup
         });
         
@@ -7330,7 +7380,7 @@ class SuiteRhythm {
         this.activeSounds.forEach((soundObj, id) => {
             try { if (soundObj._howl) { soundObj._howl.stop(); soundObj._howl.unload(); } } catch(_){}
         });
-        this.activeSounds.clear();
+        this._clearActiveSounds();
         this.updateSoundsList();
     }
     
@@ -8179,7 +8229,7 @@ class SuiteRhythm {
                     console.warn('Error stopping sound:', e);
             }
         });
-        this.activeSounds.clear();
+        this._clearActiveSounds();
         
         // Update UI
         const startBtnEl = document.getElementById('startBtn');
@@ -8688,7 +8738,7 @@ class SuiteRhythm {
                         if (snd.type === 'sfx') {
                             try { if (snd._howl) { snd._howl.stop(); snd._howl.unload(); } } catch(_){}
                             try { if (snd.source) snd.source.stop(); } catch(_){}
-                            this.activeSounds.delete(id);
+                            this._releaseSoundSlot(id);
                         }
                     });
                     this.updateSoundsList();
